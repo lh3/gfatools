@@ -2,7 +2,7 @@ CC=			gcc
 CFLAGS=		-g -Wall -Wc++-compat -O2
 CPPFLAGS=
 INCLUDES=	-I.
-OBJS=		gfa-io.o gfa-asm.o gfa-util.o
+OBJS=		gfa-base.o gfa-io.o gfa-asm.o gfa-util.o
 PROG=		gfaview
 LIBS=		-lz
 

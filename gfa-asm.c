@@ -370,12 +370,6 @@ int gfa_pop_bubble(gfa_t *g, int max_dist)
 #include "kdq.h"
 KDQ_INIT(uint64_t)
 
-void gfa_arc_sort(gfa_t *g);
-void gfa_arc_index(gfa_t *g);
-uint32_t gfa_fix_semi_arc(gfa_t *g);
-void gfa_fix_arc_len(gfa_t *g);
-uint64_t gfa_add_arc1(gfa_t *g, uint32_t v, uint32_t w, int32_t ov, int32_t ow, int64_t link_id, int comp);
-
 #define arc_cnt(g, v) ((uint32_t)(g)->idx[(v)])
 #define arc_first(g, v) ((g)->arc[(g)->idx[(v)]>>32])
 
@@ -474,10 +468,6 @@ add_unitig:
 		}
 	}
 	free(mark);
-	gfa_arc_sort(ug);
-	gfa_arc_index(ug);
-	gfa_fix_semi_arc(ug);
-	gfa_fix_arc_len(ug);
-	gfa_cleanup(ug);
+	gfa_finalize(ug);
 	return ug;
 }

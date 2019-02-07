@@ -4,7 +4,7 @@
 #include <stdio.h>
 #include <stdint.h>
 
-#define GFA_VERSION "r1"
+#define GFA_VERSION "r2"
 
 /*
   A segment is a sequence. A vertex is one side of a segment. In the code,
@@ -84,14 +84,16 @@ extern "C" {
 
 gfa_t *gfa_init(void);
 int32_t gfa_add_seg(gfa_t *g, const char *name);
+int32_t gfa_name2id(const gfa_t *g, const char *name);
+uint64_t gfa_add_arc1(gfa_t *g, uint32_t v, uint32_t w, int32_t ov, int32_t ow, int64_t link_id, int comp);
+void gfa_cleanup(gfa_t *g); // permanently delete arcs marked as deleted, sort and then index
+void gfa_finalize(gfa_t *g);
 void gfa_destroy(gfa_t *g);
 
 gfa_t *gfa_read(const char *fn);
-
 void gfa_print(const gfa_t *g, FILE *fp, int M_only);
 
 void gfa_symm(gfa_t *g); // delete multiple edges and restore skew-symmetry
-void gfa_cleanup(gfa_t *g); // permanently delete arcs marked as deleted, sort and then index
 int gfa_arc_del_trans(gfa_t *g, int fuzz); // transitive reduction
 int gfa_arc_del_short(gfa_t *g, float drop_ratio); // delete short arcs
 int gfa_cut_tip(gfa_t *g, int max_ext); // cut tips
@@ -101,8 +103,8 @@ int gfa_pop_bubble(gfa_t *g, int max_dist); // bubble popping
 gfa_t *gfa_ug_gen(const gfa_t *g);
 
 uint8_t *gfa_aux_get(int l_data, const uint8_t *data, const char tag[2]);
+int gfa_aux_del(int l_data, uint8_t *data, uint8_t *s);
 
-int32_t gfa_name2id(const gfa_t *g, const char *name);
 void gfa_sub(gfa_t *g, int n, char *const* seg, int step);
 
 #ifdef __cplusplus
