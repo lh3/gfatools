@@ -17,6 +17,7 @@ gfa_t *gfa_init(void)
 	gfa_t *g;
 	g = (gfa_t*)calloc(1, sizeof(gfa_t));
 	g->h_names = kh_init(seg);
+	g->h_pnames = kh_init(seg);
 	return g;
 }
 
@@ -29,15 +30,21 @@ void gfa_destroy(gfa_t *g)
 	for (i = 0; i < g->n_seg; ++i) {
 		gfa_seg_t *s = &g->seg[i];
 		free(s->name);
+		free(s->seq);
 		free(s->aux.aux);
-		for (j = 0; j < s->utg.n; ++j)
-			free(s->utg.name[j]);
-		free(s->utg.name);
-		free(s->utg.a);
+		if (s->utg) {
+			for (j = 0; j < s->utg->n; ++j)
+				free(s->utg->name[j]);
+			free(s->utg->name);
+			free(s->utg->a);
+			free(s->utg);
+		}
 	}
+	for (i = 0; i < g->n_pname; ++i) free(g->pname[i]);
+	kh_destroy(seg, (seghash_t*)g->h_pnames);
 	for (k = 0; k < g->n_arc; ++k)
 		free(g->arc_aux[k].aux);
-	free(g->idx); free(g->seg); free(g->arc); free(g->arc_aux);
+	free(g->idx); free(g->seg); free(g->arc); free(g->arc_aux); free(g->pname);
 	free(g);
 }
 
@@ -58,7 +65,25 @@ int32_t gfa_add_seg(gfa_t *g, const char *name)
 		s = &g->seg[g->n_seg++];
 		kh_key(h, k) = s->name = strdup(name);
 		s->del = s->len = 0;
+		s->pnid = s->ppos = s->rank = -1;
 		kh_val(h, k) = g->n_seg - 1;
+	}
+	return kh_val(h, k);
+}
+
+int32_t gfa_add_pname(gfa_t *g, const char *pname)
+{
+	khash_t(seg) *h = (khash_t(seg)*)g->h_pnames;
+	khint_t k;
+	int absent;
+	k = kh_put(seg, h, pname, &absent);
+	if (absent) {
+		if (g->n_pname == g->m_pname) {
+			g->m_pname = g->m_pname? g->m_pname<<1 : 16;
+			g->pname = (char**)realloc(g->pname, g->m_pname * sizeof(char*));
+		}
+		kh_val(h, k) = g->n_pname;
+		kh_key(h, k) = g->pname[g->n_pname++] = strdup(pname);
 	}
 	return kh_val(h, k);
 }
@@ -94,6 +119,7 @@ uint64_t gfa_add_arc1(gfa_t *g, uint32_t v, uint32_t w, int32_t ov, int32_t ow, 
 void gfa_arc_sort(gfa_t *g)
 {
 	radix_sort_arc(g->arc, g->arc + g->n_arc);
+	// g->is_srt = 1; // FIXME: having this line will lead to errors elsewhere. INVESTIGATE!!!
 }
 
 uint64_t *gfa_arc_index_core(size_t max_seq, size_t n, const gfa_arc_t *a)
@@ -297,3 +323,26 @@ int gfa_aux_del(int l_data, uint8_t *data, uint8_t *s)
 	memmove(p, s, l_data - (s - data));
 	return l_data - (s - p);
 }
+
+/*********************
+ * Translation table *
+ *********************/
+
+unsigned char gfa_comp_table[256] = {
+	  0,   1,	2,	 3,	  4,   5,	6,	 7,	  8,   9,  10,	11,	 12,  13,  14,	15,
+	 16,  17,  18,	19,	 20,  21,  22,	23,	 24,  25,  26,	27,	 28,  29,  30,	31,
+	 32,  33,  34,	35,	 36,  37,  38,	39,	 40,  41,  42,	43,	 44,  45,  46,	47,
+	 48,  49,  50,	51,	 52,  53,  54,	55,	 56,  57,  58,	59,	 60,  61,  62,	63,
+	 64, 'T', 'V', 'G', 'H', 'E', 'F', 'C', 'D', 'I', 'J', 'M', 'L', 'K', 'N', 'O',
+	'P', 'Q', 'Y', 'S', 'A', 'A', 'B', 'W', 'X', 'R', 'Z',	91,	 92,  93,  94,	95,
+	 96, 't', 'v', 'g', 'h', 'e', 'f', 'c', 'd', 'i', 'j', 'm', 'l', 'k', 'n', 'o',
+	'p', 'q', 'y', 's', 'a', 'a', 'b', 'w', 'x', 'r', 'z', 123, 124, 125, 126, 127,
+	128, 129, 130, 131, 132, 133, 134, 135, 136, 137, 138, 139, 140, 141, 142, 143,
+	144, 145, 146, 147, 148, 149, 150, 151, 152, 153, 154, 155, 156, 157, 158, 159,
+	160, 161, 162, 163, 164, 165, 166, 167, 168, 169, 170, 171, 172, 173, 174, 175,
+	176, 177, 178, 179, 180, 181, 182, 183, 184, 185, 186, 187, 188, 189, 190, 191,
+	192, 193, 194, 195, 196, 197, 198, 199, 200, 201, 202, 203, 204, 205, 206, 207,
+	208, 209, 210, 211, 212, 213, 214, 215, 216, 217, 218, 219, 220, 221, 222, 223,
+	224, 225, 226, 227, 228, 229, 230, 231, 232, 233, 234, 235, 236, 237, 238, 239,
+	240, 241, 242, 243, 244, 245, 246, 247, 248, 249, 250, 251, 252, 253, 254, 255
+};

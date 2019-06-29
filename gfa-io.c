@@ -128,20 +128,46 @@ int gfa_parse_S(gfa_t *g, char *s)
 		}
 	}
 	if (is_ok) { // all mandatory fields read
-		int l_aux, m_aux = 0;
-		uint8_t *aux = 0;
+		int l_aux, m_aux = 0, LN = -1;
+		uint8_t *aux = 0, *s_LN = 0;
 		gfa_seg_t *s;
 		l_aux = gfa_aux_parse(rest, &aux, &m_aux); // parse optional tags
+		s_LN = l_aux? gfa_aux_get(l_aux, aux, "LN") : 0;
+		if (s_LN && s_LN[0] == 'i') {
+			LN = *(int32_t*)(s_LN + 1);
+			l_aux = gfa_aux_del(l_aux, aux, s_LN);
+		}
 		if (seq == 0) {
-			uint8_t *s;
-			s = gfa_aux_get(l_aux, aux, "LN");
-			if (s && s[0] == 'i')
-				len = *(int32_t*)(s+1);
+			if (LN >= 0) len = LN;
 		} else len = strlen(seq);
+		if (LN >= 0 && len != LN && gfa_verbose >= 2)
+			fprintf(stderr, "[W] LN:i:%d tag is different from sequence length %d\n", LN, len);
 		sid = gfa_add_seg(g, seg);
 		s = &g->seg[sid];
 		s->len = len, s->seq = seq;
-		s->aux.m_aux = m_aux, s->aux.l_aux = l_aux, s->aux.aux = aux;
+		if (l_aux > 0) {
+			uint8_t *s_SN = 0, *s_SS = 0, *s_SR = 0;
+			s_SN = gfa_aux_get(l_aux, aux, "SN");
+			if (s_SN && *s_SN == 'Z') { // then parse stable tags
+				s->pnid = gfa_add_pname(g, (char*)(s_SN + 1)), s->ppos = 0;
+				l_aux = gfa_aux_del(l_aux, aux, s_SN);
+				s_SS = gfa_aux_get(l_aux, aux, "SS");
+				if (s_SS && *s_SS == 'i') {
+					s->ppos = *(int32_t*)(s_SS + 1);
+					l_aux = gfa_aux_del(l_aux, aux, s_SS);
+				}
+			}
+			s_SR = gfa_aux_get(l_aux, aux, "SR");
+			if (s_SR && *s_SR == 'i') {
+				s->rank = *(int32_t*)(s_SR + 1);
+				if (s->rank > g->max_rank) g->max_rank = s->rank;
+				l_aux = gfa_aux_del(l_aux, aux, s_SR);
+			}
+		}
+		if (l_aux > 0)
+			s->aux.m_aux = m_aux, s->aux.l_aux = l_aux, s->aux.aux = aux;
+		else if (aux)
+			free(aux);
 	} else return -1;
 	return 0;
 }
@@ -269,20 +295,23 @@ void gfa_print(const gfa_t *g, FILE *fp, int M_only)
 		fprintf(fp, "S\t%s\t", s->name);
 		if (s->seq) fputs(s->seq, fp);
 		else fputc('*', fp);
-		if (s->aux.l_aux == 0 || !gfa_aux_get(s->aux.l_aux, s->aux.aux, "LN"))
-			fprintf(fp, "\tLN:i:%d", s->len);
+		fprintf(fp, "\tLN:i:%d", s->len);
+		if (s->pnid >= 0 && s->ppos >= 0)
+			fprintf(fp, "\tSN:Z:%s\tSS:i:%d", g->pname[s->pnid], s->ppos);
+		if (s->rank >= 0)
+			fprintf(fp, "\tSR:i:%d", s->rank);
 		if (s->aux.l_aux > 0) {
 			char *t = 0;
-			int max = 0, len;
-			len = gfa_aux_format(s->aux.l_aux, s->aux.aux, &t, &max);
+			int max = 0;
+			gfa_aux_format(s->aux.l_aux, s->aux.aux, &t, &max);
 			fputs(t, fp);
 			free(t);
 		}
 		fputc('\n', fp);
-		if (s->utg.n) {
+		if (s->utg && s->utg->n) {
 			uint32_t j, l;
-			for (j = l = 0; j < s->utg.n; ++j) {
-				const gfa_utg_t *u = &s->utg;
+			for (j = l = 0; j < s->utg->n; ++j) {
+				const gfa_utg_t *u = s->utg;
 				fprintf(fp, "a\t%s\t%d\t%s\t%c\t%d\n", s->name, l, u->name[j], "+-"[u->a[j]>>32&1], (uint32_t)u->a[j]);
 				l += (uint32_t)u->a[j];
 			}
@@ -303,8 +332,8 @@ void gfa_print(const gfa_t *g, FILE *fp, int M_only)
 		fprintf(fp, "\tL2:i:%d", a->lw);
 		if (aux->l_aux) {
 			char *t = 0;
-			int max = 0, len;
-			len = gfa_aux_format(aux->l_aux, aux->aux, &t, &max);
+			int max = 0;
+			gfa_aux_format(aux->l_aux, aux->aux, &t, &max);
 			if (t) fputs(t, fp);
 			free(t);
 		}

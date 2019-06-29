@@ -1,7 +1,7 @@
 #include <stdlib.h>
 #include <assert.h>
 #include <string.h>
-#include "gfa.h"
+#include "gfa-priv.h"
 #include "kvec.h"
 
 /**********************
@@ -435,15 +435,16 @@ add_unitig:
 		tmp = gfa_add_seg(ug, utg_name);
 		u = &ug->seg[tmp];
 		u->seq = 0, u->len = len;
-		u->utg.start = start, u->utg.end = end, u->utg.n = kdq_size(q), u->circ = (start == UINT32_MAX);
-		u->utg.m = u->utg.n;
-		kroundup32(u->utg.m);
-		u->utg.a = (uint64_t*)malloc(8 * u->utg.m);
-		u->utg.name = (char**)malloc(sizeof(char*) * u->utg.m);
-		u->utg.len2 = len_r;
+		GFA_MALLOC(u->utg, 1);
+		u->utg->start = start, u->utg->end = end, u->utg->n = kdq_size(q), u->circ = (start == UINT32_MAX);
+		u->utg->m = u->utg->n;
+		kroundup32(u->utg->m);
+		u->utg->a = (uint64_t*)malloc(8 * u->utg->m);
+		u->utg->name = (char**)malloc(sizeof(char*) * u->utg->m);
+		u->utg->len2 = len_r;
 		for (i = 0; i < kdq_size(q); ++i) {
-			u->utg.a[i] = kdq_at(q, i);
-			u->utg.name[i] = strdup(g->seg[u->utg.a[i]>>33].name);
+			u->utg->a[i] = kdq_at(q, i);
+			u->utg->name[i] = strdup(g->seg[u->utg->a[i]>>33].name);
 		}
 	}
 	kdq_destroy(uint64_t, q);
@@ -452,8 +453,8 @@ add_unitig:
 	for (v = 0; v < n_vtx; ++v) mark[v] = -1;
 	for (i = 0; i < ug->n_seg; ++i) {
 		if (ug->seg[i].circ) continue;
-		mark[ug->seg[i].utg.start] = i<<1 | 0;
-		mark[ug->seg[i].utg.end] = i<<1 | 1;
+		mark[ug->seg[i].utg->start] = i<<1 | 0;
+		mark[ug->seg[i].utg->end] = i<<1 | 1;
 	}
 	for (i = 0; i < g->n_arc; ++i) {
 		gfa_arc_t *p = &g->arc[i];
