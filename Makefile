@@ -2,8 +2,8 @@ CC=			gcc
 CFLAGS=		-g -Wall -Wc++-compat -O2
 CPPFLAGS=
 INCLUDES=	-I.
-OBJS=		gfa-base.o gfa-io.o gfa-asm.o gfa-util.o
-PROG=		gfaview
+OBJS=		kalloc.o gfa-base.o gfa-io.o gfa-aug.o gfa-sub.o gfa-asm.o gfa-util.o
+PROG=		gfatools
 LIBS=		-lz
 
 .SUFFIXES:.c .o
@@ -14,7 +14,7 @@ LIBS=		-lz
 
 all:$(PROG)
 
-gfaview:$(OBJS) gfaview.o
+gfatools:$(OBJS) main.o
 		$(CC) $(CFLAGS) $^ -o $@ $(LIBS)
 
 gfa-chk:gfa-chk.l
