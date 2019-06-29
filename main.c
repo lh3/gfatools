@@ -56,78 +56,101 @@ char **gv_read_list(const char *o, int *n_)
 
 int main_view(int argc, char *argv[])
 {
-	int c;
-	gfa_t *g;
+	const char *tr_opts = "v:s:r:d:";
 	ketopt_t o = KETOPT_INIT;
-	while ((c = ketopt(&o, argc, argv, 1, "v:", 0)) >= 0) {
-		if (c == 'v') gfa_verbose = atoi(optarg);
-	}
+	int c, M_only = 1, sub_step = 0;
+	gfa_t *g;
+
+	while ((c = ketopt(&o, argc, argv, 1, tr_opts, 0)) >= 0);
 	if (o.ind == argc) {
-		fprintf(stderr, "Usage: gfatools view [-v verbose] <in.gfa>\n");
+		fprintf(stderr, "Usage: gfatools view [options] <in.gfa>\n");
+		fprintf(stderr, "Options:\n");
+		fprintf(stderr, "  -v INT      verbose level [%d]\n", gfa_verbose);
+		fprintf(stderr, "  -s EXPR     list of segment names to extract []\n");
+		fprintf(stderr, "  -r INT      include neighbors in a radius [%d]\n", sub_step);
+		fprintf(stderr, "  -d EXPR     list of segment names to delete []\n");
 		return 1;
 	}
-	g = gfa_read(argv[optind]);
+
+	g = gfa_read(argv[o.ind]);
 	if (g == 0) {
 		fprintf(stderr, "ERROR: failed to read the graph\n");
 		return 2;
 	}
-	gfa_print(g, stdout, 1);
+
+	o = KETOPT_INIT;
+	while ((c = ketopt(&o, argc, argv, 1, tr_opts, 0)) >= 0) {
+		if (c == 'v') gfa_verbose = atoi(o.arg);
+		else if (c == 'r') sub_step = atoi(o.arg);
+		else if (c == 's') {
+			int i, n;
+			char **s;
+			s = gv_read_list(o.arg, &n);
+			gfa_sub(g, n, s, sub_step);
+			for (i = 0; i < n; ++i) free(s[i]);
+			free(s);
+		} else if (c == 'd') {
+			int i, n;
+			char **s;
+			s = gv_read_list(o.arg, &n);
+			for (i = 0; i < n; ++i) {
+				int32_t seg;
+				seg = gfa_name2id(g, s[i]);
+				if (seg >= 0) gfa_seg_del(g, seg);
+				free(s[i]);
+			}
+			free(s);
+		}
+	}
+
+	gfa_print(g, stdout, M_only);
 	gfa_destroy(g);
 	return 0;
 }
 
 int main_asm(int argc, char *argv[])
 {
-	const char *tr_opts = "v:R:T:B:O:rtbom1s:S:d:u";
-	int c;
-	int gap_fuzz = 1000, max_ext = 4, bub_dist = 50000, M_only = 0, sub_step = 0;
+	const char *tr_opts = "v:R:T:B:O:rtbomu";
+	ketopt_t o = KETOPT_INIT;
+	int c, gap_fuzz = 1000, max_ext = 4, bub_dist = 50000, M_only = 1;
 	float ovlp_drop_ratio = .7f;
 	gfa_t *g;
 
-	while ((c = getopt(argc, argv, tr_opts)) >= 0);
-	if (optind == argc) {
-		fprintf(stderr, "Usage: gfaview [options] <in.gfa>\n");
+	while ((c = ketopt(&o, argc, argv, 1, tr_opts, 0)) >= 0);
+	if (o.ind == argc) {
+		fprintf(stderr, "Usage: gfatools asm [options] <in.gfa>\n");
 		fprintf(stderr, "Options:\n");
-		fprintf(stderr, "  General:\n");
-		fprintf(stderr, "    -v INT      verbose level [%d]\n", gfa_verbose);
-		fprintf(stderr, "    -1          only output CIGAR-M operators (for compatibility)\n");
-		fprintf(stderr, "    -u          generate unitig graph (unambiguous merge)\n");
-		fprintf(stderr, "  Subgraph:\n");
-		fprintf(stderr, "    -s EXPR     list of segment names to extract []\n");
-		fprintf(stderr, "    -S INT      include neighbors in a radius [%d]\n", sub_step);
-		fprintf(stderr, "    -d EXPR     list of segment names to delete []\n");
-		fprintf(stderr, "  Graph simplification:\n");
-		fprintf(stderr, "    -r          transitive reduction\n");
-		fprintf(stderr, "    -R INT      fuzzy length for -r [%d]\n", gap_fuzz);
-		fprintf(stderr, "    -t          trim tips\n");
-		fprintf(stderr, "    -T INT      tip length for -t [%d]\n", max_ext);
-		fprintf(stderr, "    -b          pop bubbles\n");
-		fprintf(stderr, "    -B INT      max bubble dist for -b [%d]\n", bub_dist);
-		fprintf(stderr, "    -o          drop shorter overlaps\n");
-		fprintf(stderr, "    -O FLOAT    dropped/longest<FLOAT, for -o [%g]\n", ovlp_drop_ratio);
-		fprintf(stderr, "    -m          misc trimming\n");
+		fprintf(stderr, "  -v INT      verbose level [%d]\n", gfa_verbose);
+		fprintf(stderr, "  -u          generate unitig graph (unambiguous merge)\n");
+		fprintf(stderr, "  -r          transitive reduction\n");
+		fprintf(stderr, "  -R INT      fuzzy length for -r [%d]\n", gap_fuzz);
+		fprintf(stderr, "  -t          trim tips\n");
+		fprintf(stderr, "  -T INT      tip length for -t [%d]\n", max_ext);
+		fprintf(stderr, "  -b          pop bubbles\n");
+		fprintf(stderr, "  -B INT      max bubble dist for -b [%d]\n", bub_dist);
+		fprintf(stderr, "  -o          drop shorter overlaps\n");
+		fprintf(stderr, "  -O FLOAT    dropped/longest<FLOAT, for -o [%g]\n", ovlp_drop_ratio);
+		fprintf(stderr, "  -m          misc trimming\n");
 		fprintf(stderr, "Note: the order of options matters; one option may be applied >1 times.\n");
 		return 1;
 	}
 
-	g = gfa_read(argv[optind]);
+	g = gfa_read(argv[o.ind]);
 	if (g == 0) {
 		fprintf(stderr, "ERROR: failed to read the graph\n");
 		return 2;
 	}
-	
-	optind = 1;
-	while ((c = getopt(argc, argv, tr_opts)) >= 0) {
-		if (c == 'v') gfa_verbose = atoi(optarg);
-		else if (c == '1') M_only = 1;
-		else if (c == 'R') gap_fuzz = atoi(optarg);
+
+	o = KETOPT_INIT;
+	while ((c = ketopt(&o, argc, argv, 1, tr_opts, 0)) >= 0) {
+		if (c == 'v') gfa_verbose = atoi(o.arg);
+		else if (c == 'R') gap_fuzz = atoi(o.arg);
 		else if (c == 'r') gfa_arc_del_trans(g, gap_fuzz);
-		else if (c == 'T') max_ext = atoi(optarg);
+		else if (c == 'T') max_ext = atoi(o.arg);
 		else if (c == 't') gfa_cut_tip(g, max_ext);
-		else if (c == 'B') bub_dist = atoi(optarg);
+		else if (c == 'B') bub_dist = atoi(o.arg);
 		else if (c == 'b') gfa_pop_bubble(g, bub_dist);
-		else if (c == 'O') ovlp_drop_ratio = atof(optarg);
-		else if (c == 'S') sub_step = atoi(optarg);
+		else if (c == 'O') ovlp_drop_ratio = atof(o.arg);
 		else if (c == 'o') {
 			if (gfa_arc_del_short(g, ovlp_drop_ratio) != 0) {
 				gfa_cut_tip(g, max_ext);
@@ -138,24 +161,6 @@ int main_asm(int argc, char *argv[])
 			gfa_cut_biloop(g, max_ext);
 			gfa_cut_tip(g, max_ext);
 			gfa_pop_bubble(g, bub_dist);
-		} else if (c == 's') {
-			int i, n;
-			char **s;
-			s = gv_read_list(optarg, &n);
-			gfa_sub(g, n, s, sub_step);
-			for (i = 0; i < n; ++i) free(s[i]);
-			free(s);
-		} else if (c == 'd') {
-			int i, n;
-			char **s;
-			s = gv_read_list(optarg, &n);
-			for (i = 0; i < n; ++i) {
-				int32_t seg;
-				seg = gfa_name2id(g, s[i]);
-				if (seg >= 0) gfa_seg_del(g, seg);
-				free(s[i]);
-			}
-			free(s);
 		} else if (c == 'u') {
 			gfa_t *ug;
 			ug = gfa_ug_gen(g);
@@ -180,11 +185,13 @@ int main(int argc, char *argv[])
 		fprintf(stderr, "Usage: gfatools <command> <arguments>\n");
 		fprintf(stderr, "Commands:\n");
 		fprintf(stderr, "  view      read a GFA file\n");
+		fprintf(stderr, "  asm       assembly routines (EXPERIMENTAL)\n");
 		return 1;
 	}
 
 	t_start = realtime();
 	if (strcmp(argv[1], "view") == 0) ret = main_view(argc-1, argv+1);
+	else if (strcmp(argv[1], "asm") == 0) ret = main_asm(argc-1, argv+1);
 	else {
 		fprintf(stderr, "[E::%s] unknown command\n", __func__);
 		return 1;
