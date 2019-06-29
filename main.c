@@ -185,14 +185,18 @@ int main(int argc, char *argv[])
 		fprintf(stderr, "Usage: gfatools <command> <arguments>\n");
 		fprintf(stderr, "Commands:\n");
 		fprintf(stderr, "  view      read a GFA file\n");
-		fprintf(stderr, "  asm       assembly routines (EXPERIMENTAL)\n");
+		fprintf(stderr, "  asm       miniasm-like graph transformation (EXPERIMENTAL)\n");
+		fprintf(stderr, "  version   print version number\n");
 		return 1;
 	}
 
 	t_start = realtime();
 	if (strcmp(argv[1], "view") == 0) ret = main_view(argc-1, argv+1);
 	else if (strcmp(argv[1], "asm") == 0) ret = main_asm(argc-1, argv+1);
-	else {
+	else if (strcmp(argv[1], "version") == 0) {
+		puts(GFA_VERSION);
+		return 0;
+	} else {
 		fprintf(stderr, "[E::%s] unknown command\n", __func__);
 		return 1;
 	}
