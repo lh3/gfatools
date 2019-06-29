@@ -3,13 +3,12 @@
 #include <unistd.h>
 #include <stdio.h>
 #include <ctype.h>
+#include "ketopt.h"
 #include "gfa.h"
 
 #include <zlib.h>
 #include "kseq.h"
 KSTREAM_DECLARE(gzFile, gzread)
-
-const char *tr_opts = "v:R:T:B:O:rtbom1s:S:d:u";
 
 char **gv_read_list(const char *o, int *n_)
 {
@@ -55,8 +54,31 @@ char **gv_read_list(const char *o, int *n_)
 	return s;
 }
 
-int main(int argc, char *argv[])
+int main_view(int argc, char *argv[])
 {
+	int c;
+	gfa_t *g;
+	ketopt_t o = KETOPT_INIT;
+	while ((c = ketopt(&o, argc, argv, 1, "v:", 0)) >= 0) {
+		if (c == 'v') gfa_verbose = atoi(optarg);
+	}
+	if (o.ind == argc) {
+		fprintf(stderr, "Usage: gfatools view [-v verbose] <in.gfa>\n");
+		return 1;
+	}
+	g = gfa_read(argv[optind]);
+	if (g == 0) {
+		fprintf(stderr, "ERROR: failed to read the graph\n");
+		return 2;
+	}
+	gfa_print(g, stdout, 1);
+	gfa_destroy(g);
+	return 0;
+}
+
+int main_asm(int argc, char *argv[])
+{
+	const char *tr_opts = "v:R:T:B:O:rtbom1s:S:d:u";
 	int c;
 	int gap_fuzz = 1000, max_ext = 4, bub_dist = 50000, M_only = 0, sub_step = 0;
 	float ovlp_drop_ratio = .7f;
@@ -145,4 +167,34 @@ int main(int argc, char *argv[])
 	gfa_print(g, stdout, M_only);
 	gfa_destroy(g);
 	return 0;
+}
+
+int main(int argc, char *argv[])
+{
+	extern double realtime(void);
+	extern double cputime(void);
+	double t_start;
+	int ret = 0, i;
+
+	if (argc == 1) {
+		fprintf(stderr, "Usage: gfatools <command> <arguments>\n");
+		fprintf(stderr, "Commands:\n");
+		fprintf(stderr, "  view      read a GFA file\n");
+		return 1;
+	}
+
+	t_start = realtime();
+	if (strcmp(argv[1], "view") == 0) ret = main_view(argc-1, argv+1);
+	else {
+		fprintf(stderr, "[E::%s] unknown command\n", __func__);
+		return 1;
+	}
+	if (ret == 0) {
+		fprintf(stderr, "[M::%s] Version: %s\n", __func__, GFA_VERSION);
+		fprintf(stderr, "[M::%s] CMD:", __func__);
+		for (i = 0; i < argc; ++i)
+			fprintf(stderr, " %s", argv[i]);
+		fprintf(stderr, "\n[M::%s] Real time: %.3f sec; CPU: %.3f sec\n", __func__, realtime() - t_start, cputime());
+	}
+	return ret;
 }

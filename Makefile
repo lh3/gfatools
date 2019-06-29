@@ -14,7 +14,7 @@ LIBS=		-lz
 
 all:$(PROG)
 
-gfatools:$(OBJS) main.o
+gfatools:$(OBJS) main.o sys.o
 		$(CC) $(CFLAGS) $^ -o $@ $(LIBS)
 
 gfa-chk:gfa-chk.l
@@ -35,4 +35,4 @@ gfa-io.o: kstring.h gfa.h kseq.h
 gfa-sub.o: gfa.h kalloc.h kavl.h khash.h ksort.h
 gfa-util.o: gfa.h kvec.h
 kalloc.o: kalloc.h
-main.o: gfa.h kseq.h
+main.o: ketopt.h gfa.h kseq.h
