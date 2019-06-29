@@ -27,3 +27,12 @@ depend:
 		(LC_ALL=C; export LC_ALL; makedepend -Y -- $(CFLAGS) $(DFLAGS) -- *.c)
 
 # DO NOT DELETE
+
+gfa-asm.o: gfa-priv.h gfa.h kvec.h kdq.h
+gfa-aug.o: gfa-priv.h gfa.h ksort.h
+gfa-base.o: gfa.h khash.h kalloc.h ksort.h
+gfa-io.o: kstring.h gfa.h kseq.h
+gfa-sub.o: gfa.h kalloc.h kavl.h khash.h ksort.h
+gfa-util.o: gfa.h kvec.h
+kalloc.o: kalloc.h
+main.o: gfa.h kseq.h
