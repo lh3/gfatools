@@ -69,6 +69,7 @@ int main_view(int argc, char *argv[])
 		fprintf(stderr, "  -s EXPR     list of segment names to extract []\n");
 		fprintf(stderr, "  -r INT      include neighbors in a radius [%d]\n", sub_step);
 		fprintf(stderr, "  -d EXPR     list of segment names to delete []\n");
+		fprintf(stderr, "Note: the order of options matters; one option may be applied >1 times.\n");
 		return 1;
 	}
 
