@@ -1,4 +1,4 @@
-#include "gfa.h"
+#include "gfa-priv.h"
 #include "kvec.h"
 
 void gfa_arc_rm(gfa_t *g);

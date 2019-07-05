@@ -4,11 +4,11 @@
 #include <stdio.h>
 #include <ctype.h>
 #include "ketopt.h"
-#include "gfa.h"
+#include "gfa-priv.h"
 
 #include <zlib.h>
 #include "kseq.h"
-KSTREAM_DECLARE(gzFile, gzread)
+KSTREAM_INIT(gzFile, gzread, 65536)
 
 char **gv_read_list(const char *o, int *n_)
 {
@@ -130,8 +130,8 @@ int main_gfa2bed(int argc, char *argv[])
 	if (merged == 0) {
 		for (i = 0; i < g->n_seg; ++i) {
 			gfa_seg_t *s = &g->seg[i];
-			if (s->pnid >= 0 && s->ppos >= 0)
-				printf("%s\t%d\t%d\t%s\n", g->pseq[s->pnid].name, s->ppos, s->ppos + s->len, s->name);
+			if (s->snid >= 0 && s->soff >= 0)
+				printf("%s\t%d\t%d\t%s\n", g->sseq[s->snid].name, s->soff, s->soff + s->len, s->name);
 		}
 	}
 
