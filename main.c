@@ -56,54 +56,47 @@ char **gv_read_list(const char *o, int *n_)
 
 int main_view(int argc, char *argv[])
 {
-	const char *tr_opts = "v:s:r:d:";
 	ketopt_t o = KETOPT_INIT;
-	int c, M_only = 1, sub_step = 0;
+	int c, M_only = 1, step = 0, is_del = 0;
+	char *list_arg = 0;
 	gfa_t *g;
 
-	while ((c = ketopt(&o, argc, argv, 1, tr_opts, 0)) >= 0);
+	while ((c = ketopt(&o, argc, argv, 1, "v:dr:l:", 0)) >= 0) {
+		if (c == 'v') gfa_verbose = atoi(o.arg);
+		else if (c == 'd') is_del = 1;
+		else if (c == 'r') step = atoi(o.arg);
+		else if (c == 'l') list_arg = o.arg;
+	}
 	if (o.ind == argc) {
 		fprintf(stderr, "Usage: gfatools view [options] <in.gfa>\n");
 		fprintf(stderr, "Options:\n");
 		fprintf(stderr, "  -v INT      verbose level [%d]\n", gfa_verbose);
-//		fprintf(stderr, "  -s EXPR     list of segment names to extract []\n");
-//		fprintf(stderr, "  -r INT      include neighbors in a radius [%d]\n", sub_step);
-//		fprintf(stderr, "  -d EXPR     list of segment names to delete []\n");
-//		fprintf(stderr, "Note: the order of options matters; one option may be applied >1 times.\n");
+		fprintf(stderr, "  -l EXPR     segment list to subset []\n");
+		fprintf(stderr, "  -r INT      step [%d]\n", step);
+		fprintf(stderr, "  -d          delete the list of segments (-r ignored)\n");
 		return 1;
 	}
-
 	g = gfa_read(argv[o.ind]);
 	if (g == 0) {
 		fprintf(stderr, "ERROR: failed to read the graph\n");
 		return 2;
 	}
-
-	o = KETOPT_INIT;
-	while ((c = ketopt(&o, argc, argv, 1, tr_opts, 0)) >= 0) {
-		if (c == 'v') gfa_verbose = atoi(o.arg);
-		else if (c == 'r') sub_step = atoi(o.arg);
-		else if (c == 's') {
-			int i, n;
-			char **s;
-			s = gv_read_list(o.arg, &n);
-			gfa_sub(g, n, s, sub_step);
-			for (i = 0; i < n; ++i) free(s[i]);
-			free(s);
-		} else if (c == 'd') {
-			int i, n;
-			char **s;
-			s = gv_read_list(o.arg, &n);
+	if (list_arg) {
+		int i, n;
+		char **list;
+		list = gv_read_list(list_arg, &n);
+		if (!is_del) {
+			gfa_sub(g, n, list, step);
+		} else {
 			for (i = 0; i < n; ++i) {
 				int32_t seg;
-				seg = gfa_name2id(g, s[i]);
+				seg = gfa_name2id(g, list[i]);
 				if (seg >= 0) gfa_seg_del(g, seg);
-				free(s[i]);
 			}
-			free(s);
 		}
+		for (i = 0; i < n; ++i) free(list[i]);
+		free(list);
 	}
-
 	gfa_print(g, stdout, M_only);
 	gfa_destroy(g);
 	return 0;
@@ -121,7 +114,6 @@ int main_gfa2bed(int argc, char *argv[])
 		fprintf(stderr, "Usage: gfatools gfa2bed [-m] <in.gfa>\n");
 		return 1;
 	}
-
 	g = gfa_read(argv[o.ind]);
 	if (g == 0) {
 		fprintf(stderr, "ERROR: failed to read the graph\n");
@@ -134,7 +126,6 @@ int main_gfa2bed(int argc, char *argv[])
 				printf("%s\t%d\t%d\t%s\n", g->sseq[s->snid].name, s->soff, s->soff + s->len, s->name);
 		}
 	}
-
 	gfa_destroy(g);
 	return 0;
 }

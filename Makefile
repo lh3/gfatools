@@ -6,6 +6,11 @@ OBJS=		kalloc.o gfa-base.o gfa-io.o gfa-aug.o gfa-sub.o gfa-asm.o gfa-util.o
 PROG=		gfatools
 LIBS=		-lz
 
+ifneq ($(asan),)
+	CFLAGS+=-fsanitize=address
+	LIBS+=-fsanitize=address
+endif
+
 .SUFFIXES:.c .o
 .PHONY:all clean depend
 
