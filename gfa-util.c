@@ -1,8 +1,6 @@
 #include "gfa-priv.h"
 #include "kvec.h"
 
-void gfa_arc_rm(gfa_t *g);
-
 void gfa_sub(gfa_t *g, int n, char *const* seg, int step)
 {
 	int32_t i;

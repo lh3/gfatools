@@ -23,7 +23,7 @@ char **gv_read_list(const char *o, int *n_)
 					m = m? m<<1 : 16;
 					s = (char**)realloc(s, m * sizeof(char*));
 				}
-				s[n++] = strndup(q, p - q);
+				s[n++] = gfa_strndup(q, p - q);
 				if (*p == 0) break;
 				q = p + 1;
 			}
@@ -44,7 +44,7 @@ char **gv_read_list(const char *o, int *n_)
 				m = m? m<<1 : 16;
 				s = (char**)realloc(s, m * sizeof(char*));
 			}
-			s[n++] = strndup(str.s, p - str.s);
+			s[n++] = gfa_strndup(str.s, p - str.s);
 		}
 		ks_destroy(ks);
 		gzclose(fp);

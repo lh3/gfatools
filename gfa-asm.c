@@ -444,7 +444,7 @@ add_unitig:
 		u->utg->len2 = len_r;
 		for (i = 0; i < kdq_size(q); ++i) {
 			u->utg->a[i] = kdq_at(q, i);
-			u->utg->name[i] = strdup(g->seg[u->utg->a[i]>>33].name);
+			u->utg->name[i] = gfa_strdup(g->seg[u->utg->a[i]>>33].name);
 		}
 	}
 	kdq_destroy(uint64_t, q);
