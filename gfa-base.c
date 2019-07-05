@@ -1,6 +1,6 @@
 #include <stdlib.h>
 #include <ctype.h>
-#include "gfa.h"
+#include "gfa-priv.h"
 
 #include "khash.h"
 KHASH_MAP_INIT_STR(seg, uint32_t)
@@ -40,12 +40,22 @@ void gfa_destroy(gfa_t *g)
 			free(s->utg);
 		}
 	}
-	for (i = 0; i < g->n_pname; ++i) free(g->pname[i]);
+	for (i = 0; i < g->n_pseq; ++i) free(g->pseq[i].name);
 	kh_destroy(seg, (seghash_t*)g->h_pnames);
 	for (k = 0; k < g->n_arc; ++k)
 		free(g->arc_aux[k].aux);
-	free(g->idx); free(g->seg); free(g->arc); free(g->arc_aux); free(g->pname);
+	free(g->idx); free(g->seg); free(g->arc); free(g->arc_aux); free(g->pseq);
 	free(g);
+}
+
+char *gfa_strdup(const char *src)
+{
+	int32_t len;
+	char *dst;
+	len = strlen(src);
+	GFA_MALLOC(dst, len + 1);
+	memcpy(dst, src, len + 1);
+	return dst;
 }
 
 int32_t gfa_add_seg(gfa_t *g, const char *name)
@@ -63,7 +73,7 @@ int32_t gfa_add_seg(gfa_t *g, const char *name)
 			memset(&g->seg[old_m], 0, (g->m_seg - old_m) * sizeof(gfa_seg_t));
 		}
 		s = &g->seg[g->n_seg++];
-		kh_key(h, k) = s->name = strdup(name);
+		kh_key(h, k) = s->name = gfa_strdup(name);
 		s->del = s->len = 0;
 		s->pnid = s->ppos = s->rank = -1;
 		kh_val(h, k) = g->n_seg - 1;
@@ -71,21 +81,35 @@ int32_t gfa_add_seg(gfa_t *g, const char *name)
 	return kh_val(h, k);
 }
 
-int32_t gfa_add_pname(gfa_t *g, const char *pname)
+int32_t gfa_pseq_add(gfa_t *g, const char *pname)
 {
 	khash_t(seg) *h = (khash_t(seg)*)g->h_pnames;
 	khint_t k;
 	int absent;
 	k = kh_put(seg, h, pname, &absent);
 	if (absent) {
-		if (g->n_pname == g->m_pname) {
-			g->m_pname = g->m_pname? g->m_pname<<1 : 16;
-			g->pname = (char**)realloc(g->pname, g->m_pname * sizeof(char*));
-		}
-		kh_val(h, k) = g->n_pname;
-		kh_key(h, k) = g->pname[g->n_pname++] = strdup(pname);
+		gfa_pseq_t *ps;
+		if (g->n_pseq == g->m_pseq) GFA_EXPAND(g->pseq, g->m_pseq);
+		ps = &g->pseq[g->n_pseq++];
+		kh_val(h, k) = g->n_pseq - 1;
+		kh_key(h, k) = ps->name = gfa_strdup(pname);
+		ps->min = -1, ps->max = -1, ps->rank = -1;
 	}
 	return kh_val(h, k);
+}
+
+void gfa_pseq_update(gfa_t *g, const gfa_seg_t *s)
+{
+	gfa_pseq_t *ps;
+	if (s->pnid < 0 || s->pnid >= g->n_pseq) return;
+	ps = &g->pseq[s->pnid];
+	if (ps->min < 0 || s->ppos < ps->min) ps->min = s->ppos;
+	if (ps->max < 0 || s->ppos + s->len > ps->max) ps->max = s->ppos + s->len;
+	if (ps->rank < 0) ps->rank = s->rank;
+	else if (ps->rank != s->rank) {
+		if (gfa_verbose >= 2)
+			fprintf(stderr, "[W] stable sequence '%s' associated with different ranks on segment '%s': %d != %d\n", ps->name, s->name, ps->rank, s->rank);
+	}
 }
 
 int32_t gfa_name2id(const gfa_t *g, const char *name)

@@ -16,10 +16,12 @@
 extern "C" {
 #endif
 
+char *gfa_strdup(const char *src);
 void gfa_arc_sort(gfa_t *g);
 void gfa_arc_index(gfa_t *g);
 uint32_t gfa_fix_symm(gfa_t *g);
-int32_t gfa_add_pname(gfa_t *g, const char *pname);
+int32_t gfa_pseq_add(gfa_t *g, const char *pname);
+void gfa_pseq_update(gfa_t *g, const gfa_seg_t *s);
 
 #ifdef __cplusplus
 }

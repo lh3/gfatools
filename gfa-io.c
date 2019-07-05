@@ -1,12 +1,13 @@
 #include <zlib.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <ctype.h>
 #include <string.h>
 #include "kstring.h"
-#include "gfa.h"
+#include "gfa-priv.h"
 
 #include "kseq.h"
-KSTREAM_INIT2(, gzFile, gzread, 65536)
+KSEQ_INIT2(, gzFile, gzread)
 
 /***********
  * Tag I/O *
@@ -63,6 +64,7 @@ int gfa_aux_parse(char *s, uint8_t **data, int *max)
 			if (c == 0) break;
 		}
 	}
+	if (str.l > 0 && str.l == str.m) ks_resize(&str, str.l + 1);
 	if (str.s) str.s[str.l] = 0;
 	*max = str.m, *data = (uint8_t*)str.s;
 	return str.l;
@@ -119,7 +121,7 @@ int gfa_parse_S(gfa_t *g, char *s)
 			*p = 0;
 			if (i == 0) seg = q;
 			else if (i == 1) {
-				seq = q[0] == '*'? 0 : strdup(q);
+				seq = q[0] == '*'? 0 : gfa_strdup(q);
 				is_ok = 1, rest = c? p + 1 : 0;
 				break;
 			}
@@ -141,7 +143,7 @@ int gfa_parse_S(gfa_t *g, char *s)
 			if (LN >= 0) len = LN;
 		} else len = strlen(seq);
 		if (LN >= 0 && len != LN && gfa_verbose >= 2)
-			fprintf(stderr, "[W] LN:i:%d tag is different from sequence length %d\n", LN, len);
+			fprintf(stderr, "[W] for segment '%s', LN:i:%d tag is different from sequence length %d\n", seg, LN, len);
 		sid = gfa_add_seg(g, seg);
 		s = &g->seg[sid];
 		s->len = len, s->seq = seq;
@@ -149,7 +151,7 @@ int gfa_parse_S(gfa_t *g, char *s)
 			uint8_t *s_SN = 0, *s_SS = 0, *s_SR = 0;
 			s_SN = gfa_aux_get(l_aux, aux, "SN");
 			if (s_SN && *s_SN == 'Z') { // then parse stable tags
-				s->pnid = gfa_add_pname(g, (char*)(s_SN + 1)), s->ppos = 0;
+				s->pnid = gfa_pseq_add(g, (char*)(s_SN + 1)), s->ppos = 0;
 				l_aux = gfa_aux_del(l_aux, aux, s_SN);
 				s_SS = gfa_aux_get(l_aux, aux, "SS");
 				if (s_SS && *s_SS == 'i') {
@@ -163,6 +165,7 @@ int gfa_parse_S(gfa_t *g, char *s)
 				if (s->rank > g->max_rank) g->max_rank = s->rank;
 				l_aux = gfa_aux_del(l_aux, aux, s_SR);
 			}
+			gfa_pseq_update(g, s);
 		}
 		if (l_aux > 0)
 			s->aux.m_aux = m_aux, s->aux.l_aux = l_aux, s->aux.aux = aux;
@@ -252,6 +255,30 @@ int gfa_parse_L(gfa_t *g, char *s)
 	return 0;
 }
 
+static gfa_seg_t *gfa_parse_fa_hdr(gfa_t *g, char *s)
+{
+	int32_t i;
+	char buf[16];
+	gfa_seg_t *seg;
+	for (i = 0; s[i]; ++i)
+		if (isspace(s[i])) break;
+	s[i] = 0;
+	sprintf(buf, "s%d", g->n_seg + 1);
+	i = gfa_add_seg(g, buf);
+	seg = &g->seg[i];
+	seg->pnid = gfa_pseq_add(g, s + 1);
+	seg->ppos = seg->rank = 0;
+	return seg;
+}
+
+static void gfa_update_fa_seq(gfa_t *g, gfa_seg_t *seg, int32_t l_seq, const char *seq)
+{
+	if (seg == 0) return;
+	seg->seq = gfa_strdup(seq);
+	seg->len = l_seq;
+	gfa_pseq_update(g, seg);
+}
+
 /****************
  * User-end I/O *
  ****************/
@@ -260,24 +287,40 @@ gfa_t *gfa_read(const char *fn)
 {
 	gzFile fp;
 	gfa_t *g;
-	kstring_t s = {0,0,0};
+	kstring_t s = {0,0,0}, fa_seq = {0,0,0};
 	kstream_t *ks;
-	int dret;
+	int dret, is_fa = 0;
+	gfa_seg_t *fa_seg = 0;
 	uint64_t lineno = 0;
 
-	fp = fn && strcmp(fn, "-")? gzopen(fn, "r") : gzdopen(fileno(stdin), "r");
+	fp = fn && strcmp(fn, "-")? gzopen(fn, "r") : gzdopen(0, "r");
 	if (fp == 0) return 0;
 	ks = ks_init(fp);
 	g = gfa_init();
 	while (ks_getuntil(ks, KS_SEP_LINE, &s, &dret) >= 0) {
 		int ret = 0;
 		++lineno;
+		if (s.l > 0 && s.s[0] == '>') { // FASTA header
+			is_fa = 1;
+			if (fa_seg) gfa_update_fa_seq(g, fa_seg, fa_seq.l, fa_seq.s);
+			fa_seg = gfa_parse_fa_hdr(g, s.s);
+			fa_seq.l = 0;
+		} else if (is_fa) { // FASTA mode
+			if (s.l >= 3 && s.s[1] == '\t') { // likely a GFA line
+				gfa_update_fa_seq(g, fa_seg, fa_seq.l, fa_seq.s); // finalize fa_seg
+				fa_seg = 0;
+				is_fa = 0;
+			} else kputsn(s.s, s.l, &fa_seq); // likely a FASTA sequence line
+		}
+		if (is_fa) continue;
 		if (s.l < 3 || s.s[1] != '\t') continue; // empty line
 		if (s.s[0] == 'S') ret = gfa_parse_S(g, s.s);
 		else if (s.s[0] == 'L') ret = gfa_parse_L(g, s.s);
 		if (ret < 0 && gfa_verbose >= 1)
 			fprintf(stderr, "[E] invalid %c-line at line %ld (error code %d)\n", s.s[0], (long)lineno, ret);
 	}
+	if (is_fa && fa_seg) gfa_update_fa_seq(g, fa_seg, fa_seq.l, fa_seq.s);
+	free(fa_seq.s);
 	free(s.s);
 	gfa_finalize(g);
 	ks_destroy(ks);
@@ -297,7 +340,7 @@ void gfa_print(const gfa_t *g, FILE *fp, int M_only)
 		else fputc('*', fp);
 		fprintf(fp, "\tLN:i:%d", s->len);
 		if (s->pnid >= 0 && s->ppos >= 0)
-			fprintf(fp, "\tSN:Z:%s\tSS:i:%d", g->pname[s->pnid], s->ppos);
+			fprintf(fp, "\tSN:Z:%s\tSS:i:%d", g->pseq[s->pnid].name, s->ppos);
 		if (s->rank >= 0)
 			fprintf(fp, "\tSR:i:%d", s->rank);
 		if (s->aux.l_aux > 0) {
