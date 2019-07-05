@@ -72,8 +72,8 @@ int main_view(int argc, char *argv[])
 		fprintf(stderr, "Options:\n");
 		fprintf(stderr, "  -v INT        verbose level [%d]\n", gfa_verbose);
 		fprintf(stderr, "  -l STR/@FILE  segment list to subset []\n");
-		fprintf(stderr, "  -r INT        step [%d]\n", step);
-		fprintf(stderr, "  -d            delete the list of segments (-r ignored)\n");
+		fprintf(stderr, "  -r INT        subset radius (effective with -l) [%d]\n", step);
+		fprintf(stderr, "  -d            delete the list of segments (requiring -l; ignoring -r)\n");
 		return 1;
 	}
 	g = gfa_read(argv[o.ind]);
