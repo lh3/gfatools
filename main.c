@@ -66,10 +66,10 @@ int main_view(int argc, char *argv[])
 		fprintf(stderr, "Usage: gfatools view [options] <in.gfa>\n");
 		fprintf(stderr, "Options:\n");
 		fprintf(stderr, "  -v INT      verbose level [%d]\n", gfa_verbose);
-		fprintf(stderr, "  -s EXPR     list of segment names to extract []\n");
-		fprintf(stderr, "  -r INT      include neighbors in a radius [%d]\n", sub_step);
-		fprintf(stderr, "  -d EXPR     list of segment names to delete []\n");
-		fprintf(stderr, "Note: the order of options matters; one option may be applied >1 times.\n");
+//		fprintf(stderr, "  -s EXPR     list of segment names to extract []\n");
+//		fprintf(stderr, "  -r INT      include neighbors in a radius [%d]\n", sub_step);
+//		fprintf(stderr, "  -d EXPR     list of segment names to delete []\n");
+//		fprintf(stderr, "Note: the order of options matters; one option may be applied >1 times.\n");
 		return 1;
 	}
 
@@ -105,6 +105,36 @@ int main_view(int argc, char *argv[])
 	}
 
 	gfa_print(g, stdout, M_only);
+	gfa_destroy(g);
+	return 0;
+}
+
+int main_gfa2bed(int argc, char *argv[])
+{
+	ketopt_t o = KETOPT_INIT;
+	int32_t i, c, merged = 0;
+	gfa_t *g;
+
+	while ((c = ketopt(&o, argc, argv, 1, "m:", 0)) >= 0)
+		if (c == 'm') merged = 1;
+	if (o.ind == argc) {
+		fprintf(stderr, "Usage: gfatools gfa2bed [-m] <in.gfa>\n");
+		return 1;
+	}
+
+	g = gfa_read(argv[o.ind]);
+	if (g == 0) {
+		fprintf(stderr, "ERROR: failed to read the graph\n");
+		return 2;
+	}
+	if (merged == 0) {
+		for (i = 0; i < g->n_seg; ++i) {
+			gfa_seg_t *s = &g->seg[i];
+			if (s->pnid >= 0 && s->ppos >= 0)
+				printf("%s\t%d\t%d\t%s\n", g->pseq[s->pnid].name, s->ppos, s->ppos + s->len, s->name);
+		}
+	}
+
 	gfa_destroy(g);
 	return 0;
 }
@@ -186,13 +216,15 @@ int main(int argc, char *argv[])
 		fprintf(stderr, "Usage: gfatools <command> <arguments>\n");
 		fprintf(stderr, "Commands:\n");
 		fprintf(stderr, "  view      read a GFA file\n");
-		fprintf(stderr, "  asm       miniasm-like graph transformation (EXPERIMENTAL)\n");
+		fprintf(stderr, "  gfa2bed   convert GFA to BED\n");
+		fprintf(stderr, "  asm       miniasm-like graph transformation\n");
 		fprintf(stderr, "  version   print version number\n");
 		return 1;
 	}
 
 	t_start = realtime();
 	if (strcmp(argv[1], "view") == 0) ret = main_view(argc-1, argv+1);
+	else if (strcmp(argv[1], "gfa2bed") == 0) ret = main_gfa2bed(argc-1, argv+1);
 	else if (strcmp(argv[1], "asm") == 0) ret = main_asm(argc-1, argv+1);
 	else if (strcmp(argv[1], "version") == 0) {
 		puts(GFA_VERSION);
