@@ -15,8 +15,8 @@ char **gv_read_list(const char *o, int *n_)
 	int n = 0, m = 0;
 	char **s = 0;
 	*n_ = 0;
-	if (*o == ',') {
-		const char *q = o + 1, *p;
+	if (*o != '@') {
+		const char *q = o, *p;
 		for (p = q;; ++p) {
 			if (*p == ',' || *p == 0) {
 				if (n == m) {
@@ -34,7 +34,7 @@ char **gv_read_list(const char *o, int *n_)
 		kstring_t str = {0,0,0};
 		int dret;
 
-		fp = gzopen(o, "r");
+		fp = gzopen(o + 1, "r");
 		if (fp == 0) return 0;
 		ks = ks_init(fp);
 		while (ks_getuntil(ks, KS_SEP_LINE, &str, &dret) >= 0) {
@@ -70,10 +70,10 @@ int main_view(int argc, char *argv[])
 	if (o.ind == argc) {
 		fprintf(stderr, "Usage: gfatools view [options] <in.gfa>\n");
 		fprintf(stderr, "Options:\n");
-		fprintf(stderr, "  -v INT      verbose level [%d]\n", gfa_verbose);
-		fprintf(stderr, "  -l EXPR     segment list to subset []\n");
-		fprintf(stderr, "  -r INT      step [%d]\n", step);
-		fprintf(stderr, "  -d          delete the list of segments (-r ignored)\n");
+		fprintf(stderr, "  -v INT        verbose level [%d]\n", gfa_verbose);
+		fprintf(stderr, "  -l STR/@FILE  segment list to subset []\n");
+		fprintf(stderr, "  -r INT        step [%d]\n", step);
+		fprintf(stderr, "  -d            delete the list of segments (-r ignored)\n");
 		return 1;
 	}
 	g = gfa_read(argv[o.ind]);
@@ -206,10 +206,10 @@ int main(int argc, char *argv[])
 	if (argc == 1) {
 		fprintf(stderr, "Usage: gfatools <command> <arguments>\n");
 		fprintf(stderr, "Commands:\n");
-		fprintf(stderr, "  view      read a GFA file\n");
-		fprintf(stderr, "  gfa2bed   convert GFA to BED\n");
-		fprintf(stderr, "  asm       miniasm-like graph transformation\n");
-		fprintf(stderr, "  version   print version number\n");
+		fprintf(stderr, "  view        read a GFA file\n");
+		fprintf(stderr, "  gfa2bed     convert GFA to BED\n");
+		fprintf(stderr, "  asm         miniasm-like graph transformation\n");
+		fprintf(stderr, "  version     print version number\n");
 		return 1;
 	}
 
