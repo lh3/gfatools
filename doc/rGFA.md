@@ -66,10 +66,31 @@ fields:
 |6  |string|Path matching `/([><][^\s><]+(:\d+-\d+)?)+\|([^\s><]+)/`|
 |7  |int   |Path length|
 |8  |int   |Start position on the path (0-based)|
-|9  |int   |End position on the path|
+|9  |int   |End position on the path (0-based)|
 |10 |int   |Number of residue matches|
 |11 |int   |Alignment block length|
 |12 |int   |Mapping quality (0-255; 255 for missing)|
+
+A path on column 6 is defined by the following grammar:
+```txt
+<path>        <- <stableId> | <oriInterval>
+<oriInterval> <- ( ('>' | '<') (<segId> | <stableIntv>) )+
+<oriStable>   <- <stableId> ':' <start> '-' <end>
+```
+where `<segId>` is the second column on an S-line in GFA and `<stableId>` is an
+identifier on an `SN` tag in rGFA. With `<segId>`, GAF can encode alignments
+against an ordinary GFA. `<stableId>` is preferred for alignments against rGFA.
+
+The following example shows the read mapping for `GTGGCT` and `CGTTTCC` in GAF:
+```txt
+read1  6  0  6  +  >s2>s3>s4           12  2   8  6  6  60
+read2  7  0  7  +  >s2>s5>s6           11  1   8  7  7  60
+```
+In the stable coordinate, the GAF becomes:
+```txt
+read1  6  0  6  +  chr1                17  7  13  6  6  60
+read2  7  0  7  +  >chr1:5-8>foo:8-16  11  1   8  7  7  60
+```
 
 [sam]: https://en.wikipedia.org/wiki/SAM_(file_format)
 [gfa1]: https://github.com/GFA-spec/GFA-spec/blob/master/GFA1.md
