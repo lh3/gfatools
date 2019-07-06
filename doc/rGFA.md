@@ -63,7 +63,7 @@ fields:
 |3  |int   |Query start (0-based; closed)|
 |4  |int   |Query end (0-based; open)|
 |5  |char  |Strand relative to the path: "+" or "-"|
-|6  |string|Path matching `/([><][^\s><]+(:\d+-\d+)?)+|([^\s><]+)/`|
+|6  |string|Path matching `/([><][^\s><]+(:\d+-\d+)?)+\|([^\s><]+)/`|
 |7  |int   |Path length|
 |8  |int   |Start position on the path (0-based)|
 |9  |int   |End position on the path|
