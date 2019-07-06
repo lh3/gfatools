@@ -12,6 +12,8 @@
 		GFA_REALLOC((a), (m)); \
 	} while (0)
 
+typedef struct { uint64_t x, y; } gfa128_t;
+
 #ifdef __cplusplus
 extern "C" {
 #endif

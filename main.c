@@ -108,10 +108,12 @@ int main_gfa2bed(int argc, char *argv[])
 	int32_t i, c, merged = 0;
 	gfa_t *g;
 
-	while ((c = ketopt(&o, argc, argv, 1, "m:", 0)) >= 0)
+	while ((c = ketopt(&o, argc, argv, 1, "m", 0)) >= 0)
 		if (c == 'm') merged = 1;
 	if (o.ind == argc) {
-		fprintf(stderr, "Usage: gfatools gfa2bed [-m] <in.gfa>\n");
+		fprintf(stderr, "Usage: gfatools gfa2bed [options] <in.gfa>\n");
+		fprintf(stderr, "Options:\n");
+		fprintf(stderr, "  -m     merge adjacent intervals on stable sequences\n");
 		return 1;
 	}
 	g = gfa_read(argv[o.ind]);
@@ -125,6 +127,15 @@ int main_gfa2bed(int argc, char *argv[])
 			if (s->snid >= 0 && s->soff >= 0)
 				printf("%s\t%d\t%d\t%s\n", g->sseq[s->snid].name, s->soff, s->soff + s->len, s->name);
 		}
+	} else {
+		int32_t n_sfa;
+		gfa_seg_t *r;
+		r = gfa_gfa2sfa(g, &n_sfa, 0);
+		for (i = 0; i < n_sfa; ++i) {
+			gfa_seg_t *s = &r[i];
+			printf("%s\t%d\t%d\n", g->sseq[s->snid].name, s->soff, s->soff + s->len);
+		}
+		free(r);
 	}
 	gfa_destroy(g);
 	return 0;
