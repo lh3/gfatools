@@ -92,7 +92,7 @@ In the stable coordinate, the GAF becomes:
 read1  6  0  6  +  chr1                17  7  13  6  6  60  cg:Z:6M
 read2  7  0  7  +  >chr1:5-8>foo:8-16  11  1   8  7  7  60  cg:Z:7M
 ```
-In the stable form, GAF is persistent as long as bases are not removed from
+In the stable form, GAF remains the same as long as bases are not removed from
 rGFA.
 
 [sam]: https://en.wikipedia.org/wiki/SAM_(file_format)
