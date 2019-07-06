@@ -31,24 +31,46 @@ the segment:
 
 |Tag |Type|Description|
 |:--:|:--:|:----------|
-|`SN`|`Z` |name of stable sequence from which the segment is derived|
-|`SO`|`i` |offset on the stable sequence|
-|`SR`|`i` | `0` if the segment is on a linear reference genome; `>0` otherwise|
+|`SN`|`Z` |Name of stable sequence from which the segment is derived|
+|`SO`|`i` |Offset on the stable sequence|
+|`SR`|`i` |Rank. `0` if on a linear reference genome; `>0` otherwise|
 
-<img align="right" width="250" src="example1.png"/>
+<img align="right" width="300" src="example1.png"/>
 
-In rGFA, each base in the graph is uniquely indexed by the stable sequence
-name and the offset on the stable sequence. This is called the *stable
-coordinate* of the base. The stable coordinate never changes as long as bases
-remain in the graph.
+When segments don't overlap on stable sequences, each base in the graph is
+uniquely indexed by the stable sequence name and the offset on the stable
+sequence. This is called the *stable coordinate* of the base. The stable
+coordinate never changes as long as bases remain in the graph.
 
-The figure on the right shows an example rGFA. We can pinpoint a position
-such as `chr1:9` in the graph and maps existing annotations onto it. We can
-similarly denote a walk or path in the stable coordinate. For example, path
-`v1->v2->v3->v4` corresponds to `chr1:0-17` and path `v1->v2->v5->v6`
-corresponds to `chr1:0-8=>foo:8-16`. Conversely, an interval on a linear
-reference is uniquely represented by a path in the graph. This way rGFA
-establishes a stable connection between linear sequences and sequence graphs.
+The figure on the right shows an example rGFA. In this example, thick arrows
+denote segments and thin gray lines denote links. Colors indicate ranks.
+We can pinpoint a postion such as `chr1:9` and map existing notations onto the
+graph. We can also denote a walk or path in the stable coordinate. For example,
+path `v1->v2->v3->v4` corresponds to `chr1:0-17` and path `v1->v2->v5->v6`
+corresponds to `chr1:0-8=>foo:8-16`. rGFA inherits the coordinate system of the
+current linear reference and smoothly extends it to the graph representation.
+
+## The Graph Alignment Format (GAF)
+
+GAF is a TAB delimited format for sequence-to-graph alignments. It is a strict
+superset of the [PAF format][paf]. Each GAF line consists of 12 mandatory
+fields:
+
+|Col|Type  |Description|
+|--:|:----:|:----------|
+|1  |string|Query sequence name|
+|2  |int   |Query sequence length|
+|3  |int   |Query start (0-based; closed)|
+|4  |int   |Query end (0-based; open)|
+|5  |char  |Strand relative to the path: "+" or "-"|
+|6  |string|Path matching `/([><][^\s><]+(:\d+-\d+)?)+|([^\s><]+)/`|
+|7  |int   |Path length|
+|8  |int   |Start position on the path (0-based)|
+|9  |int   |End position on the path|
+|10 |int   |Number of residue matches|
+|11 |int   |Alignment block length|
+|12 |int   |Mapping quality (0-255; 255 for missing)|
 
 [sam]: https://en.wikipedia.org/wiki/SAM_(file_format)
 [gfa1]: https://github.com/GFA-spec/GFA-spec/blob/master/GFA1.md
+[paf]: https://github.com/lh3/miniasm/blob/master/PAF.md
