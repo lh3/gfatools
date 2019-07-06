@@ -13,6 +13,7 @@ void gfa_sub(gfa_t *g, int n, char *const* seg, int step)
 	for (i = 0; i < n; ++i) {
 		int32_t s;
 		s = gfa_name2id(g, seg[i]);
+		fprintf(stderr, "%s\t%d\n", seg[i], s);
 		if (s >= 0) {
 			kv_push(uint64_t, stack, (uint64_t)(s<<1|0)<<32);
 			kv_push(uint64_t, stack, (uint64_t)(s<<1|1)<<32);
@@ -63,6 +64,7 @@ gfa_seg_t *gfa_gfa2sfa(const gfa_t *g, int32_t *n_sfa_, int32_t write_seq)
 	GFA_MALLOC(a, g->n_seg);
 	for (i = 0; i < g->n_seg; ++i) {
 		const gfa_seg_t *s = &g->seg[i];
+		if (s->snid < 0) continue;
 		a[soff[s->snid] + scnt[s->snid]] = (uint64_t)s->soff<<32 | i;
 		++scnt[s->snid];
 	}

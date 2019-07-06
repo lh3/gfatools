@@ -144,15 +144,15 @@ int main_gfa2bed(int argc, char *argv[])
 int main_gfa2fa(int argc, char *argv[])
 {
 	ketopt_t o = KETOPT_INIT;
-	int32_t i, c, merged = 0;
+	int32_t i, c, is_stable = 0;
 	gfa_t *g;
 
-	while ((c = ketopt(&o, argc, argv, 1, "m", 0)) >= 0)
-		if (c == 'm') merged = 1;
+	while ((c = ketopt(&o, argc, argv, 1, "s", 0)) >= 0)
+		if (c == 's') is_stable = 1;
 	if (o.ind == argc) {
 		fprintf(stderr, "Usage: gfatools gfa2fa [options] <in.gfa>\n");
 		fprintf(stderr, "Options:\n");
-		fprintf(stderr, "  -m     merge adjacent intervals on stable sequences\n");
+		fprintf(stderr, "  -s     output stable sequences (rGFA only)\n");
 		return 1;
 	}
 	g = gfa_read(argv[o.ind]);
@@ -160,7 +160,7 @@ int main_gfa2fa(int argc, char *argv[])
 		fprintf(stderr, "ERROR: failed to read the graph\n");
 		return 2;
 	}
-	if (merged == 0) {
+	if (is_stable == 0) {
 		for (i = 0; i < g->n_seg; ++i) {
 			gfa_seg_t *s = &g->seg[i];
 			printf(">%s\n%s\n", s->name, s->seq);
