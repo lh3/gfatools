@@ -81,6 +81,9 @@ A path on column 6 is defined by the following grammar:
 where `<segId>` is the second column on an S-line in GFA and `<stableId>` is an
 identifier on an `SN` tag in rGFA. With `<segId>`, GAF can encode alignments
 against an ordinary GFA. `<stableId>` is preferred for alignments against rGFA.
+Notably, if a path consists of a single interval on a stable sequence, we can
+simplify the entire path to `<stableId>` without `<start>` and `<end>`, and
+assume the orientation to be forward `>`. Such a GAF line is reduced to PAF.
 
 The following example shows the read mapping for `GTGGCT` and `CGTTTCC` against
 the example rGFA above. In the unstable segment coordinate, the GAF is:
