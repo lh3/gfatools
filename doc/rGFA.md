@@ -74,8 +74,8 @@ fields:
 
 A path on column 6 is defined by the following grammar:
 ```txt
-<path>       <- <stableId> | <orientIntv>
-<orientIntv> <- ( ('>' | '<') (<segId> | <stableIntv>) )+
+<path>       <- <stableId> | <orientIntv>+
+<orientIntv> <- ('>' | '<') (<segId> | <stableIntv>)
 <stableIntv> <- <stableId> ':' <start> '-' <end>
 ```
 where `<segId>` is the second column on an S-line in GFA and `<stableId>` is an
