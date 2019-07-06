@@ -19,7 +19,7 @@ same format as in [SAM][sam]. For details, please see the [GFA spec][gfa1].
 
 ## The Reference GFA (rGFA) Format
 
-<img align="right" width="250" src="example1.png"/>
+<img align="right" width="220" src="example1.png"/>
 
 In GFA, each base can be indexed by a segment ID and an offset on the segment,
 which is called the *segment coordinate*. The segment coordinate is unstable --
