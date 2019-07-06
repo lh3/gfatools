@@ -25,27 +25,30 @@ unstable -- when we split a segment in half, the coordinate is changed. As a
 pan-genome graph demands long-term stability, an ordinary GFA is not a good
 fit. rGFA address this issue.
 
-rGFA is a strict subset of GFA. It requires three additional tags on each
-segment. They trace the origin of the segment:
+rGFA is a strict subset of GFA. It disallows overlaps between segments and
+requires three additional tags on each segment. These tags trace the origin of
+the segment:
 
-* **SN**: name of stable sequence from which the segment is derived
-* **SO**: offset on the stable sequence
-* **SR**: `0` if the segment is on a linear reference genome; `>0` otherwise
+|Tag |Type|Description|
+|:--:|:--:|:----------|
+|`SN`|`Z` |name of stable sequence from which the segment is derived|
+|`SO`|`i` |offset on the stable sequence|
+|`SR`|`i` | `0` if the segment is on a linear reference genome; `>0` otherwise|
 
-With these tags, each base in the graph can be indexed by the stable sequence
+In rGFA, each base in the graph is uniquely indexed by the stable sequence
 name and the offset on the stable sequence. This is called the *stable
 coordinate* of the base. The stable coordinate never changes as long as bases
-are not deleted from the graph.
+remain in the graph.
 
 <img align="right" width="250" src="example1.png"/>
 
 The figure on the right shows an example rGFA. We can pinpoint a position
 such as `chr1:9` in the graph and maps existing annotations onto it. We can
-also denote a walk or path in the stable coordinate. For example, path
+similarly denote a walk or path in the stable coordinate. For example, path
 `v1->v2->v3->v4` corresponds to `chr1:0-17` and path `v1->v2->v5->v6`
-corresponds to `chr1:0-8=>foo:8-16`; conversely, an interval on a linear
-reference is uniquely represented by a path in the graph. rGFA establishes a
-stable connection between linear sequences and sequence graphs.
+corresponds to `chr1:0-8=>foo:8-16`. Conversely, an interval on a linear
+reference is uniquely represented by a path in the graph. This way rGFA
+establishes a stable connection between linear sequences and sequence graphs.
 
 [sam]: https://en.wikipedia.org/wiki/SAM_(file_format)
 [gfa1]: https://github.com/GFA-spec/GFA-spec/blob/master/GFA1.md
