@@ -141,6 +141,48 @@ int main_gfa2bed(int argc, char *argv[])
 	return 0;
 }
 
+int main_gfa2fa(int argc, char *argv[])
+{
+	ketopt_t o = KETOPT_INIT;
+	int32_t i, c, merged = 0;
+	gfa_t *g;
+
+	while ((c = ketopt(&o, argc, argv, 1, "m", 0)) >= 0)
+		if (c == 'm') merged = 1;
+	if (o.ind == argc) {
+		fprintf(stderr, "Usage: gfatools gfa2fa [options] <in.gfa>\n");
+		fprintf(stderr, "Options:\n");
+		fprintf(stderr, "  -m     merge adjacent intervals on stable sequences\n");
+		return 1;
+	}
+	g = gfa_read(argv[o.ind]);
+	if (g == 0) {
+		fprintf(stderr, "ERROR: failed to read the graph\n");
+		return 2;
+	}
+	if (merged == 0) {
+		for (i = 0; i < g->n_seg; ++i) {
+			gfa_seg_t *s = &g->seg[i];
+			printf(">%s\n%s\n", s->name, s->seq);
+		}
+	} else {
+		int32_t n_sfa;
+		gfa_seg_t *r;
+		r = gfa_gfa2sfa(g, &n_sfa, 1);
+		for (i = 0; i < n_sfa; ++i) {
+			gfa_seg_t *s = &r[i];
+			if (s->rank == 0)
+				printf(">%s\n", g->sseq[s->snid].name);
+			else
+				printf(">%s_%d_%d\n", g->sseq[s->snid].name, s->soff, s->soff + s->len);
+			printf("%s\n", s->seq);
+		}
+		free(r);
+	}
+	gfa_destroy(g);
+	return 0;
+}
+
 int main_asm(int argc, char *argv[])
 {
 	const char *tr_opts = "v:R:T:B:O:rtbomu";
@@ -219,6 +261,7 @@ int main(int argc, char *argv[])
 		fprintf(stderr, "Commands:\n");
 		fprintf(stderr, "  view        read a GFA file\n");
 		fprintf(stderr, "  gfa2bed     convert GFA to BED\n");
+		fprintf(stderr, "  gfa2fa      convert GFA to FASTA\n");
 		fprintf(stderr, "  asm         miniasm-like graph transformation\n");
 		fprintf(stderr, "  version     print version number\n");
 		return 1;
@@ -227,6 +270,7 @@ int main(int argc, char *argv[])
 	t_start = realtime();
 	if (strcmp(argv[1], "view") == 0) ret = main_view(argc-1, argv+1);
 	else if (strcmp(argv[1], "gfa2bed") == 0) ret = main_gfa2bed(argc-1, argv+1);
+	else if (strcmp(argv[1], "gfa2fa") == 0) ret = main_gfa2fa(argc-1, argv+1);
 	else if (strcmp(argv[1], "asm") == 0) ret = main_asm(argc-1, argv+1);
 	else if (strcmp(argv[1], "version") == 0) {
 		puts(GFA_VERSION);
