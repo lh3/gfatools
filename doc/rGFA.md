@@ -15,7 +15,8 @@ segments. The core of GFA can be loosly described by the following grammar:
 ```
 
 where fields on each line are TAB delimited; `<cigar>` and `<tag>` follow the
-same format as in [SAM][sam]. For details, please see the [GFA spec][gfa1].
+same format as in [SAM][sam]. The figure below shows an example. For details,
+please see the [GFA spec][gfa1].
 
 ## The Reference GFA (rGFA) Format
 
@@ -73,9 +74,9 @@ fields:
 
 A path on column 6 is defined by the following grammar:
 ```txt
-<path>        <- <stableId> | <orientIntv>
+<path>       <- <stableId> | <orientIntv>
 <orientIntv> <- ( ('>' | '<') (<segId> | <stableIntv>) )+
-<stableIntv>  <- <stableId> ':' <start> '-' <end>
+<stableIntv> <- <stableId> ':' <start> '-' <end>
 ```
 where `<segId>` is the second column on an S-line in GFA and `<stableId>` is an
 identifier on an `SN` tag in rGFA. With `<segId>`, GAF can encode alignments
