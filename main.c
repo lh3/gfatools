@@ -260,8 +260,8 @@ int main(int argc, char *argv[])
 		fprintf(stderr, "Usage: gfatools <command> <arguments>\n");
 		fprintf(stderr, "Commands:\n");
 		fprintf(stderr, "  view        read a GFA file\n");
-		fprintf(stderr, "  gfa2bed     convert GFA to BED\n");
 		fprintf(stderr, "  gfa2fa      convert GFA to FASTA\n");
+		fprintf(stderr, "  gfa2bed     convert GFA to BED (requiring rGFA)\n");
 		fprintf(stderr, "  asm         miniasm-like graph transformation\n");
 		fprintf(stderr, "  version     print version number\n");
 		return 1;

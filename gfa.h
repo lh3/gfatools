@@ -4,7 +4,7 @@
 #include <stdio.h>
 #include <stdint.h>
 
-#define GFA_VERSION "r2"
+#define GFA_VERSION "r19"
 
 #define GFA_MAX_SHORT_K  15
 
@@ -141,8 +141,6 @@ void gfa_print(const gfa_t *g, FILE *fp, int M_only);
 int32_t gfa_name2id(const gfa_t *g, const char *name);
 uint8_t *gfa_aux_get(int l_data, const uint8_t *data, const char tag[2]);
 int gfa_aux_del(int l_data, uint8_t *data, uint8_t *s);
-
-gfa_seg_t *gfa_gfa2sfa(const gfa_t *g, int32_t *n_sfa_, int32_t write_seq);
 
 #ifdef __cplusplus
 }
