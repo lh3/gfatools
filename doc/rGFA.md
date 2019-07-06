@@ -35,12 +35,12 @@ the segment:
 |`SO`|`i` |offset on the stable sequence|
 |`SR`|`i` | `0` if the segment is on a linear reference genome; `>0` otherwise|
 
+<img align="right" width="250" src="example1.png"/>
+
 In rGFA, each base in the graph is uniquely indexed by the stable sequence
 name and the offset on the stable sequence. This is called the *stable
 coordinate* of the base. The stable coordinate never changes as long as bases
 remain in the graph.
-
-<img align="right" width="250" src="example1.png"/>
 
 The figure on the right shows an example rGFA. We can pinpoint a position
 such as `chr1:9` in the graph and maps existing annotations onto it. We can
