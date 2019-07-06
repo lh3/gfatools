@@ -19,7 +19,7 @@ same format as in [SAM][sam]. For details, please see the [GFA spec][gfa1].
 
 ## The Reference GFA (rGFA) Format
 
-<img align="right" width="300" src="example1.png"/>
+<img align="right" width="250" src="example1.png"/>
 
 In GFA, each base can be indexed by a segment ID and an offset on the segment,
 which is called the *segment coordinate*. The segment coordinate is unstable --
@@ -35,6 +35,8 @@ segment:
 |`SN`|`Z` |Name of stable sequence from which the segment is derived         |
 |`SO`|`i` |Offset on the stable sequence                                     |
 |`SR`|`i` |`0` if the segment is on a linear reference genome; `>0` otherwise|
+
+The figure on the right shows an example rGFA.
 
 [miniasm]: https://github.com/lh3/miniasm/
 [canu]: https://github.com/marbl/canu
