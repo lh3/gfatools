@@ -4,7 +4,7 @@
 #include <stdio.h>
 #include <stdint.h>
 
-#define GFA_VERSION "0.1-r40"
+#define GFA_VERSION "0.1-r41-dirty"
 
 #define GFA_MAX_SHORT_K  15
 
@@ -103,20 +103,6 @@ typedef struct {
 	int32_t *a;
 	void *km;
 } gfa_sub_t;
-
-// shortest path
-
-typedef struct {
-	uint32_t v;
-	int32_t target_dist;
-	int32_t dist, n_path, path_end;
-	int32_t meta;
-} gfa_path_dst_t;
-
-typedef struct {
-	uint32_t v, d;
-	int32_t pre;
-} gfa_pathv_t;
 
 // graph augmentation
 

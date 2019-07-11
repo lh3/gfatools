@@ -53,10 +53,6 @@ gfa_sub_t *gfa_sub_from(void *km0, const gfa_t *g, uint32_t v0, int32_t max_dist
 void gfa_sub_destroy(gfa_sub_t *sub);
 void gfa_sub_print(FILE *fp, const gfa_t *g, const gfa_sub_t *sub);
 
-// k shortest paths
-gfa_pathv_t *gfa_shortest_k(void *km0, const gfa_t *g, uint32_t src, int32_t n_dst, gfa_path_dst_t *dst, int32_t max_dist, int32_t max_k, int32_t *n_pathv);
-void gfa_sub_print_path(FILE *fp, const gfa_t *g, int32_t n, gfa_pathv_t *path);
-
 // graph augmentation
 int gfa_ins_adj(const gfa_t *g, int min_len, gfa_ins_t *ins, const char *seq);
 int32_t gfa_ins_filter(const gfa_t *g, int32_t n_ins, gfa_ins_t *ins);
