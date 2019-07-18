@@ -4,9 +4,7 @@
 #include <stdio.h>
 #include <stdint.h>
 
-#define GFA_VERSION "0.1-r41-dirty"
-
-#define GFA_MAX_SHORT_K  15
+#define GFA_VERSION "0.1-r42-dirty"
 
 /*
   A segment is a sequence. A vertex is one side of a segment. In the code,
