@@ -128,12 +128,19 @@ int main_gfa2bed(int argc, char *argv[])
 				printf("%s\t%d\t%d\t%s\n", g->sseq[s->snid].name, s->soff, s->soff + s->len, s->name);
 		}
 	} else {
-		int32_t n_sfa;
-		gfa_seg_t *r;
+		int32_t j, n_sfa;
+		gfa_sfa_t *r;
 		r = gfa_gfa2sfa(g, &n_sfa, 0);
 		for (i = 0; i < n_sfa; ++i) {
-			gfa_seg_t *s = &r[i];
-			printf("%s\t%d\t%d\n", g->sseq[s->snid].name, s->soff, s->soff + s->len);
+			gfa_sfa_t *s = &r[i];
+			printf("%s\t%d\t%d", g->sseq[s->snid].name, s->soff, s->soff + s->len);
+			if (s->rank > 0) {
+				for (j = 0; j < 2; ++j) {
+					if (s->end[j] == (uint64_t)-1) printf("\t*\t*\t*");
+					else printf("\t%c\t%s\t%d", "><"[s->end[j]&1], g->sseq[s->end[j]>>32].name, (uint32_t)s->end[j]>>1);
+				}
+			} else printf("\t*\t*\t*\t*\t*\t*");
+			putchar('\n');
 		}
 		free(r);
 	}
@@ -166,16 +173,23 @@ int main_gfa2fa(int argc, char *argv[])
 			printf(">%s\n%s\n", s->name, s->seq);
 		}
 	} else {
-		int32_t n_sfa;
-		gfa_seg_t *r;
+		int32_t j, n_sfa;
+		gfa_sfa_t *r;
 		r = gfa_gfa2sfa(g, &n_sfa, 1);
 		for (i = 0; i < n_sfa; ++i) {
-			gfa_seg_t *s = &r[i];
-			if (s->rank == 0)
+			gfa_sfa_t *s = &r[i];
+			if (s->rank == 0) {
 				printf(">%s\n", g->sseq[s->snid].name);
-			else
-				printf(">%s_%d_%d\n", g->sseq[s->snid].name, s->soff, s->soff + s->len);
+			} else {
+				printf(">%s_%d_%d", g->sseq[s->snid].name, s->soff, s->soff + s->len);
+				for (j = 0; j < 2; ++j) {
+					if (s->end[j] == (uint64_t)-1) printf("\t*");
+					else printf("\t%c%s:%d", "><"[s->end[j]&1], g->sseq[s->end[j]>>32].name, (uint32_t)s->end[j]>>1);
+				}
+				putchar('\n');
+			}
 			printf("%s\n", s->seq);
+			free(s->seq);
 		}
 		free(r);
 	}

@@ -16,7 +16,6 @@ void gfa_sub(gfa_t *g, int n, char *const* seg, int step)
 	for (i = 0; i < n; ++i) {
 		int32_t s;
 		s = gfa_name2id(g, seg[i]);
-		fprintf(stderr, "%s\t%d\n", seg[i], s);
 		if (s >= 0) {
 			kv_push(uint64_t, stack, (uint64_t)(s<<1|0)<<32);
 			kv_push(uint64_t, stack, (uint64_t)(s<<1|1)<<32);
@@ -43,11 +42,31 @@ void gfa_sub(gfa_t *g, int n, char *const* seg, int step)
 	gfa_arc_rm(g);
 }
 
-gfa_seg_t *gfa_gfa2sfa(const gfa_t *g, int32_t *n_sfa_, int32_t write_seq)
+static uint64_t find_join(const gfa_t *g, uint32_t v)
+{
+	gfa_seg_t *t, *s = &g->seg[v>>1];
+	int32_t i, nv, n_low;
+	uint32_t w;
+	gfa_arc_t *av;
+	if (s->rank == 0) return (uint64_t)-1;
+	nv = gfa_arc_n(g, v);
+	av = gfa_arc_a(g, v);
+	for (i = 0, n_low = 0, w = 0; i < nv; ++i) {
+		gfa_arc_t *q = &av[i];
+		t = &g->seg[q->w>>1];
+		if (t->rank >= 0 && t->rank < s->rank)
+			++n_low, w = q->w;
+	}
+	if (n_low != 1) return (uint64_t)-1;
+	t = &g->seg[w>>1];
+	return (uint64_t)t->snid<<32 | (uint32_t)(w&1? t->soff + t->len : t->soff) << 1 | (w&1);
+}
+
+gfa_sfa_t *gfa_gfa2sfa(const gfa_t *g, int32_t *n_sfa_, int32_t write_seq)
 {
 	extern void radix_sort_gfa64(uint64_t *st, uint64_t *en);
 	int32_t i, j, k, *scnt, *soff, n_sfa;
-	gfa_seg_t *sfa = 0;
+	gfa_sfa_t *sfa = 0;
 	uint64_t *a;
 
 	*n_sfa_ = 0;
@@ -149,8 +168,12 @@ gfa_seg_t *gfa_gfa2sfa(const gfa_t *g, int32_t *n_sfa_, int32_t write_seq)
 			if (!is_cont) {
 				int32_t l;
 				const gfa_seg_t *s = &g->seg[(int32_t)a[jst]];
-				gfa_seg_t *p = &sfa[k++];
+				gfa_sfa_t *p = &sfa[k++];
+				assert(jst < j);
 				p->snid = s->snid, p->soff = s->soff, p->rank = s->rank;
+				p->end[0] = find_join(g, (uint32_t)a[jst]<<1|1);
+				if (p->end[0] != (uint64_t)-1) p->end[0] ^= 1;
+				p->end[1] = find_join(g, (uint32_t)a[j-1]<<1);
 				for (l = jst, p->len = 0; l < j; ++l)
 					p->len += g->seg[(int32_t)a[l]].len;
 				if (write_seq) {
