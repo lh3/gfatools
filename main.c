@@ -57,15 +57,16 @@ char **gv_read_list(const char *o, int *n_)
 int main_view(int argc, char *argv[])
 {
 	ketopt_t o = KETOPT_INIT;
-	int c, M_only = 1, step = 0, is_del = 0;
+	int c, out_flag = 0, step = 0, is_del = 0;
 	char *list_arg = 0;
 	gfa_t *g;
 
-	while ((c = ketopt(&o, argc, argv, 1, "v:dr:l:", 0)) >= 0) {
+	while ((c = ketopt(&o, argc, argv, 1, "v:dr:l:S", 0)) >= 0) {
 		if (c == 'v') gfa_verbose = atoi(o.arg);
 		else if (c == 'd') is_del = 1;
 		else if (c == 'r') step = atoi(o.arg);
 		else if (c == 'l') list_arg = o.arg;
+		else if (c == 'S') out_flag |= GFA_O_NO_SEQ;
 	}
 	if (o.ind == argc) {
 		fprintf(stderr, "Usage: gfatools view [options] <in.gfa>\n");
@@ -74,6 +75,7 @@ int main_view(int argc, char *argv[])
 		fprintf(stderr, "  -l STR/@FILE  segment list to subset []\n");
 		fprintf(stderr, "  -r INT        subset radius (effective with -l) [%d]\n", step);
 		fprintf(stderr, "  -d            delete the list of segments (requiring -l; ignoring -r)\n");
+		fprintf(stderr, "  -S            don't print sequences\n");
 		return 1;
 	}
 	g = gfa_read(argv[o.ind]);
@@ -97,7 +99,7 @@ int main_view(int argc, char *argv[])
 		for (i = 0; i < n; ++i) free(list[i]);
 		free(list);
 	}
-	gfa_print(g, stdout, M_only);
+	gfa_print(g, stdout, out_flag);
 	gfa_destroy(g);
 	return 0;
 }
