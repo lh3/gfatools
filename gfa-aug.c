@@ -18,7 +18,7 @@ static inline void create_first_arc_semi(gfa_t *g, const gfa_seg_t *seg, uint32_
 	a = &g->arc[g->n_arc++];
 	a->v_lv = (uint64_t)v<<32 | seg[v>>1].len;
 	a->w = w;
-	a->lw = seg[w>>1].len;
+	a->rank = -1;
 	a->ov = a->ow = 0;
 	a->link_id = g->n_arc - 1;
 	a->del = 0;
@@ -147,7 +147,7 @@ void gfa_augment(gfa_t *g, int32_t n_ins, const gfa_ins_t *ins, int32_t n_ctg, c
 		a->v_lv = (uint64_t)v << 32 | seg[v>>1].len;
 		off = oldcnt[a->w>>1]>>32, cnt = (uint32_t)oldcnt[a->w>>1];
 		a->w = (a->w&1) == 0? off<<1 : (off+cnt-1)<<1 | 1;
-		a->lw = seg[a->w>>1].len;
+		a->rank = -1;
 	}
 	free(oldcnt);
 

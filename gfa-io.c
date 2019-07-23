@@ -372,7 +372,7 @@ void gfa_print(const gfa_t *g, FILE *fp, int flag)
 			else fprintf(fp, "\t%d:%d", a->ov, a->ow);
 		}
 		fprintf(fp, "\tL1:i:%d", gfa_arc_len(*a));
-		fprintf(fp, "\tL2:i:%d", a->lw);
+		fprintf(fp, "\tL2:i:%d", gfa_arc_lw(g, *a));
 		if (aux->l_aux) {
 			char *t = 0;
 			int max = 0;

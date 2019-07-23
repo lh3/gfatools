@@ -403,7 +403,7 @@ gfa_t *gfa_ug_gen(const gfa_t *g)
 			a = &arc_first(g, w);
 			l = gfa_arc_len(*a);
 			kdq_push(uint64_t, q, (uint64_t)w<<32 | l);
-			end = x^1, len += l, len_r += a->lw;
+			end = x^1, len += l, len_r += gfa_arc_lw(g, *a);
 			w = x;
 			if (x == v) break;
 		}
@@ -425,7 +425,7 @@ gfa_t *gfa_ug_gen(const gfa_t *g)
 			a = &arc_first(g, w);
 			l = gfa_arc_len(*a);
 			kdq_unshift(uint64_t, q, (uint64_t)w<<32 | l);
-			start = w, len += l, len_r += a->lw;
+			start = w, len += l, len_r += gfa_arc_lw(g, *a);
 			x = w;
 		}
 		len_r += g->seg[start>>1].len;
