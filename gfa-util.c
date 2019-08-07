@@ -45,19 +45,25 @@ void gfa_sub(gfa_t *g, int n, char *const* seg, int step)
 static uint64_t find_join(const gfa_t *g, uint32_t v)
 {
 	gfa_seg_t *t, *s = &g->seg[v>>1];
-	int32_t i, nv, n_low;
+	int32_t i, nv, n_low, n_r;
 	uint32_t w;
 	gfa_arc_t *av;
 	if (s->rank == 0) return (uint64_t)-1;
 	nv = gfa_arc_n(g, v);
 	av = gfa_arc_a(g, v);
-	for (i = 0, n_low = 0, w = 0; i < nv; ++i) {
+	for (i = 0, n_low = n_r = 0, w = 0; i < nv; ++i) {
 		gfa_arc_t *q = &av[i];
-		t = &g->seg[q->w>>1];
-		if (t->rank >= 0 && t->rank < s->rank)
-			++n_low, w = q->w;
+		if (q->rank >= 0 && q->rank == s->rank) {
+			++n_r, w = q->w;
+		} else {
+			t = &g->seg[q->w>>1];
+			if (t->rank >= 0 && t->rank < s->rank)
+				++n_low, w = q->w;
+		}
 	}
-	if (n_low != 1) return (uint64_t)-1;
+	if (n_r != 1 && gfa_verbose >= 2)
+		fprintf(stderr, "[W] failed to find the associated arc for vertex %c%s[%d]: %d,%d\n", "><"[v&1], g->seg[v>>1].name, v, n_r, n_low);
+	if (n_r != 1 && n_low != 1) return (uint64_t)-1;
 	t = &g->seg[w>>1];
 	return (uint64_t)t->snid<<32 | (uint32_t)(w&1? t->soff + t->len : t->soff) << 1 | (w&1);
 }
