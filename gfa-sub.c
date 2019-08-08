@@ -73,7 +73,7 @@ gfa_sub_t *gfa_sub_from(void *km0, const gfa_t *g, uint32_t v0, int32_t max_dist
 		for (i = 0; i < nv; ++i) {
 			gfa_arc_t *avi = &av[i];
 			int32_t dt = d + (uint32_t)avi->v_lv;
-			if (dt > max_dist) continue;
+			if (max_dist > 0 && dt > max_dist) continue;
 			++n_arc;
 			k = kh_put(v, h, avi->w, &absent);
 			if (absent) { // a vertex that hasn't been visited before
@@ -116,8 +116,10 @@ gfa_sub_t *gfa_sub_from(void *km0, const gfa_t *g, uint32_t v0, int32_t max_dist
 		sub->v[j].d = (uint32_t)L[j]->nd;
 		sub->v[j].off = o0;
 		sub->v[j].n = off - o0;
-		radix_sort_gfa32(&sub->a[o0], &sub->a[off]);
-		if (sub->a[o0] <= j) sub->is_dag = 0;
+		if (o0 < off) {
+			radix_sort_gfa32(&sub->a[o0], &sub->a[off]);
+			if (sub->a[o0] <= j) sub->is_dag = 0;
+		}
 	}
 	assert(off == n_arc);
 

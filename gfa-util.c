@@ -202,3 +202,38 @@ end_check:
 	free(a);
 	return sfa;
 }
+
+void gfa_blacklist_print(const gfa_t *g, FILE *fp) // FIXME: doesn't work with translocations
+{
+	uint32_t i, *vs;
+	GFA_MALLOC(vs, g->n_sseq);
+	for (i = 0; i < g->n_sseq; ++i)
+		vs[i] = (uint32_t)-1;
+	for (i = 0; i < g->n_seg; ++i) {
+		const gfa_seg_t *s = &g->seg[i];
+		if (s->rank != 0 || s->snid < 0) continue;
+		if (s->soff == 0) vs[s->snid] = i<<1; // NB: assuming all rank-0 sseq start with 0
+	}
+	for (i = 0; i < g->n_sseq; ++i) {
+		gfa_sub_t *sub;
+		int32_t j, jst, max_a;
+		if (vs[i] == (uint32_t)-1) continue;
+		sub = gfa_sub_from(0, g, vs[i], 0);
+		for (j = 0, jst = 0, max_a = -1; j < sub->n_v; ++j) {
+			gfa_subv_t *t = &sub->v[j];
+			int32_t k;
+			if (j == max_a) {
+				const gfa_seg_t *sst = &g->seg[sub->v[jst].v>>1];
+				const gfa_seg_t *sen = &g->seg[t->v>>1];
+				if (sst->snid == i && sen->snid == i)
+					fprintf(fp, "%s\t%d\t%d\t%d\n", g->sseq[i].name, sst->soff + sst->len, sen->soff, j - jst - 1);
+				max_a = -1, jst = j;
+			}
+			for (k = 0; k < t->n; ++k)
+				if (sub->a[t->off + k] > max_a)
+					max_a = sub->a[t->off + k];
+		}
+		gfa_sub_destroy(sub);
+	}
+	free(vs);
+}

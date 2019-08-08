@@ -222,6 +222,27 @@ int main_gfa2fa(int argc, char *argv[])
 	return 0;
 }
 
+int main_blacklist(int argc, char *argv[])
+{
+	ketopt_t o = KETOPT_INIT;
+	int32_t c;
+	gfa_t *g;
+
+	while ((c = ketopt(&o, argc, argv, 1, "", 0)) >= 0) {
+	}
+	if (o.ind == argc) {
+		fprintf(stderr, "Usage: gfatools blacklist <in.gfa>\n");
+		return 1;
+	}
+	g = gfa_read(argv[o.ind]);
+	if (g == 0) {
+		fprintf(stderr, "ERROR: failed to read the graph\n");
+		return 2;
+	}
+	gfa_blacklist_print(g, stdout);
+	gfa_destroy(g);
+	return 0;
+}
 int main_asm(int argc, char *argv[])
 {
 	const char *tr_opts = "v:R:T:B:O:rtbomu";
@@ -301,6 +322,7 @@ int main(int argc, char *argv[])
 		fprintf(stderr, "  view        read a GFA file\n");
 		fprintf(stderr, "  gfa2fa      convert GFA to FASTA\n");
 		fprintf(stderr, "  gfa2bed     convert GFA to BED (requiring rGFA)\n");
+		fprintf(stderr, "  blacklist   blacklist regions\n");
 		fprintf(stderr, "  asm         miniasm-like graph transformation\n");
 		fprintf(stderr, "  version     print version number\n");
 		return 1;
@@ -310,6 +332,7 @@ int main(int argc, char *argv[])
 	if (strcmp(argv[1], "view") == 0) ret = main_view(argc-1, argv+1);
 	else if (strcmp(argv[1], "gfa2bed") == 0) ret = main_gfa2bed(argc-1, argv+1);
 	else if (strcmp(argv[1], "gfa2fa") == 0) ret = main_gfa2fa(argc-1, argv+1);
+	else if (strcmp(argv[1], "blacklist") == 0) ret = main_blacklist(argc-1, argv+1);
 	else if (strcmp(argv[1], "asm") == 0) ret = main_asm(argc-1, argv+1);
 	else if (strcmp(argv[1], "version") == 0) {
 		puts(GFA_VERSION);
