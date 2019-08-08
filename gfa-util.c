@@ -225,8 +225,14 @@ void gfa_blacklist_print(const gfa_t *g, FILE *fp) // FIXME: doesn't work with t
 			if (j == max_a) {
 				const gfa_seg_t *sst = &g->seg[sub->v[jst].v>>1];
 				const gfa_seg_t *sen = &g->seg[t->v>>1];
-				if (sst->snid == i && sen->snid == i)
-					fprintf(fp, "%s\t%d\t%d\t%d\n", g->sseq[i].name, sst->soff + sst->len, sen->soff, j - jst - 1);
+				if (sst->snid == i && sen->snid == i) {
+					fprintf(fp, "%s\t%d\t%d\t%d\t", g->sseq[i].name, sst->soff + sst->len, sen->soff, j - jst + 1);
+					for (k = jst; k <= j; ++k) {
+						if (k > jst) fputc(',', fp);
+						fputs(g->seg[sub->v[k].v>>1].name, fp);
+					}
+					fputc('\n', fp);
+				}
 				max_a = -1, jst = j;
 			}
 			for (k = 0; k < t->n; ++k)
