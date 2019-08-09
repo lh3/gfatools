@@ -169,20 +169,22 @@ static void print_seq(FILE *fp, const char *seq, int32_t line_len)
 int main_gfa2fa(int argc, char *argv[])
 {
 	ketopt_t o = KETOPT_INIT;
-	int32_t i, c, is_stable = 0, skip_rank0 = 0, line_len = 60;
+	int32_t i, c, is_stable = 0, skip_rank0 = 0, line_len = 60, ref_only = 0;
 	gfa_t *g;
 
-	while ((c = ketopt(&o, argc, argv, 1, "sPl:", 0)) >= 0) {
+	while ((c = ketopt(&o, argc, argv, 1, "sPl:0", 0)) >= 0) {
 		if (c == 's') is_stable = 1;
-		else if (c == 'P') skip_rank0 = 1;
+		else if (c == 'P') skip_rank0 = is_stable = 1;
 		else if (c == 'l') line_len = atoi(o.arg);
+		else if (c == '0') ref_only = is_stable = 1;
 	}
 	if (o.ind == argc) {
 		fprintf(stderr, "Usage: gfatools gfa2fa [options] <in.gfa>\n");
 		fprintf(stderr, "Options:\n");
 		fprintf(stderr, "  -l INT   line length [%d]\n", line_len);
 		fprintf(stderr, "  -s       output stable sequences (rGFA only)\n");
-		fprintf(stderr, "  -P       skip rank-0 sequences (rGFA only)\n");
+		fprintf(stderr, "  -P       skip rank-0 sequences (rGFA only; force -s)\n");
+		fprintf(stderr, "  -0       only output rank-0 sequences (rGFA only; force -s)\n");
 		return 1;
 	}
 	g = gfa_read(argv[o.ind]);
@@ -203,17 +205,19 @@ int main_gfa2fa(int argc, char *argv[])
 		for (i = 0; i < n_sfa; ++i) {
 			gfa_sfa_t *s = &r[i];
 			if (s->rank == 0) {
-				if (!skip_rank0)
+				if (!skip_rank0) {
 					printf(">%s\n", g->sseq[s->snid].name);
-			} else {
+					print_seq(stdout, s->seq, line_len);
+				}
+			} else if (!ref_only) {
 				printf(">%s_%d_%d", g->sseq[s->snid].name, s->soff, s->soff + s->len);
 				for (j = 0; j < 2; ++j) {
 					if (s->end[j] == (uint64_t)-1) printf("\t*");
 					else printf("\t%c%s:%d", "><"[s->end[j]&1], g->sseq[s->end[j]>>32].name, (uint32_t)s->end[j]>>1);
 				}
 				putchar('\n');
+				print_seq(stdout, s->seq, line_len);
 			}
-			if (s->rank != 0 || !skip_rank0) print_seq(stdout, s->seq, line_len);
 			free(s->seq);
 		}
 		free(r);
