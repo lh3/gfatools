@@ -228,8 +228,8 @@ void gfa_blacklist_print(const gfa_t *g, FILE *fp, int32_t min_len) // FIXME: do
 				if (sst->snid == i && sen->snid == i) {
 					int32_t rst = sst->soff + sst->len, ren = sen->soff;
 					if (ren - rst < min_len) {
-						rst -= (min_len - (ren - rst)) / 2;
-						ren += (min_len - (ren - rst)) / 2;
+						int32_t ext = (min_len - (ren - rst) + 1) / 2;
+						rst -= ext, ren += ext;
 						if (rst < 0) rst = 0;
 						if (ren > g->sseq[i].max) ren = g->sseq[i].max;
 					}
