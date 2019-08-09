@@ -203,7 +203,7 @@ end_check:
 	return sfa;
 }
 
-void gfa_blacklist_print(const gfa_t *g, FILE *fp) // FIXME: doesn't work with translocations
+void gfa_blacklist_print(const gfa_t *g, FILE *fp, int32_t min_len) // FIXME: doesn't work with translocations
 {
 	uint32_t i, *vs;
 	GFA_MALLOC(vs, g->n_sseq);
@@ -226,7 +226,14 @@ void gfa_blacklist_print(const gfa_t *g, FILE *fp) // FIXME: doesn't work with t
 				const gfa_seg_t *sst = &g->seg[sub->v[jst].v>>1];
 				const gfa_seg_t *sen = &g->seg[t->v>>1];
 				if (sst->snid == i && sen->snid == i) {
-					fprintf(fp, "%s\t%d\t%d\t%d\t", g->sseq[i].name, sst->soff + sst->len, sen->soff, j - jst + 1);
+					int32_t rst = sst->soff + sst->len, ren = sen->soff;
+					if (ren - rst < min_len) {
+						rst -= (min_len - (ren - rst)) / 2;
+						ren += (min_len - (ren - rst)) / 2;
+						if (rst < 0) rst = 0;
+						if (ren > g->sseq[i].max) ren = g->sseq[i].max;
+					}
+					fprintf(fp, "%s\t%d\t%d\t%d\t", g->sseq[i].name, rst, ren, j - jst + 1);
 					for (k = jst; k <= j; ++k) {
 						if (k > jst) fputc(',', fp);
 						fputs(g->seg[sub->v[k].v>>1].name, fp);

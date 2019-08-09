@@ -225,13 +225,16 @@ int main_gfa2fa(int argc, char *argv[])
 int main_blacklist(int argc, char *argv[])
 {
 	ketopt_t o = KETOPT_INIT;
-	int32_t c;
+	int32_t c, min_len = 100;
 	gfa_t *g;
 
-	while ((c = ketopt(&o, argc, argv, 1, "", 0)) >= 0) {
+	while ((c = ketopt(&o, argc, argv, 1, "l:", 0)) >= 0) {
+		if (c == 'l') min_len = atoi(o.arg);
 	}
 	if (o.ind == argc) {
-		fprintf(stderr, "Usage: gfatools blacklist <in.gfa>\n");
+		fprintf(stderr, "Usage: gfatools blacklist [options] <in.gfa>\n");
+		fprintf(stderr, "Options:\n");
+		fprintf(stderr, "  -l INT    min region length [%d]\n", min_len);
 		return 1;
 	}
 	g = gfa_read(argv[o.ind]);
@@ -239,7 +242,7 @@ int main_blacklist(int argc, char *argv[])
 		fprintf(stderr, "ERROR: failed to read the graph\n");
 		return 2;
 	}
-	gfa_blacklist_print(g, stdout);
+	gfa_blacklist_print(g, stdout, min_len);
 	gfa_destroy(g);
 	return 0;
 }
