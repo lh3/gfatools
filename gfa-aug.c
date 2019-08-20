@@ -188,6 +188,7 @@ void gfa_augment(gfa_t *g, int32_t n_ins, const gfa_ins_t *ins, int32_t n_ctg, c
 	GFA_BZERO(&g->arc_aux[n_old_arc], g->m_arc - n_old_arc);
 	gfa_arc_sort(g);
 	gfa_arc_index(g);
+	gfa_fix_multi(g);
 	// k = gfa_fix_symm(g); assert(k == 0); // for debugging; the graph should be symmetric
 }
 
