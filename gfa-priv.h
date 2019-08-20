@@ -34,6 +34,7 @@ extern "C" {
 
 char *gfa_strdup(const char *src);
 char *gfa_strndup(const char *src, size_t n);
+void radix_sort_gfa64(uint64_t *st, uint64_t *en);
 
 // add/delete one segment/arc/stable sequence
 int32_t gfa_add_seg(gfa_t *g, const char *name);
@@ -49,6 +50,7 @@ void gfa_symm(gfa_t *g); // delete multiple edges and restore skew-symmetry
 void gfa_arc_rm(gfa_t *g);
 void gfa_cleanup(gfa_t *g); // permanently delete arcs marked as deleted, sort and then index
 void gfa_finalize(gfa_t *g);
+int32_t gfa_check_multi(const gfa_t *g);
 
 void gfa_print_with_count(const gfa_t *g, FILE *fp, int flag, int n_sample, const int64_t *c_seg, const int32_t *c_link);
 

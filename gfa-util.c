@@ -3,9 +3,6 @@
 #include "kvec.h"
 #include "ksort.h"
 
-#define generic_key(x) (x)
-KRADIX_SORT_INIT(gfa64, uint64_t, generic_key, 8)
-
 void gfa_sub(gfa_t *g, int n, char *const* seg, int step)
 {
 	int32_t i;
@@ -70,7 +67,6 @@ static uint64_t find_join(const gfa_t *g, uint32_t v)
 
 gfa_sfa_t *gfa_gfa2sfa(const gfa_t *g, int32_t *n_sfa_, int32_t write_seq)
 {
-	extern void radix_sort_gfa64(uint64_t *st, uint64_t *en);
 	int32_t i, j, k, *scnt, *soff, n_sfa;
 	gfa_sfa_t *sfa = 0;
 	uint64_t *a;
