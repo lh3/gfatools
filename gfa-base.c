@@ -1,4 +1,5 @@
 #include <stdlib.h>
+#include <assert.h>
 #include <ctype.h>
 #include "gfa-priv.h"
 
@@ -353,15 +354,16 @@ uint32_t gfa_fix_multi(gfa_t *g)
 						if (gfa_verbose >= 2)
 							fprintf(stderr, "[W::%s] can't fix multiple edges due to '>v -- <v' involving segment %s\n", __func__, g->seg[v>>1].name);
 					} else {
-						int32_t k = (int32_t)buf[s]; // keep the shortest edge length from v
+						int32_t n_wdel, k = (int32_t)buf[s]; // keep the shortest edge from v
 						int32_t nw = gfa_arc_n(g, av[k].w^1);
 						gfa_arc_t *aw = gfa_arc_a(g, av[k].w^1);
 						uint64_t aux_id = av[k].aux_id;
 						n_rm += i - s - 1;
 						for (j = s + 1; j < i; ++j) av[(int32_t)buf[j]].del = 1;
-						for (j = 0; j < nw; ++j)
+						for (j = 0, n_wdel = 0; j < nw; ++j)
 							if (aw[j].w == (v^1) && aw[j].aux_id != aux_id)
-								aw[j].del = 1;
+								aw[j].del = 1, ++n_wdel;
+						assert(n_wdel == i - s - 1);
 					}
 				}
 				s = i;
@@ -371,7 +373,7 @@ uint32_t gfa_fix_multi(gfa_t *g)
 	free(buf);
 	if (n_rm > 0) {
 		if (gfa_verbose >= 2)
-			fprintf(stderr, "[W] removed %d multiple edges (not counting duals)\n", n_rm);
+			fprintf(stderr, "[W::%s] removed %d multiple edges (counting both dual edges)\n", __func__, n_rm);
 		gfa_arc_rm(g);
 		gfa_arc_index(g);
 	}
