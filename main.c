@@ -107,6 +107,52 @@ int main_view(int argc, char *argv[])
 	return 0;
 }
 
+int main_stat(int argc, char *argv[])
+{
+	ketopt_t o = KETOPT_INIT;
+	int32_t c, max_deg = 0;
+	int64_t i, n_vtx;
+	uint64_t tot_seg_len = 0, seg0_len = 0, n_link = 0, tot_deg = 0;
+	gfa_t *g;
+
+	while ((c = ketopt(&o, argc, argv, 1, "", 0)) >= 0) {
+	}
+	if (o.ind == argc) {
+		fprintf(stderr, "Usage: gfatools stat <in.gfa>\n");
+		return 1;
+	}
+	g = gfa_read(argv[o.ind]);
+	if (g == 0) {
+		fprintf(stderr, "ERROR: failed to read the graph\n");
+		return 2;
+	}
+	printf("Number of segments: %d\n", g->n_seg);
+	for (i = 0; i < g->n_arc; ++i)
+		if (!g->arc[i].comp) ++n_link;
+	printf("Number of links: %lld\n", (long long)n_link);
+	printf("Number of arcs: %lld\n", (long long)g->n_arc);
+	printf("Max rank: %d\n", g->max_rank);
+	for (i = 0; i < g->n_seg; ++i) {
+		tot_seg_len += g->seg[i].len;
+		if (g->seg[i].rank == 0) seg0_len += g->seg[i].len;
+	}
+	printf("Total segment length: %lld\n", (long long)tot_seg_len);
+	if (g->n_seg)
+		printf("Average segment length: %.3f\n", (double)tot_seg_len / g->n_seg);
+	printf("Sum of rank-0 segment lengths: %lld\n", (long long)seg0_len);
+	n_vtx = gfa_n_vtx(g);
+	for (i = 0; i < n_vtx; ++i) {
+		int32_t nv = gfa_arc_n(g, i);
+		if (nv > max_deg) max_deg = nv;
+		tot_deg += nv;
+	}
+	printf("Max degree: %d\n", max_deg);
+	if (n_vtx > 0)
+		printf("Average degree: %.3f\n", (double)tot_deg / n_vtx);
+	gfa_destroy(g);
+	return 0;
+}
+
 int main_gfa2bed(int argc, char *argv[])
 {
 	ketopt_t o = KETOPT_INIT;
@@ -330,6 +376,7 @@ int main(int argc, char *argv[])
 		fprintf(stderr, "Usage: gfatools <command> <arguments>\n");
 		fprintf(stderr, "Commands:\n");
 		fprintf(stderr, "  view        read a GFA file\n");
+		fprintf(stderr, "  stat        statistics about a GFA file\n");
 		fprintf(stderr, "  gfa2fa      convert GFA to FASTA\n");
 		fprintf(stderr, "  gfa2bed     convert GFA to BED (requiring rGFA)\n");
 		fprintf(stderr, "  blacklist   blacklist regions\n");
@@ -340,6 +387,7 @@ int main(int argc, char *argv[])
 
 	t_start = realtime();
 	if (strcmp(argv[1], "view") == 0) ret = main_view(argc-1, argv+1);
+	else if (strcmp(argv[1], "stat") == 0) ret = main_stat(argc-1, argv+1);
 	else if (strcmp(argv[1], "gfa2bed") == 0) ret = main_gfa2bed(argc-1, argv+1);
 	else if (strcmp(argv[1], "gfa2fa") == 0) ret = main_gfa2fa(argc-1, argv+1);
 	else if (strcmp(argv[1], "blacklist") == 0) ret = main_blacklist(argc-1, argv+1);
