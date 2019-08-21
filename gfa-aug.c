@@ -27,7 +27,7 @@ static inline void create_first_arc_semi(gfa_t *g, const gfa_seg_t *seg, uint32_
 
 static inline void create_first_arc(gfa_t *g, const gfa_seg_t *seg, uint32_t v, uint32_t w, int32_t rank)
 {
-	uint64_t aux_id = g->n_arc - 1;
+	uint64_t aux_id = g->n_arc;
 	create_first_arc_semi(g, seg, v,   w,   rank, aux_id, 0);
 	create_first_arc_semi(g, seg, w^1, v^1, rank, aux_id, 1);
 }
