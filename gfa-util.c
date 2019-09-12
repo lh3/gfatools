@@ -29,9 +29,12 @@ void gfa_sub(gfa_t *g, int n, char *const* seg, int step)
 		if (r < step) {
 			uint32_t nv = gfa_arc_n(g, v);
 			gfa_arc_t *av = gfa_arc_a(g, v);
-			for (i = 0; i < nv; ++i)
+			for (i = 0; i < nv; ++i) {
 				if (flag[av[i].w] == 0)
 					kv_push(uint64_t, stack, (uint64_t)av[i].w<<32 | (r + 1));
+				if (flag[av[i].w^1] == 0)
+					kv_push(uint64_t, stack, (uint64_t)(av[i].w^1)<<32 | (r + 1));
+			}
 		}
 	}
 	free(stack.a);
