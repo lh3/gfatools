@@ -204,15 +204,18 @@ end_check:
 
 void gfa_blacklist_print(const gfa_t *g, FILE *fp, int32_t min_len) // FIXME: doesn't work with translocations
 {
-	uint32_t i, *vs;
+	uint32_t i, *vs, *vmin;
 	GFA_MALLOC(vs, g->n_sseq);
+	GFA_MALLOC(vmin, g->n_sseq);
 	for (i = 0; i < g->n_sseq; ++i)
-		vs[i] = (uint32_t)-1;
+		vs[i] = (uint32_t)-1, vmin[i] = UINT32_MAX;
 	for (i = 0; i < g->n_seg; ++i) {
 		const gfa_seg_t *s = &g->seg[i];
 		if (s->rank != 0 || s->snid < 0) continue;
-		if (s->soff == 0) vs[s->snid] = i<<1; // NB: assuming all rank-0 sseq start with 0
+		if ((uint32_t)s->soff < vmin[s->snid])
+			vmin[s->snid] = s->soff, vs[s->snid] = i<<1;
 	}
+	free(vmin);
 	for (i = 0; i < g->n_sseq; ++i) {
 		gfa_sub_t *sub;
 		int32_t j, jst, max_a;
