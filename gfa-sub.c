@@ -100,7 +100,7 @@ gfa_sub_t *gfa_sub_from(void *km0, const gfa_t *g, uint32_t v0, int32_t max_dist
 	KCALLOC(sub->km, sub->a, n_arc);
 	sub->is_dag = 1;
 
-	for (j = 0; j < n_L; ++j) L[j]->in_tree = j;
+	for (j = 0; j < n_L; ++j) L[j]->in_tree = j; // reuse ->in_tree for a different purpose
 	for (j = 0, off = 0; j < sub->n_v; ++j) {
 		int32_t i, nv, o0 = off;
 		gfa_arc_t *av;
@@ -110,15 +110,15 @@ gfa_sub_t *gfa_sub_from(void *km0, const gfa_t *g, uint32_t v0, int32_t max_dist
 			gfa_arc_t *avi = &av[i];
 			k = kh_get(v, h, avi->w);
 			if (k == kh_end(h)) continue;
-			sub->a[off++] = kh_val(h, k)->in_tree;
+			sub->a[off++] = (uint64_t)kh_val(h, k)->in_tree << 32 | (avi - g->arc);
 		}
 		sub->v[j].v = L[j]->v;
 		sub->v[j].d = (uint32_t)L[j]->nd;
 		sub->v[j].off = o0;
 		sub->v[j].n = off - o0;
 		if (o0 < off) {
-			radix_sort_gfa32(&sub->a[o0], &sub->a[off]);
-			if (sub->a[o0] <= j) sub->is_dag = 0;
+			radix_sort_gfa64(&sub->a[o0], &sub->a[off]);
+			if (sub->a[o0]>>32 <= j) sub->is_dag = 0;
 		}
 	}
 	assert(off == n_arc);
@@ -145,7 +145,7 @@ void gfa_sub_print(FILE *fp, const gfa_t *g, const gfa_sub_t *sub)
 			fputc('\t', fp);
 			for (j = 0; j < p->n; ++j) {
 				if (j) fputc(',', fp);
-				fprintf(fp, "%d", sub->a[p->off + j]);
+				fprintf(fp, "%d", (uint32_t)(sub->a[p->off + j]>>32));
 			}
 		}
 		fputc('\n', fp);

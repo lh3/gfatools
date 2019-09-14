@@ -245,8 +245,8 @@ void gfa_blacklist_print(const gfa_t *g, FILE *fp, int32_t min_len) // FIXME: do
 				max_a = -1, jst = j;
 			}
 			for (k = 0; k < t->n; ++k)
-				if (sub->a[t->off + k] > max_a)
-					max_a = sub->a[t->off + k];
+				if ((int32_t)(sub->a[t->off + k]>>32) > max_a)
+					max_a = sub->a[t->off + k]>>32;
 		}
 		gfa_sub_destroy(sub);
 	}

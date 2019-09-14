@@ -24,7 +24,7 @@ typedef struct {
 typedef struct {
 	int32_t n_v, n_a, is_dag;
 	gfa_subv_t *v;
-	int32_t *a;
+	uint64_t *a; // high 32 bits: point to the neighbor; low 32 bit: arc index in the graph
 	void *km;
 } gfa_sub_t;
 
