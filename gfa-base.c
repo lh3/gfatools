@@ -296,6 +296,11 @@ void gfa_arc_rm(gfa_t *g)
 		uint32_t u = g->arc[e].v_lv>>32, v = g->arc[e].w;
 		if (!g->arc[e].del && !g->seg[u>>1].del && !g->seg[v>>1].del)
 			g->arc[n++] = g->arc[e];
+		else {
+			gfa_aux_t *aux = &g->link_aux[g->arc[e].link_id];
+			free(aux->aux);
+			aux->aux = 0, aux->l_aux = aux->m_aux = 0;
+		}
 	}
 	if (n < g->n_arc) { // arc index is out of sync
 		if (g->idx) free(g->idx);
