@@ -108,7 +108,7 @@ static void gfa_genotype_simple_interval(const gfa_t *g, const gfa_sub_t *sub, i
 	path_len[0] = k;
 
 	// backtrack
-	fprintf(stderr, "XX\t%s\t%s\n", g->seg[sub->v[jst].v>>1].name, g->seg[sub->v[jen].v>>1].name);
+	//fprintf(stderr, "XX\t%s\t%s\n", g->seg[sub->v[jst].v>>1].name, g->seg[sub->v[jen].v>>1].name);
 	for (k = 0; k < sc->n; ++k) {
 		int32_t l = 0, j = jst, i = k;
 		while (1) {
@@ -120,9 +120,26 @@ static void gfa_genotype_simple_interval(const gfa_t *g, const gfa_sub_t *sub, i
 		path_len[k+1] = l, score[k+1] = sc->s[k].sc;
 	}
 
+	// squeeze out ALT ref paths
+	for (k = 1, j = 1; k < n_path; ++k) {
+		int32_t is_drop = 0;
+		if (path_len[k] == path_len[0]) {
+			int32_t i;
+			for (i = 0; i < path_len[0]; ++i)
+				if (path[k][i] != path[0][i])
+					break;
+			is_drop = (i == path_len[0]);
+		}
+		if ((float)score[k] + 1.0f == 1.0f)
+			is_drop = 1;
+		if (is_drop == 0)
+			path_len[j] = path_len[k], path[j] = path[k], score[j++] = score[k];
+		else free(path[k]);
+	}
+	n_path = j;
+
 	// print
-	printf("VP\t%c%s\t%c%s\t%d", "><"[sub->v[jst].v&1], g->seg[sub->v[jst].v>>1].name,
-			"><"[sub->v[jen].v&1], g->seg[sub->v[jen].v>>1].name, n_path);
+	printf("VP\t%c%s\t%c%s\t%d", "><"[sub->v[jst].v&1], g->seg[sub->v[jst].v>>1].name, "><"[sub->v[jen].v&1], g->seg[sub->v[jen].v>>1].name, n_path);
 	for (k = 0; k < n_path; ++k) {
 		int32_t i;
 		printf("\t%.2f:", score[k]);
@@ -134,7 +151,7 @@ static void gfa_genotype_simple_interval(const gfa_t *g, const gfa_sub_t *sub, i
 	printf("\n");
 
 	// free
-	for (k = 0; k <= sc->n; ++k)
+	for (k = 0; k < n_path; ++k)
 		free(path[k]);
 	free(sc);
 }
