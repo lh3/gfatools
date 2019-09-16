@@ -40,15 +40,13 @@ static void gfa_gt_simple_interval(const gfa_t *g, const gfa_sub_t *sub, int32_t
 	assert(g->seg[sub->v[jen].v>>1].rank == 0);
 	//fprintf(stderr, "XX\t%s\t%s\n", g->seg[sub->v[jst].v>>1].name, g->seg[sub->v[jen].v>>1].name);
 
-	GFA_CALLOC(sc, jen - jst + 1);
-	sc[jen - jst].n = 1;
-	sc[jen - jst].s[0].j = sc[jen - jst].s[0].i = -1;
 	for (k = 0; k <= GT_MAX_SC; ++k)
 		path[k] = 0, path_len[k] = 0, score[k] = 0.0;
 
 	// fill sc[]
-	//gfa_sub_print(stderr, g, sub);
-	//fprintf(stderr, "n_v=%d,st=%d,en=%d\n", sub->n_v, jst, jen);
+	GFA_CALLOC(sc, jen - jst + 1);
+	sc[jen - jst].n = 1;
+	sc[jen - jst].s[0].j = sc[jen - jst].s[0].i = -1;
 	for (j = jen - 1; j >= jst; --j) {
 		const gfa_subv_t *t = &sub->v[j];
 		gt_max_t *s0 = &sc[j - jst];
@@ -73,7 +71,7 @@ static void gfa_gt_simple_interval(const gfa_t *g, const gfa_sub_t *sub, int32_t
 					for (x = 0; x < s0->n; ++x)
 						if (s0->s[x].sc < score)
 							break;
-					if (x < s0->n) {
+					if (x < s0->n) { // make room for the new partial path
 						for (y = s0->n - 1; y > x; --y)
 							s0->s[y] = s0->s[y - 1];
 						ins = x;
