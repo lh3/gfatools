@@ -422,7 +422,7 @@ static inline int gfa_aux_type2size(int x)
 }
 
 #define __skip_tag(s) do { \
-		int type = toupper(*(s)); \
+		int type = *(s); \
 		++(s); \
 		if (type == 'Z') { while (*(s)) ++(s); ++(s); } \
 		else if (type == 'B') (s) += 5 + gfa_aux_type2size(*(s)) * (*(int32_t*)((s)+1)); \

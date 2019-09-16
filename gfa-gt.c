@@ -1,3 +1,5 @@
+#include <stdio.h>
+#include <assert.h>
 #include "gfa-priv.h"
 
 typedef struct {
@@ -9,43 +11,53 @@ typedef struct {
 
 typedef struct {
 	int32_t n;
+	float vsc;
 	gt_sc_t s[GT_MAX_SC]; // top 2 scores
 } gt_max_t;
 
 static void gfa_genotype_simple_interval(const gfa_t *g, const gfa_sub_t *sub, int32_t jst, int32_t jen)
 {
-	int32_t j, k, path_len[GT_MAX_SC];
+	int32_t j, k, path_len[GT_MAX_SC+1];
 	gt_max_t *sc;
-	uint32_t *path[GT_MAX_SC];
+	uint32_t *path[GT_MAX_SC+1];
+	double score[GT_MAX_SC+1];
+
+	assert(g->seg[sub->v[jst].v>>1].rank == 0);
+	assert(g->seg[sub->v[jen].v>>1].rank == 0);
 
 	GFA_CALLOC(sc, jen - jst + 1);
 	sc[jen - jst].n = 1;
 	sc[jen - jst].s[0].j = sc[jen - jst].s[0].i = -1;
+	for (k = 0; k <= GT_MAX_SC; ++k)
+		path[k] = 0, path_len[k] = 0, score[k] = 0.0;
 
 	// fill sc[]
-	for (j = jen - 1; j >= jst; ++j) {
+	//gfa_sub_print(stderr, g, sub);
+	//fprintf(stderr, "n_v=%d,st=%d,en=%d\n", sub->n_v, jst, jen);
+	for (j = jen - 1; j >= jst; --j) {
 		const gfa_subv_t *t = &sub->v[j];
-		const gfa_aux_t *aux = &g->seg[t->v].aux;
+		const gfa_aux_t *aux = &g->seg[t->v>>1].aux;
 		const uint8_t *dc;
-		double svj;
 		dc = gfa_aux_get(aux->l_aux, aux->aux, "dc");
-		svj = dc && dc[0] == 'f'? *(float*)(dc + 1) : 0.0f;
 		gt_max_t *s0 = &sc[j - jst];
+		s0->vsc = dc && dc[0] == 'f'? *(float*)(dc + 1) : 0.0f;
 		for (k = 0; k < t->n; ++k) {
 			uint64_t a = sub->a[t->off + k];
-			uint32_t jp = (uint32_t)a;
+			uint32_t jp = (uint32_t)(a>>32);
 			const gfa_arc_t *arc;
 			int32_t i;
 			gt_max_t *s1;
-			if (jp <= j) continue;
-			arc = &g->arc[a>>32];
+			assert(t->off + k < sub->n_a);
+			//fprintf(stderr, "j=%d off=%d k=%d jp=%d\n", j, t->off, k, jp);
+			if (jp <= j || jp > jen) continue;
+			arc = &g->arc[(uint32_t)a];
 			s1 = &sc[jp - jst];
 			for (i = 0; i < s1->n; ++i) {
 				double score, dc_val;
 				aux = &g->link_aux[arc->link_id];
 				dc = gfa_aux_get(aux->l_aux, aux->aux, "dc");
 				dc_val = dc && dc[0] == 'f'? *(float*)(dc + 1) : 0.0f;
-				score = s1->s[i].sc + dc_val + svj;
+				score = s1->s[i].sc + dc_val + s0->vsc;
 				if (s0->n < GT_MAX_SC) {
 					s0->s[s0->n].j = jp;
 					s0->s[s0->n].i = i;
@@ -66,32 +78,56 @@ static void gfa_genotype_simple_interval(const gfa_t *g, const gfa_sub_t *sub, i
 				}
 			}
 		}
+		//fprintf(stderr, "j=%d v=%c%s[%d] n_best=%d: ", j, "><"[t->v&1], g->seg[t->v>>1].name, t->v, s0->n); for (k = 0; k < s0->n; ++k) fprintf(stderr, "%f,", s0->s[k].sc); fprintf(stderr, "\n");
 	}
+
+	// allocate path[]
+	for (k = 0; k <= sc->n; ++k) // k==sc->n for the reference path
+		GFA_MALLOC(path[k], jen - jst - 1); // this is over-allocating, but it should not be an issue
 
 	// backtrack
 	for (k = 0; k < sc->n; ++k) {
 		int32_t l = 0, j = 0, i = k;
-		// count
-		while (1) {
-			gt_sc_t *s = &sc[j].s[i];
-			j = s->j, i = s->i;
-			if (j < 0) break;
-			++l;
-		}
-		// fill path[k][]
-		path_len[k] = l;
-		GFA_MALLOC(path[k], l);
 		l = 0, j = 0, i = k;
 		while (1) {
 			gt_sc_t *s = &sc[j].s[i];
 			j = s->j, i = s->i;
-			if (j < 0) break;
-			path[k][l++] = sub->v[j].v;
+			if (j < 0 || j == jen) break;
+			path[k][l++] = j;
 		}
+		path_len[k] = l, score[k] = sc[0].s[k].sc;
+	}
+
+	// find the reference path
+	j = jst, k = 0;
+	while (1) {
+		const gfa_subv_t *t = &sub->v[j];
+		uint64_t a;
+		int32_t i;
+		for (i = 0; i < t->n; ++i) {
+			a = sub->a[t->off + i];
+			if (g->arc[(uint32_t)a].rank == 0)
+				break;
+		}
+		assert(i < t->n);
+		j = a>>32;
+		if (j == jen) break;
+		path[sc->n][k++] = j;
+	}
+	path_len[sc->n] = k;
+
+	for (k = 0; k <= sc->n; ++k) {
+		int32_t i;
+		fprintf(stderr, "[%d]\t%f\t%d\t", k, k < sc->n? sc->s[k].sc : -1.0, path_len[k]);
+		for (i = 0; i < path_len[k]; ++i) {
+			uint32_t v = sub->v[path[k][i] - jst].v;
+			fprintf(stderr, "%c%s[%d]", "><"[v&1], g->seg[v>>1].name, v);
+		}
+		fprintf(stderr, "\n");
 	}
 
 	// free
-	for (k = 0; k < sc->n; ++k)
+	for (k = 0; k <= sc->n; ++k)
 		free(path[k]);
 	free(sc);
 }
