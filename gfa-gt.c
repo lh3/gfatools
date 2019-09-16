@@ -121,13 +121,14 @@ static void gfa_genotype_simple_interval(const gfa_t *g, const gfa_sub_t *sub, i
 	}
 
 	// print
-	printf("VP\t%d", n_path);
+	printf("VP\t%c%s\t%c%s\t%d", "><"[sub->v[jst].v&1], g->seg[sub->v[jst].v>>1].name,
+			"><"[sub->v[jen].v&1], g->seg[sub->v[jen].v>>1].name, n_path);
 	for (k = 0; k < n_path; ++k) {
 		int32_t i;
-		printf("\t%.3f:", score[k]);
+		printf("\t%.2f:", score[k]);
 		for (i = 0; i < path_len[k]; ++i) {
 			uint32_t v = sub->v[path[k][i] - jst].v;
-			printf("%c%s[%d]", "><"[v&1], g->seg[v>>1].name, v);
+			printf("%c%s", "><"[v&1], g->seg[v>>1].name);
 		}
 	}
 	printf("\n");
