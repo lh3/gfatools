@@ -66,14 +66,9 @@ static void gfa_gt_simple_interval(const gfa_t *g, const gfa_sub_t *sub, int32_t
 			s1 = &sc[jp - jst];
 			for (i = 0; i < s1->n; ++i) { // iterate over path ends
 				double score;
+				int32_t ins = -1;
 				score = s1->s[i].sc + dc + s0->vsc;
-				if (s0->n < GT_MAX_SC) {
-					s0->s[s0->n].j = jp;
-					s0->s[s0->n].i = i;
-					s0->s[s0->n].a = t->off + k;
-					s0->s[s0->n].sc = score;
-					++s0->n;
-				} else {
+				if (s0->n == GT_MAX_SC) {
 					int32_t x, y;
 					for (x = 0; x < s0->n; ++x)
 						if (s0->s[x].sc < score)
@@ -81,11 +76,15 @@ static void gfa_gt_simple_interval(const gfa_t *g, const gfa_sub_t *sub, int32_t
 					if (x < s0->n) {
 						for (y = s0->n - 1; y > x; --y)
 							s0->s[y] = s0->s[y - 1];
-						s0->s[x].j = jp;
-						s0->s[x].i = i;
-						s0->s[x].a = t->off + k;
-						s0->s[x].sc = score;
+						ins = x;
 					}
+				} else ins = s0->n;
+				if (ins >= 0) {
+					s0->s[ins].j = jp;
+					s0->s[ins].i = i;
+					s0->s[ins].a = t->off + k;
+					s0->s[ins].sc = score;
+					if (s0->n < GT_MAX_SC) ++s0->n;
 				}
 			}
 		}
