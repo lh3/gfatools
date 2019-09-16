@@ -1,6 +1,7 @@
 #ifndef __GFA_PRIV_H__
 #define __GFA_PRIV_H__
 
+#include <stdlib.h>
 #include "gfa.h"
 
 #define GFA_MALLOC(ptr, len) ((ptr) = (__typeof__(ptr))malloc((len) * sizeof(*(ptr))))
@@ -79,6 +80,8 @@ void gfa_augment(gfa_t *g, int32_t n_ins, const gfa_ins_t *ins, int32_t n_ctg, c
 gfa_sfa_t *gfa_gfa2sfa(const gfa_t *g, int32_t *n_sfa_, int32_t write_seq);
 
 void gfa_blacklist_print(const gfa_t *g, FILE *fp, int32_t min_len); // FIXME: doesn't work with translocations
+
+void gfa_genotype_simple(const gfa_t *g); // FIXME: doesn't work with translocations
 
 void gfa_aux_update_cv(gfa_t *g, const char *tag, const double *cov_seg, const double *cov_link);
 
