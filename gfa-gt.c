@@ -44,7 +44,7 @@ static void gfa_genotype_simple_interval(const gfa_t *g, const gfa_sub_t *sub, i
 	for (j = jen - 1; j >= jst; --j) {
 		const gfa_subv_t *t = &sub->v[j];
 		gt_max_t *s0 = &sc[j - jst];
-		s0->vsc = get_dc(&g->seg[t->v>>1].aux);
+		s0->vsc = j == jst? 0.0f : get_dc(&g->seg[t->v>>1].aux);
 		for (k = 0; k < t->n; ++k) {
 			uint64_t a = sub->a[t->off + k];
 			uint32_t jp = (uint32_t)(a>>32);
@@ -108,11 +108,11 @@ static void gfa_genotype_simple_interval(const gfa_t *g, const gfa_sub_t *sub, i
 	path_len[0] = k;
 
 	// backtrack
+	fprintf(stderr, "XX\t%s\t%s\n", g->seg[sub->v[jst].v>>1].name, g->seg[sub->v[jen].v>>1].name);
 	for (k = 0; k < sc->n; ++k) {
-		int32_t l = 0, j = 0, i = k;
-		l = 0, j = 0, i = k;
+		int32_t l = 0, j = jst, i = k;
 		while (1) {
-			gt_sc_t *s = &sc[j].s[i];
+			gt_sc_t *s = &sc[j - jst].s[i];
 			j = s->j, i = s->i;
 			if (j < 0 || j == jen) break;
 			path[k+1][l++] = j;
@@ -127,7 +127,7 @@ static void gfa_genotype_simple_interval(const gfa_t *g, const gfa_sub_t *sub, i
 		int32_t i;
 		printf("\t%.2f:", score[k]);
 		for (i = 0; i < path_len[k]; ++i) {
-			uint32_t v = sub->v[path[k][i] - jst].v;
+			uint32_t v = sub->v[path[k][i]].v;
 			printf("%c%s", "><"[v&1], g->seg[v>>1].name);
 		}
 	}
