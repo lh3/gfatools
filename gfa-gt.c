@@ -66,11 +66,32 @@ static double gt_cal_weight(const gfa_t *g, const gfa_sub_t *sub, int32_t path_l
 	return s;
 }
 
+static int32_t gt_filter_path(int32_t n_path, int32_t *path_len, gt_node_t **path, double *score)
+{
+	int32_t j, k;
+	for (k = 1, j = 1; k < n_path; ++k) {
+		int32_t is_drop = 0;
+		if (path_len[k] == path_len[0]) {
+			int32_t i;
+			for (i = 0; i < path_len[0]; ++i)
+				if (path[k][i].x != path[0][i].x)
+					break;
+			is_drop = (i == path_len[0]);
+		}
+		if ((float)score[k] + 1.0f == 1.0f)
+			is_drop = 1;
+		if (is_drop == 0)
+			path_len[j] = path_len[k], path[j] = path[k], score[j++] = score[k];
+		else free(path[k]);
+	}
+	return j;
+}
+
 static void gfa_gt_simple_interval(const gfa_t *g, const gfa_sub_t *sub, int32_t jst, int32_t jen)
 {
 	int32_t j, k, n_path, path_len[GT_MAX_SC+1];
 	gt_max_t *sc;
-	gt_node_t *path[GT_MAX_SC+1], *pa;
+	gt_node_t *path[GT_MAX_SC+1];
 	double score[GT_MAX_SC+1];
 
 	assert(g->seg[sub->v[jst].v>>1].rank == 0);
@@ -130,12 +151,11 @@ static void gfa_gt_simple_interval(const gfa_t *g, const gfa_sub_t *sub, int32_t
 	n_path = sc->n + 1;
 	for (k = 0; k < n_path; ++k) // k==sc->n for the reference path
 		GFA_MALLOC(path[k], (jen - jst + 1) * 2); // this is over-allocating, but it should not be an issue
-	path_len[0] = gt_get_ref_path(g, sub, jst, jen, path[0]);
 
 	// backtrack
 	for (k = 0; k < sc->n; ++k) {
 		int32_t l = 0, j = jst, i = k;
-		pa = path[k + 1];
+		gt_node_t *pa = path[k + 1];
 		while (1) {
 			gt_sc_t *s = &sc[j - jst].s[i];
 			j = s->j, i = s->i;
@@ -146,26 +166,10 @@ static void gfa_gt_simple_interval(const gfa_t *g, const gfa_sub_t *sub, int32_t
 		path_len[k+1] = l;
 	}
 
+	path_len[0] = gt_get_ref_path(g, sub, jst, jen, path[0]);
 	for (k = 0; k < n_path; ++k)
 		score[k] = gt_cal_weight(g, sub, path_len[k], path[k]);
-
-	// squeeze out ALT ref paths
-	for (k = 1, j = 1; k < n_path; ++k) {
-		int32_t is_drop = 0;
-		if (path_len[k] == path_len[0]) {
-			int32_t i;
-			for (i = 0; i < path_len[0]; ++i)
-				if (path[k][i].x != path[0][i].x)
-					break;
-			is_drop = (i == path_len[0]);
-		}
-		if ((float)score[k] + 1.0f == 1.0f)
-			is_drop = 1;
-		if (is_drop == 0)
-			path_len[j] = path_len[k], path[j] = path[k], score[j++] = score[k];
-		else free(path[k]);
-	}
-	n_path = j;
+	n_path = gt_filter_path(n_path, path_len, path, score);
 
 	// print
 	printf("VP\t%c%s\t%c%s\t%d", "><"[sub->v[jst].v&1], g->seg[sub->v[jst].v>>1].name, "><"[sub->v[jen].v&1], g->seg[sub->v[jen].v>>1].name, n_path);
