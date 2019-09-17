@@ -10,6 +10,7 @@ typedef struct {
 } gt_sc_t;
 
 #define GT_MAX_SC 2
+#define GT_MAX_AL 3
 
 typedef struct {
 	int32_t n;
@@ -21,7 +22,20 @@ typedef struct {
 	int32_t is_arc;
 	int32_t x;
 	float w;
-} gt_node_t;
+} gt_elem_t;
+
+typedef struct {
+	int32_t l;
+	gt_elem_t *w;
+	double s;
+} gt_walk_t;
+
+typedef struct {
+	int32_t n_al;
+	int32_t is_var;
+	int32_t al[GT_MAX_AL];
+	double sc[GT_MAX_AL];
+} gt_call_t;
 
 static inline float gt_get_dc(const gfa_aux_t *aux)
 {
@@ -30,14 +44,13 @@ static inline float gt_get_dc(const gfa_aux_t *aux)
 	return dc && dc[0] == 'f'? *(float*)(dc + 1) : 0.0f;
 }
 
-static int32_t gt_get_ref_path(const gfa_t *g, const gfa_sub_t *sub, int32_t jst, int32_t jen, gt_node_t *pa)
+static int32_t gt_get_ref_walk(const gfa_t *g, const gfa_sub_t *sub, int32_t jst, int32_t jen, gt_elem_t *walk)
 {
-	int32_t j, k;
+	int32_t i, j, k;
 	j = jst, k = 0;
 	while (1) {
 		const gfa_subv_t *t = &sub->v[j];
 		uint64_t a;
-		int32_t i;
 		for (i = 0; i < t->n; ++i) {
 			a = sub->a[t->off + i];
 			if (g->arc[(uint32_t)a].rank == 0)
@@ -45,50 +58,47 @@ static int32_t gt_get_ref_path(const gfa_t *g, const gfa_sub_t *sub, int32_t jst
 		}
 		assert(i < t->n);
 		j = a>>32;
-		pa[k].is_arc = 1, pa[k].x = t->off + i;
-		pa[k++].w = gt_get_dc(&g->link_aux[g->arc[(uint32_t)a].link_id]);
+		walk[k].is_arc = 1, walk[k++].x = t->off + i;
 		if (j == jen) break;
-		pa[k].is_arc = 0, pa[k].x = j;
-		pa[k++].w = gt_get_dc(&g->seg[sub->v[j].v>>1].aux);
+		walk[k].is_arc = 0, walk[k++].x = j;
 	}
 	return k;
 }
 
-static double gt_cal_weight(const gfa_t *g, const gfa_sub_t *sub, int32_t path_len, gt_node_t *path)
+static double gt_cal_weight(const gfa_t *g, const gfa_sub_t *sub, int32_t len, gt_elem_t *walk)
 {
 	double s = 0.0;
 	int32_t j;
-	for (j = 0; j < path_len; ++j) {
-		gt_node_t *p = &path[j];
-		if (p->is_arc) p->w = gt_get_dc(&g->link_aux[g->arc[(uint32_t)sub->a[p->x]].link_id]);
-		else p->w = gt_get_dc(&g->seg[sub->v[p->x].v>>1].aux);
-		s += p->w;
+	for (j = 0; j < len; ++j) {
+		gt_elem_t *w = &walk[j];
+		if (w->is_arc) w->w = gt_get_dc(&g->link_aux[g->arc[(uint32_t)sub->a[w->x]].link_id]);
+		else w->w = gt_get_dc(&g->seg[sub->v[w->x].v>>1].aux);
+		s += w->w;
 	}
 	return s;
 }
 
-static int32_t gt_filter_path(int32_t n_path, int32_t *path_len, gt_node_t **path, double *score)
+static int32_t gt_filter_walk(int32_t n_walk, gt_walk_t *walk)
 {
 	int32_t j, k;
-	for (k = 1, j = 1; k < n_path; ++k) {
+	for (k = 1, j = 1; k < n_walk; ++k) {
 		int32_t is_drop = 0;
-		if (path_len[k] == path_len[0]) {
+		if (walk[k].l == walk[0].l) {
 			int32_t i;
-			for (i = 0; i < path_len[0]; ++i)
-				if (path[k][i].x != path[0][i].x)
+			for (i = 0; i < walk[0].l; ++i)
+				if (walk[k].w[i].x != walk[0].w[i].x)
 					break;
-			is_drop = (i == path_len[0]);
+			is_drop = (i == walk[0].l);
 		}
-		if ((float)score[k] + 1.0f == 1.0f)
+		if ((float)walk[k].s + 1.0f == 1.0f)
 			is_drop = 1;
-		if (is_drop == 0)
-			path_len[j] = path_len[k], path[j] = path[k], score[j++] = score[k];
-		else free(path[k]);
+		if (is_drop == 0) walk[j++] = walk[k];
+		else free(walk[k].w);
 	}
 	return j;
 }
 
-static double gt_relative(int32_t l0, const gt_node_t *p0, int32_t l1, const gt_node_t *p1)
+static double gt_relative(int32_t l0, const gt_elem_t *p0, int32_t l1, const gt_elem_t *p1)
 {
 	int32_t i;
 	khash_t(gt) *h;
@@ -109,19 +119,21 @@ static double gt_relative(int32_t l0, const gt_node_t *p0, int32_t l1, const gt_
 	return s;
 }
 
+static int32_t gt_call(int32_t n_path, int32_t *path_len, gt_elem_t **path, float min_dc, gt_call_t *c)
+{
+	return 0;
+}
+
 static void gfa_gt_simple_interval(const gfa_t *g, const gfa_sub_t *sub, int32_t jst, int32_t jen)
 {
-	int32_t j, k, n_path, path_len[GT_MAX_SC+1];
+	int32_t j, k, n_walk;
 	gt_max_t *sc;
-	gt_node_t *path[GT_MAX_SC+1];
-	double score[GT_MAX_SC+1];
+	gt_walk_t walk[GT_MAX_SC+1];
 
+	memset(walk, 0, sizeof(gt_walk_t) * (GT_MAX_SC + 1));
 	assert(g->seg[sub->v[jst].v>>1].rank == 0);
 	assert(g->seg[sub->v[jen].v>>1].rank == 0);
 	//fprintf(stderr, "XX\t%s\t%s\n", g->seg[sub->v[jst].v>>1].name, g->seg[sub->v[jen].v>>1].name);
-
-	for (k = 0; k <= GT_MAX_SC; ++k)
-		path[k] = 0, path_len[k] = 0, score[k] = 0.0;
 
 	// fill sc[]
 	GFA_CALLOC(sc, jen - jst + 1);
@@ -170,38 +182,38 @@ static void gfa_gt_simple_interval(const gfa_t *g, const gfa_sub_t *sub, int32_t
 	}
 
 	// allocate path[]
-	n_path = sc->n + 1;
-	for (k = 0; k < n_path; ++k) // k==sc->n for the reference path
-		GFA_MALLOC(path[k], (jen - jst + 1) * 2); // this is over-allocating, but it should not be an issue
+	n_walk = sc->n + 1;
+	for (k = 0; k < n_walk; ++k) // k==sc->n for the reference path
+		GFA_MALLOC(walk[k].w, (jen - jst + 1) * 2); // this is over-allocating, but it should not be an issue
 
 	// backtrack
 	for (k = 0; k < sc->n; ++k) {
 		int32_t l = 0, j = jst, i = k;
-		gt_node_t *pa = path[k + 1];
+		gt_elem_t *w = walk[k + 1].w;
 		while (1) {
 			gt_sc_t *s = &sc[j - jst].s[i];
 			j = s->j, i = s->i;
-			pa[l].is_arc = 1, pa[l].x = s->a, pa[l].w = 0.0, ++l;
+			w[l].is_arc = 1, w[l].x = s->a, w[l].w = 0.0, ++l;
 			if (j < 0 || j == jen) break;
-			pa[l].is_arc = 0, pa[l].x = j, pa[l].w = 0.0, ++l;
+			w[l].is_arc = 0, w[l].x = j, w[l].w = 0.0, ++l;
 		}
-		path_len[k+1] = l;
+		walk[k+1].l = l;
 	}
+	free(sc);
 
-	path_len[0] = gt_get_ref_path(g, sub, jst, jen, path[0]);
-	for (k = 0; k < n_path; ++k)
-		score[k] = gt_cal_weight(g, sub, path_len[k], path[k]);
-	n_path = gt_filter_path(n_path, path_len, path, score);
+	walk[0].l = gt_get_ref_walk(g, sub, jst, jen, walk[0].w);
+	for (k = 0; k < n_walk; ++k)
+		walk[k].s = gt_cal_weight(g, sub, walk[k].l, walk[k].w);
+	n_walk = gt_filter_walk(n_walk, walk);
 
 	// print
-	if (n_path > 1) printf("XX\t%.3f\n", gt_relative(path_len[0], path[0], path_len[1], path[1]));
-	printf("VP\t%c%s\t%c%s\t%d", "><"[sub->v[jst].v&1], g->seg[sub->v[jst].v>>1].name, "><"[sub->v[jen].v&1], g->seg[sub->v[jen].v>>1].name, n_path);
-	for (k = 0; k < n_path; ++k) {
+	printf("VP\t%c%s\t%c%s\t%d", "><"[sub->v[jst].v&1], g->seg[sub->v[jst].v>>1].name, "><"[sub->v[jen].v&1], g->seg[sub->v[jen].v>>1].name, n_walk);
+	for (k = 0; k < n_walk; ++k) {
 		int32_t i;
-		printf("\t%.2f:", score[k]);
-		for (i = 0; i < path_len[k]; ++i) {
-			if (!path[k][i].is_arc) {
-				uint32_t v = sub->v[path[k][i].x].v;
+		printf("\t%.2f:", walk[k].s);
+		for (i = 0; i < walk[k].l; ++i) {
+			if (!walk[k].w[i].is_arc) {
+				uint32_t v = sub->v[walk[k].w[i].x].v;
 				printf("%c%s", "><"[v&1], g->seg[v>>1].name);
 			}
 		}
@@ -209,9 +221,8 @@ static void gfa_gt_simple_interval(const gfa_t *g, const gfa_sub_t *sub, int32_t
 	printf("\n");
 
 	// free
-	for (k = 0; k < n_path; ++k)
-		free(path[k]);
-	free(sc);
+	for (k = 0; k < n_walk; ++k)
+		free(walk[k].w);
 }
 
 void gfa_genotype_simple(const gfa_t *g) // FIXME: doesn't work with translocations
