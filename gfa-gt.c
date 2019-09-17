@@ -22,11 +22,48 @@ typedef struct {
 	float w;
 } gt_node_t;
 
-static inline float get_dc(const gfa_aux_t *aux)
+static inline float gt_get_dc(const gfa_aux_t *aux)
 {
 	const uint8_t *dc;
 	dc = gfa_aux_get(aux->l_aux, aux->aux, "dc");
 	return dc && dc[0] == 'f'? *(float*)(dc + 1) : 0.0f;
+}
+
+static int32_t gt_get_ref_path(const gfa_t *g, const gfa_sub_t *sub, int32_t jst, int32_t jen, gt_node_t *pa)
+{
+	int32_t j, k;
+	j = jst, k = 0;
+	while (1) {
+		const gfa_subv_t *t = &sub->v[j];
+		uint64_t a;
+		int32_t i;
+		for (i = 0; i < t->n; ++i) {
+			a = sub->a[t->off + i];
+			if (g->arc[(uint32_t)a].rank == 0)
+				break;
+		}
+		assert(i < t->n);
+		j = a>>32;
+		pa[k].is_arc = 1, pa[k].x = t->off + i;
+		pa[k++].w = gt_get_dc(&g->link_aux[g->arc[(uint32_t)a].link_id]);
+		if (j == jen) break;
+		pa[k].is_arc = 0, pa[k].x = j;
+		pa[k++].w = gt_get_dc(&g->seg[sub->v[j].v>>1].aux);
+	}
+	return k;
+}
+
+static double gt_cal_weight(const gfa_t *g, const gfa_sub_t *sub, int32_t path_len, gt_node_t *path)
+{
+	double s = 0.0;
+	int32_t j;
+	for (j = 0; j < path_len; ++j) {
+		gt_node_t *p = &path[j];
+		if (p->is_arc) p->w = gt_get_dc(&g->link_aux[g->arc[(uint32_t)sub->a[p->x]].link_id]);
+		else p->w = gt_get_dc(&g->seg[sub->v[p->x].v>>1].aux);
+		s += p->w;
+	}
+	return s;
 }
 
 static void gfa_gt_simple_interval(const gfa_t *g, const gfa_sub_t *sub, int32_t jst, int32_t jen)
@@ -50,7 +87,7 @@ static void gfa_gt_simple_interval(const gfa_t *g, const gfa_sub_t *sub, int32_t
 	for (j = jen - 1; j >= jst; --j) {
 		const gfa_subv_t *t = &sub->v[j];
 		gt_max_t *s0 = &sc[j - jst];
-		s0->vsc = j == jst? 0.0f : get_dc(&g->seg[t->v>>1].aux);
+		s0->vsc = j == jst? 0.0f : gt_get_dc(&g->seg[t->v>>1].aux);
 		for (k = 0; k < t->n; ++k) { // iterate over neighbors
 			uint64_t a = sub->a[t->off + k];
 			uint32_t jp = (uint32_t)(a>>32);
@@ -60,7 +97,7 @@ static void gfa_gt_simple_interval(const gfa_t *g, const gfa_sub_t *sub, int32_t
 			assert(t->off + k < sub->n_a);
 			//fprintf(stderr, "j=%d off=%d k=%d jp=%d\n", j, t->off, k, jp);
 			if (jp <= j || jp > jen) continue; // ignore cycles or arcs outside this subgraph
-			dc = get_dc(&g->link_aux[g->arc[(uint32_t)a].link_id]);
+			dc = gt_get_dc(&g->link_aux[g->arc[(uint32_t)a].link_id]);
 			s1 = &sc[jp - jst];
 			for (i = 0; i < s1->n; ++i) { // iterate over path ends
 				double score;
@@ -93,28 +130,7 @@ static void gfa_gt_simple_interval(const gfa_t *g, const gfa_sub_t *sub, int32_t
 	n_path = sc->n + 1;
 	for (k = 0; k < n_path; ++k) // k==sc->n for the reference path
 		GFA_MALLOC(path[k], (jen - jst + 1) * 2); // this is over-allocating, but it should not be an issue
-
-	// find the reference path
-	j = jst, k = 0, pa = path[0];
-	while (1) {
-		const gfa_subv_t *t = &sub->v[j];
-		uint64_t a;
-		int32_t i;
-		float w;
-		for (i = 0; i < t->n; ++i) {
-			a = sub->a[t->off + i];
-			if (g->arc[(uint32_t)a].rank == 0)
-				break;
-		}
-		assert(i < t->n);
-		j = a>>32;
-		w = get_dc(&g->link_aux[g->arc[(uint32_t)a].link_id]);
-		pa[k].is_arc = 1, pa[k].x = t->off + i, pa[k].w = w, ++k;
-		if (j == jen) break;
-		w = get_dc(&g->seg[sub->v[j].v>>1].aux);
-		pa[k].is_arc = 0, pa[k].x = j, pa[k].w = w, ++k;
-	}
-	path_len[0] = k;
+	path_len[0] = gt_get_ref_path(g, sub, jst, jen, path[0]);
 
 	// backtrack
 	for (k = 0; k < sc->n; ++k) {
@@ -130,17 +146,8 @@ static void gfa_gt_simple_interval(const gfa_t *g, const gfa_sub_t *sub, int32_t
 		path_len[k+1] = l;
 	}
 
-	// update weight and score[]
-	for (k = 0; k < n_path; ++k) {
-		double s = 0.0;
-		for (j = 0; j < path_len[k]; ++j) {
-			gt_node_t *p = &path[k][j];
-			if (p->is_arc) p->w = get_dc(&g->link_aux[g->arc[(uint32_t)sub->a[p->x]].link_id]);
-			else p->w = get_dc(&g->seg[sub->v[p->x].v>>1].aux);
-			s += p->w;
-		}
-		score[k] = s;
-	}
+	for (k = 0; k < n_path; ++k)
+		score[k] = gt_cal_weight(g, sub, path_len[k], path[k]);
 
 	// squeeze out ALT ref paths
 	for (k = 1, j = 1; k < n_path; ++k) {
