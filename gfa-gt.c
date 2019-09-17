@@ -25,7 +25,7 @@ typedef struct {
 } gt_elem_t;
 
 typedef struct {
-	int32_t l;
+	int32_t l, flt;
 	gt_elem_t *w;
 	double s;
 } gt_walk_t;
@@ -142,6 +142,27 @@ static void gt_call(int32_t n_walk, gt_walk_t *walk, float min_dc, gt_call_t *c)
 		c->n_al = 2, c->al[1] = max_k, c->sc[1] = max_k;
 }
 
+static int32_t gt_walk_compact(int32_t n_walk, gt_walk_t *walk, gt_call_t *c)
+{
+	int32_t n, i, k, n2o[GT_MAX_SC+1], o2n[GT_MAX_SC+1];
+	walk[0].flt = 0;
+	for (k = 1; k < n_walk; ++k) {
+		walk[k].flt = 1;
+		for (i = 0; i < c->n_al; ++i)
+			if (k == c->al[i]) break;
+		walk[k].flt = i == c->n_al? 0 : 1;
+	}
+	for (k = 0, n = 0; k < n_walk; ++k) {
+		if (!walk[k].flt)
+			walk[n] = walk[k], n2o[n++] = k;
+		else free(walk[k].w);
+		o2n[k] = -1;
+	}
+	for (k = 0; k < n; ++k) o2n[n2o[k]] = k;
+	for (k = 0; k < c->n_al; ++k) c->al[k] = o2n[c->al[k]];
+	return n;
+}
+
 static void gfa_gt_simple_interval(const gfa_t *g, const gfa_sub_t *sub, int32_t jst, int32_t jen, float min_dc)
 {
 	int32_t j, k, n_walk;
@@ -225,6 +246,7 @@ static void gfa_gt_simple_interval(const gfa_t *g, const gfa_sub_t *sub, int32_t
 		walk[k].s = gt_cal_weight(g, sub, walk[k].l, walk[k].w);
 	n_walk = gt_filter_walk(n_walk, walk);
 	gt_call(n_walk, walk, min_dc, &call);
+	n_walk = gt_walk_compact(n_walk, walk, &call);
 
 	// print
 	printf("VP\t%c%s\t%c%s\t%d", "><"[sub->v[jst].v&1], g->seg[sub->v[jst].v>>1].name, "><"[sub->v[jen].v&1], g->seg[sub->v[jen].v>>1].name, n_walk);
