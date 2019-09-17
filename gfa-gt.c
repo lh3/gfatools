@@ -2,6 +2,7 @@
 #include <assert.h>
 #include "gfa-priv.h"
 #include "khash.h"
+KHASH_INIT(gt, uint32_t, char, 0, __ac_Wang_hash, kh_int_hash_equal)
 
 typedef struct {
 	int32_t j, i, a;
@@ -85,6 +86,27 @@ static int32_t gt_filter_path(int32_t n_path, int32_t *path_len, gt_node_t **pat
 		else free(path[k]);
 	}
 	return j;
+}
+
+static double gt_relative(int32_t l0, const gt_node_t *p0, int32_t l1, const gt_node_t *p1)
+{
+	int32_t i;
+	khash_t(gt) *h;
+	double s = 0.0;
+	h = kh_init(gt);
+	kh_resize(gt, h, l0<<1);
+	for (i = 0; i < l0; ++i) {
+		uint32_t x = p0[i].is_arc? 1U<<31 | p0[i].x : p0[i].x;
+		int absent;
+		kh_put(gt, h, x, &absent);
+	}
+	for (i = 0; i < l1; ++i) {
+		uint32_t x = p1[i].is_arc? 1U<<31 | p1[i].x : p1[i].x;
+		if (kh_get(gt, h, x) == kh_end(h))
+			s += p1[i].w;
+	}
+	kh_destroy(gt, h);
+	return s;
 }
 
 static void gfa_gt_simple_interval(const gfa_t *g, const gfa_sub_t *sub, int32_t jst, int32_t jen)
@@ -172,6 +194,7 @@ static void gfa_gt_simple_interval(const gfa_t *g, const gfa_sub_t *sub, int32_t
 	n_path = gt_filter_path(n_path, path_len, path, score);
 
 	// print
+	if (n_path > 1) printf("XX\t%.3f\n", gt_relative(path_len[0], path[0], path_len[1], path[1]));
 	printf("VP\t%c%s\t%c%s\t%d", "><"[sub->v[jst].v&1], g->seg[sub->v[jst].v>>1].name, "><"[sub->v[jen].v&1], g->seg[sub->v[jen].v>>1].name, n_path);
 	for (k = 0; k < n_path; ++k) {
 		int32_t i;
