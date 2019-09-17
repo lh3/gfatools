@@ -81,7 +81,7 @@ gfa_sfa_t *gfa_gfa2sfa(const gfa_t *g, int32_t *n_sfa_, int32_t write_seq);
 
 void gfa_blacklist_print(const gfa_t *g, FILE *fp, int32_t min_len); // FIXME: doesn't work with translocations
 
-void gfa_genotype_simple(const gfa_t *g); // FIXME: doesn't work with translocations
+void gfa_gt_simple_print(const gfa_t *g, float min_dc); // FIXME: doesn't work with translocations
 
 void gfa_aux_update_cv(gfa_t *g, const char *tag, const double *cov_seg, const double *cov_link);
 

@@ -78,27 +78,7 @@ static double gt_cal_weight(const gfa_t *g, const gfa_sub_t *sub, int32_t len, g
 	return s;
 }
 
-static int32_t gt_filter_walk(int32_t n_walk, gt_walk_t *walk)
-{
-	int32_t j, k;
-	for (k = 1, j = 1; k < n_walk; ++k) {
-		int32_t is_drop = 0;
-		if (walk[k].l == walk[0].l) {
-			int32_t i;
-			for (i = 0; i < walk[0].l; ++i)
-				if (walk[k].w[i].x != walk[0].w[i].x)
-					break;
-			is_drop = (i == walk[0].l);
-		}
-		if ((float)walk[k].s + 1.0f == 1.0f)
-			is_drop = 1;
-		if (is_drop == 0) walk[j++] = walk[k];
-		else free(walk[k].w);
-	}
-	return j;
-}
-
-static double gt_relative(int32_t l0, const gt_elem_t *p0, int32_t l1, const gt_elem_t *p1)
+static double gt_relative(int32_t l0, const gt_elem_t *w0, int32_t l1, const gt_elem_t *w1)
 {
 	int32_t i;
 	khash_t(gt) *h;
@@ -106,29 +86,68 @@ static double gt_relative(int32_t l0, const gt_elem_t *p0, int32_t l1, const gt_
 	h = kh_init(gt);
 	kh_resize(gt, h, l0<<1);
 	for (i = 0; i < l0; ++i) {
-		uint32_t x = p0[i].is_arc? 1U<<31 | p0[i].x : p0[i].x;
+		uint32_t x = w0[i].is_arc? 1U<<31 | w0[i].x : w0[i].x;
 		int absent;
 		kh_put(gt, h, x, &absent);
 	}
 	for (i = 0; i < l1; ++i) {
-		uint32_t x = p1[i].is_arc? 1U<<31 | p1[i].x : p1[i].x;
+		uint32_t x = w1[i].is_arc? 1U<<31 | w1[i].x : w1[i].x;
 		if (kh_get(gt, h, x) == kh_end(h))
-			s += p1[i].w;
+			s += w1[i].w;
 	}
 	kh_destroy(gt, h);
 	return s;
 }
 
-static int32_t gt_call(int32_t n_path, int32_t *path_len, gt_elem_t **path, float min_dc, gt_call_t *c)
+static int32_t gt_filter_walk(int32_t n_walk, gt_walk_t *walk)
 {
-	return 0;
+	int32_t j, k;
+	for (k = 1, j = 1; k < n_walk; ++k) {
+		double s;
+		s = gt_relative(walk[0].l, walk[0].w, walk[k].l, walk[k].w);
+		if ((float)s + 1.0f > 1.0f) walk[j++] = walk[k];
+		else free(walk[k].w);
+	}
+	return j;
 }
 
-static void gfa_gt_simple_interval(const gfa_t *g, const gfa_sub_t *sub, int32_t jst, int32_t jen)
+static void gt_call(int32_t n_walk, gt_walk_t *walk, float min_dc, gt_call_t *c)
+{
+	double max_s;
+	int32_t k, max_k, a1;
+
+	assert(n_walk > 0);
+	memset(c, 0, sizeof(gt_call_t));
+	c->n_al = 1; // reference allele only
+	if (n_walk == 1) return;
+
+	max_s = -1.0, max_k = -1;
+	for (k = 1; k < n_walk; ++k) {
+		double s;
+		s = gt_relative(walk[0].l, walk[0].w, walk[k].l, walk[k].w);
+		if (max_s < s) max_s = s, max_k = k;
+	}
+	if (max_s < min_dc) return; // no good ALT
+	a1 = max_k;
+	c->is_var = 1, c->al[0] = a1, c->sc[0] = max_s;
+
+	max_s = -1.0, max_k = -1;
+	for (k = 0; k < n_walk; ++k) {
+		double s;
+		if (k == a1) continue;
+		s = gt_relative(walk[a1].l, walk[a1].w, walk[k].l, walk[k].w);
+		if (max_s < s) max_s = s, max_k = k;
+	}
+	if (max_s >= min_dc)
+		c->n_al = 2, c->al[1] = max_k, c->sc[1] = max_k;
+}
+
+static void gfa_gt_simple_interval(const gfa_t *g, const gfa_sub_t *sub, int32_t jst, int32_t jen, float min_dc)
 {
 	int32_t j, k, n_walk;
 	gt_max_t *sc;
 	gt_walk_t walk[GT_MAX_SC+1];
+	gt_call_t call;
 
 	memset(walk, 0, sizeof(gt_walk_t) * (GT_MAX_SC + 1));
 	assert(g->seg[sub->v[jst].v>>1].rank == 0);
@@ -205,6 +224,7 @@ static void gfa_gt_simple_interval(const gfa_t *g, const gfa_sub_t *sub, int32_t
 	for (k = 0; k < n_walk; ++k)
 		walk[k].s = gt_cal_weight(g, sub, walk[k].l, walk[k].w);
 	n_walk = gt_filter_walk(n_walk, walk);
+	gt_call(n_walk, walk, min_dc, &call);
 
 	// print
 	printf("VP\t%c%s\t%c%s\t%d", "><"[sub->v[jst].v&1], g->seg[sub->v[jst].v>>1].name, "><"[sub->v[jen].v&1], g->seg[sub->v[jen].v>>1].name, n_walk);
@@ -225,7 +245,7 @@ static void gfa_gt_simple_interval(const gfa_t *g, const gfa_sub_t *sub, int32_t
 		free(walk[k].w);
 }
 
-void gfa_genotype_simple(const gfa_t *g) // FIXME: doesn't work with translocations
+void gfa_gt_simple_print(const gfa_t *g, float min_dc) // FIXME: doesn't work with translocations
 {
 	uint32_t i, *vs, *vmin;
 	GFA_MALLOC(vs, g->n_sseq);
@@ -251,7 +271,7 @@ void gfa_genotype_simple(const gfa_t *g) // FIXME: doesn't work with translocati
 				const gfa_seg_t *sst = &g->seg[sub->v[jst].v>>1];
 				const gfa_seg_t *sen = &g->seg[t->v>>1];
 				if (sst->snid == i && sen->snid == i)
-					gfa_gt_simple_interval(g, sub, jst, j);
+					gfa_gt_simple_interval(g, sub, jst, j, min_dc);
 				max_a = -1, jst = j;
 			}
 			for (k = 0; k < t->n; ++k)

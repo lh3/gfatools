@@ -304,13 +304,16 @@ int main_gt(int argc, char *argv[])
 {
 	ketopt_t o = KETOPT_INIT;
 	int32_t c;
+	float min_dc = 5.0f;
 	gfa_t *g;
 
-	while ((c = ketopt(&o, argc, argv, 1, "", 0)) >= 0) {
+	while ((c = ketopt(&o, argc, argv, 1, "d:", 0)) >= 0) {
+		if (c == 'd') min_dc = atof(o.arg);
 	}
 	if (o.ind == argc) {
 		fprintf(stderr, "Usage: gfatools gt [options] <in.gfa>\n");
 		fprintf(stderr, "Options:\n");
+		fprintf(stderr, "  -d FLOAT      min depth [%g]\n", min_dc);
 		return 1;
 	}
 	g = gfa_read(argv[o.ind]);
@@ -318,7 +321,7 @@ int main_gt(int argc, char *argv[])
 		fprintf(stderr, "ERROR: failed to read the graph\n");
 		return 2;
 	}
-	gfa_genotype_simple(g);
+	gfa_gt_simple_print(g, min_dc);
 	gfa_destroy(g);
 	return 0;
 }
