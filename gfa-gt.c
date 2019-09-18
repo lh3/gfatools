@@ -9,7 +9,7 @@ typedef struct {
 	double sc;
 } gt_sc_t;
 
-#define GT_MAX_SC 2
+#define GT_MAX_SC 3
 #define GT_MAX_AL 3
 
 typedef struct {
@@ -35,6 +35,7 @@ typedef struct {
 	int32_t is_var;
 	int32_t al[GT_MAX_AL];
 	double sc[GT_MAX_AL];
+	double alt;
 } gt_call_t;
 
 static inline float gt_get_dc(const gfa_aux_t *aux)
@@ -129,6 +130,7 @@ static void gt_call(int32_t n_walk, gt_walk_t *walk, float min_dc, gt_call_t *c)
 	}
 	if (max_s < min_dc) return; // no good ALT
 	a1 = max_k;
+	c->alt = max_s;
 	c->is_var = 1, c->al[0] = a1, c->sc[0] = max_s;
 
 	max_s = -1.0, max_k = -1;
@@ -150,7 +152,7 @@ static int32_t gt_walk_compact(int32_t n_walk, gt_walk_t *walk, gt_call_t *c)
 		walk[k].flt = 1;
 		for (i = 0; i < c->n_al; ++i)
 			if (k == c->al[i]) break;
-		walk[k].flt = i == c->n_al? 0 : 1;
+		walk[k].flt = i == c->n_al? 1 : 0;
 	}
 	for (k = 0, n = 0; k < n_walk; ++k) {
 		if (!walk[k].flt)
@@ -169,10 +171,12 @@ static void gfa_gt_simple_interval(const gfa_t *g, const gfa_sub_t *sub, int32_t
 	gt_max_t *sc;
 	gt_walk_t walk[GT_MAX_SC+1];
 	gt_call_t call;
+	const gfa_seg_t *seg_st, *seg_en;
 
 	memset(walk, 0, sizeof(gt_walk_t) * (GT_MAX_SC + 1));
-	assert(g->seg[sub->v[jst].v>>1].rank == 0);
-	assert(g->seg[sub->v[jen].v>>1].rank == 0);
+	seg_st = &g->seg[sub->v[jst].v>>1];
+	seg_en = &g->seg[sub->v[jen].v>>1];
+	assert(seg_st->rank == 0 && seg_en->rank == 0 && seg_st->snid == seg_en->snid);
 	//fprintf(stderr, "XX\t%s\t%s\n", g->seg[sub->v[jst].v>>1].name, g->seg[sub->v[jen].v>>1].name);
 
 	// fill sc[]
@@ -238,6 +242,7 @@ static void gfa_gt_simple_interval(const gfa_t *g, const gfa_sub_t *sub, int32_t
 			w[l].is_arc = 0, w[l].x = j, w[l].w = 0.0, ++l;
 		}
 		walk[k+1].l = l;
+		printf("** %f\n", sc[0].s[k]);
 	}
 	free(sc);
 
@@ -249,7 +254,9 @@ static void gfa_gt_simple_interval(const gfa_t *g, const gfa_sub_t *sub, int32_t
 	n_walk = gt_walk_compact(n_walk, walk, &call);
 
 	// print
-	printf("VP\t%c%s\t%c%s\t%d", "><"[sub->v[jst].v&1], g->seg[sub->v[jst].v>>1].name, "><"[sub->v[jen].v&1], g->seg[sub->v[jen].v>>1].name, n_walk);
+	printf("%s\t%d\t%d", g->sseq[seg_st->snid].name, seg_st->soff + seg_st->len, seg_en->soff);
+	printf("\t%c%s\t%c%s", "><"[sub->v[jst].v&1], g->seg[sub->v[jst].v>>1].name, "><"[sub->v[jen].v&1], g->seg[sub->v[jen].v>>1].name);
+	printf("\t%d\t%d\t%.3f\t%d", call.is_var, call.n_al, call.alt, n_walk);
 	for (k = 0; k < n_walk; ++k) {
 		int32_t i;
 		printf("\t%.2f:", walk[k].s);
