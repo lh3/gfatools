@@ -45,6 +45,17 @@ static inline float gt_get_dc(const gfa_aux_t *aux)
 	return dc && dc[0] == 'f'? *(float*)(dc + 1) : 0.0f;
 }
 
+static void gt_all_weights(const gfa_t *g, const gfa_sub_t *sub, float *wv, float *wa)
+{
+	int32_t j, k;
+	for (j = 0; j < sub->n_v; ++j) {
+		const gfa_subv_t *t = &sub->v[j];
+		wv[j] = gt_get_dc(&g->seg[sub->v[j].v>>1].aux);
+		for (k = 0; k < t->n; ++k)
+			wa[t->off + k] = gt_get_dc(&g->link_aux[g->arc[(uint32_t)sub->a[t->off + k]].link_id]);
+	}
+}
+
 static int32_t gt_get_ref_walk(const gfa_t *g, const gfa_sub_t *sub, int32_t jst, int32_t jen, gt_elem_t *walk)
 {
 	int32_t i, j, k;
@@ -66,14 +77,14 @@ static int32_t gt_get_ref_walk(const gfa_t *g, const gfa_sub_t *sub, int32_t jst
 	return k;
 }
 
-static double gt_cal_weight(const gfa_t *g, const gfa_sub_t *sub, int32_t len, gt_elem_t *walk)
+static double gt_cal_weight(const gfa_t *g, const gfa_sub_t *sub, const float *wv, const float *wa, int32_t len, gt_elem_t *walk)
 {
 	double s = 0.0;
 	int32_t j;
 	for (j = 0; j < len; ++j) {
 		gt_elem_t *w = &walk[j];
-		if (w->is_arc) w->w = gt_get_dc(&g->link_aux[g->arc[(uint32_t)sub->a[w->x]].link_id]);
-		else w->w = gt_get_dc(&g->seg[sub->v[w->x].v>>1].aux);
+		if (w->is_arc) w->w = wa[w->x];
+		else w->w = wv[w->x];
 		s += w->w;
 	}
 	return s;
@@ -165,7 +176,7 @@ static int32_t gt_walk_compact(int32_t n_walk, gt_walk_t *walk, gt_call_t *c)
 	return n;
 }
 
-static void gfa_gt_simple_interval(const gfa_t *g, const gfa_sub_t *sub, int32_t jst, int32_t jen, float min_dc)
+static void gfa_gt_simple_interval(const gfa_t *g, const gfa_sub_t *sub, const float *wv, const float *wa, int32_t jst, int32_t jen, float min_dc)
 {
 	int32_t j, k, n_walk;
 	gt_max_t *sc;
@@ -186,7 +197,7 @@ static void gfa_gt_simple_interval(const gfa_t *g, const gfa_sub_t *sub, int32_t
 	for (j = jen - 1; j >= jst; --j) {
 		const gfa_subv_t *t = &sub->v[j];
 		gt_max_t *s0 = &sc[j - jst];
-		s0->vsc = j == jst? 0.0f : gt_get_dc(&g->seg[t->v>>1].aux);
+		s0->vsc = j == jst? 0.0f : wv[j];
 		for (k = 0; k < t->n; ++k) { // iterate over neighbors
 			uint64_t a = sub->a[t->off + k];
 			uint32_t jp = (uint32_t)(a>>32);
@@ -196,7 +207,7 @@ static void gfa_gt_simple_interval(const gfa_t *g, const gfa_sub_t *sub, int32_t
 			assert(t->off + k < sub->n_a);
 			//fprintf(stderr, "j=%d off=%d k=%d jp=%d\n", j, t->off, k, jp);
 			if (jp <= j || jp > jen) continue; // ignore cycles or arcs outside this subgraph
-			dc = gt_get_dc(&g->link_aux[g->arc[(uint32_t)a].link_id]);
+			dc = wa[t->off + k];
 			s1 = &sc[jp - jst];
 			for (i = 0; i < s1->n; ++i) { // iterate over path ends
 				double score;
@@ -242,13 +253,12 @@ static void gfa_gt_simple_interval(const gfa_t *g, const gfa_sub_t *sub, int32_t
 			w[l].is_arc = 0, w[l].x = j, w[l].w = 0.0, ++l;
 		}
 		walk[k+1].l = l;
-		printf("** %f\n", sc[0].s[k]);
 	}
 	free(sc);
 
 	walk[0].l = gt_get_ref_walk(g, sub, jst, jen, walk[0].w);
 	for (k = 0; k < n_walk; ++k)
-		walk[k].s = gt_cal_weight(g, sub, walk[k].l, walk[k].w);
+		walk[k].s = gt_cal_weight(g, sub, wv, wa, walk[k].l, walk[k].w);
 	n_walk = gt_filter_walk(n_walk, walk);
 	gt_call(n_walk, walk, min_dc, &call);
 	n_walk = gt_walk_compact(n_walk, walk, &call);
@@ -291,8 +301,12 @@ void gfa_gt_simple_print(const gfa_t *g, float min_dc) // FIXME: doesn't work wi
 	for (i = 0; i < g->n_sseq; ++i) {
 		gfa_sub_t *sub;
 		int32_t j, jst, max_a;
+		float *wa, *wv;
 		if (vs[i] == (uint32_t)-1) continue;
 		sub = gfa_sub_from(0, g, vs[i], 0);
+		GFA_MALLOC(wv, sub->n_v);
+		GFA_MALLOC(wa, sub->n_a);
+		gt_all_weights(g, sub, wv, wa);
 		for (j = 0, jst = 0, max_a = -1; j < sub->n_v; ++j) {
 			gfa_subv_t *t = &sub->v[j];
 			int32_t k;
@@ -300,13 +314,14 @@ void gfa_gt_simple_print(const gfa_t *g, float min_dc) // FIXME: doesn't work wi
 				const gfa_seg_t *sst = &g->seg[sub->v[jst].v>>1];
 				const gfa_seg_t *sen = &g->seg[t->v>>1];
 				if (sst->snid == i && sen->snid == i)
-					gfa_gt_simple_interval(g, sub, jst, j, min_dc);
+					gfa_gt_simple_interval(g, sub, wv, wa, jst, j, min_dc);
 				max_a = -1, jst = j;
 			}
 			for (k = 0; k < t->n; ++k)
 				if ((int32_t)(sub->a[t->off + k]>>32) > max_a)
 					max_a = sub->a[t->off + k]>>32;
 		}
+		free(wa); free(wv);
 		gfa_sub_destroy(sub);
 	}
 	free(vs);
