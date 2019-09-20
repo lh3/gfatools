@@ -83,11 +83,84 @@ static double gt_cal_weight(const gfa_t *g, const gfa_sub_t *sub, const float *w
 	int32_t j;
 	for (j = 0; j < len; ++j) {
 		gt_elem_t *w = &walk[j];
-		if (w->is_arc) w->w = wa[w->x];
-		else w->w = wv[w->x];
+		w->w = w->is_arc? wa[w->x] : wv[w->x];
 		s += w->w;
 	}
 	return s;
+}
+
+static int32_t gt_best_walks(const gfa_t *g, const gfa_sub_t *sub, const float *wv, const float *wa, int32_t jst, int32_t jen, gt_walk_t *walk)
+{
+	int32_t j, k, n_walk;
+	gt_max_t *sc;
+
+	// fill sc[]
+	GFA_CALLOC(sc, jen - jst + 1);
+	sc[jen - jst].n = 1;
+	sc[jen - jst].s[0].j = sc[jen - jst].s[0].i = -1;
+	for (j = jen - 1; j >= jst; --j) {
+		const gfa_subv_t *t = &sub->v[j];
+		gt_max_t *s0 = &sc[j - jst];
+		s0->vsc = j == jst? 0.0f : wv[j];
+		for (k = 0; k < t->n; ++k) { // iterate over neighbors
+			uint64_t a = sub->a[t->off + k];
+			uint32_t jp = (uint32_t)(a>>32);
+			int32_t i;
+			gt_max_t *s1;
+			float dc;
+			assert(t->off + k < sub->n_a);
+			if (jp <= j || jp > jen) continue; // ignore cycles or arcs outside this subgraph
+			dc = wa[t->off + k];
+			s1 = &sc[jp - jst];
+			for (i = 0; i < s1->n; ++i) { // iterate over path ends
+				double score;
+				int32_t ins = -1;
+				score = s1->s[i].sc + dc + s0->vsc;
+				if (s0->n == GT_MAX_SC) {
+					int32_t x, y;
+					for (x = 0; x < s0->n; ++x)
+						if (s0->s[x].sc < score)
+							break;
+					if (x < s0->n) { // make room for the new partial path
+						for (y = s0->n - 1; y > x; --y)
+							s0->s[y] = s0->s[y - 1];
+						ins = x;
+					}
+				} else ins = s0->n;
+				if (ins >= 0) {
+					s0->s[ins].j = jp;
+					s0->s[ins].i = i;
+					s0->s[ins].a = t->off + k;
+					s0->s[ins].sc = score;
+					if (s0->n < GT_MAX_SC) ++s0->n;
+				}
+			}
+		}
+	}
+
+	// allocate path[]
+	n_walk = sc->n + 1;
+	for (k = 0; k < n_walk; ++k) // k==sc->n for the reference path
+		GFA_MALLOC(walk[k].w, (jen - jst + 1) * 2); // this is over-allocating, but it should not be an issue
+
+	// backtrack
+	for (k = 0; k < sc->n; ++k) {
+		int32_t l = 0, j = jst, i = k;
+		gt_elem_t *w = walk[k + 1].w;
+		while (1) {
+			gt_sc_t *s = &sc[j - jst].s[i];
+			j = s->j, i = s->i;
+			w[l].is_arc = 1, w[l].x = s->a, w[l].w = 0.0, ++l;
+			if (j < 0 || j == jen) break;
+			w[l].is_arc = 0, w[l].x = j, w[l].w = 0.0, ++l;
+		}
+		walk[k+1].l = l;
+	}
+	free(sc);
+
+	// the reference walk
+	walk[0].l = gt_get_ref_walk(g, sub, jst, jen, walk[0].w);
+	return n_walk;
 }
 
 static double gt_relative(int32_t l0, const gt_elem_t *w0, int32_t l1, const gt_elem_t *w1)
@@ -178,8 +251,7 @@ static int32_t gt_walk_compact(int32_t n_walk, gt_walk_t *walk, gt_call_t *c)
 
 static void gfa_gt_simple_interval(const gfa_t *g, const gfa_sub_t *sub, const float *wv, const float *wa, int32_t jst, int32_t jen, float min_dc)
 {
-	int32_t j, k, n_walk;
-	gt_max_t *sc;
+	int32_t k, n_walk;
 	gt_walk_t walk[GT_MAX_SC+1];
 	gt_call_t call;
 	const gfa_seg_t *seg_st, *seg_en;
@@ -190,73 +262,7 @@ static void gfa_gt_simple_interval(const gfa_t *g, const gfa_sub_t *sub, const f
 	assert(seg_st->rank == 0 && seg_en->rank == 0 && seg_st->snid == seg_en->snid);
 	//fprintf(stderr, "XX\t%s\t%s\n", g->seg[sub->v[jst].v>>1].name, g->seg[sub->v[jen].v>>1].name);
 
-	// fill sc[]
-	GFA_CALLOC(sc, jen - jst + 1);
-	sc[jen - jst].n = 1;
-	sc[jen - jst].s[0].j = sc[jen - jst].s[0].i = -1;
-	for (j = jen - 1; j >= jst; --j) {
-		const gfa_subv_t *t = &sub->v[j];
-		gt_max_t *s0 = &sc[j - jst];
-		s0->vsc = j == jst? 0.0f : wv[j];
-		for (k = 0; k < t->n; ++k) { // iterate over neighbors
-			uint64_t a = sub->a[t->off + k];
-			uint32_t jp = (uint32_t)(a>>32);
-			int32_t i;
-			gt_max_t *s1;
-			float dc;
-			assert(t->off + k < sub->n_a);
-			//fprintf(stderr, "j=%d off=%d k=%d jp=%d\n", j, t->off, k, jp);
-			if (jp <= j || jp > jen) continue; // ignore cycles or arcs outside this subgraph
-			dc = wa[t->off + k];
-			s1 = &sc[jp - jst];
-			for (i = 0; i < s1->n; ++i) { // iterate over path ends
-				double score;
-				int32_t ins = -1;
-				score = s1->s[i].sc + dc + s0->vsc;
-				if (s0->n == GT_MAX_SC) {
-					int32_t x, y;
-					for (x = 0; x < s0->n; ++x)
-						if (s0->s[x].sc < score)
-							break;
-					if (x < s0->n) { // make room for the new partial path
-						for (y = s0->n - 1; y > x; --y)
-							s0->s[y] = s0->s[y - 1];
-						ins = x;
-					}
-				} else ins = s0->n;
-				if (ins >= 0) {
-					s0->s[ins].j = jp;
-					s0->s[ins].i = i;
-					s0->s[ins].a = t->off + k;
-					s0->s[ins].sc = score;
-					if (s0->n < GT_MAX_SC) ++s0->n;
-				}
-			}
-		}
-		//fprintf(stderr, "j=%d v=%c%s[%d] n_best=%d: ", j, "><"[t->v&1], g->seg[t->v>>1].name, t->v, s0->n); for (k = 0; k < s0->n; ++k) fprintf(stderr, "%f,", s0->s[k].sc); fprintf(stderr, "\n");
-	}
-
-	// allocate path[]
-	n_walk = sc->n + 1;
-	for (k = 0; k < n_walk; ++k) // k==sc->n for the reference path
-		GFA_MALLOC(walk[k].w, (jen - jst + 1) * 2); // this is over-allocating, but it should not be an issue
-
-	// backtrack
-	for (k = 0; k < sc->n; ++k) {
-		int32_t l = 0, j = jst, i = k;
-		gt_elem_t *w = walk[k + 1].w;
-		while (1) {
-			gt_sc_t *s = &sc[j - jst].s[i];
-			j = s->j, i = s->i;
-			w[l].is_arc = 1, w[l].x = s->a, w[l].w = 0.0, ++l;
-			if (j < 0 || j == jen) break;
-			w[l].is_arc = 0, w[l].x = j, w[l].w = 0.0, ++l;
-		}
-		walk[k+1].l = l;
-	}
-	free(sc);
-
-	walk[0].l = gt_get_ref_walk(g, sub, jst, jen, walk[0].w);
+	n_walk = gt_best_walks(g, sub, wv, wa, jst, jen, walk);
 	for (k = 0; k < n_walk; ++k)
 		walk[k].s = gt_cal_weight(g, sub, wv, wa, walk[k].l, walk[k].w);
 	n_walk = gt_filter_walk(n_walk, walk);
