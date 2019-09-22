@@ -276,39 +276,65 @@ static int32_t gt_walk_compact(int32_t n_walk, gt_walk_t *walk, gt_call_t *c)
 	return n;
 }
 
-static void gt_print(const gfa_t *g, const gfa_sub_t *sub, int32_t jst, int32_t jen, int32_t n_walk, const gt_walk_t *walk, const gt_call_t *call)
+static void gt_print(const gfa_t *g, const gfa_sub_t *sub, int32_t jst, int32_t jen, int32_t n_walk, const gt_walk_t *walk, const gt_call_t *call, int32_t is_path)
 {
-	int32_t i, k, is_path = 1;
+	FILE *fp = stdout;
+	int32_t i, k;
 	const gfa_seg_t *seg_st, *seg_en;
 	seg_st = &g->seg[sub->v[jst].v>>1];
 	seg_en = &g->seg[sub->v[jen].v>>1];
-	printf("%s\t%d\t%d", g->sseq[seg_st->snid].name, seg_st->soff + seg_st->len, seg_en->soff);
-	if (is_path) printf("\t%c%s\t%c%s", "><"[sub->v[jst].v&1], g->seg[sub->v[jst].v>>1].name, "><"[sub->v[jen].v&1], g->seg[sub->v[jen].v>>1].name);
-	printf("\t%.2f\t%.2f", call->s_alt, call->s_het);
+	fprintf(fp, "%s\t%d\t%d", g->sseq[seg_st->snid].name, seg_st->soff + seg_st->len, seg_en->soff);
+	if (is_path) fprintf(fp, "\t%c%s\t%c%s", "><"[sub->v[jst].v&1], g->seg[sub->v[jst].v>>1].name, "><"[sub->v[jen].v&1], g->seg[sub->v[jen].v>>1].name);
+	fprintf(fp, "\t%.2f\t%.2f", call->s_alt, call->s_het);
 	if (n_walk == 1) { // only the reference path is present
-		printf("\t0/0\n");
+		fputs("\t0/0\n", stdout);
 		return;
 	}
-	if (call->n_al == 1) printf("\t%d/%d", call->al[0], call->al[0]);
-	else printf("\t%d/%d", call->al[0], call->al[1]);
-	printf("\t%d", n_walk);
+	if (call->n_al == 1) fprintf(fp, "\t%d/%d", call->al[0], call->al[0]);
+	else fprintf(fp, "\t%d/%d", call->al[0], call->al[1]);
+	fprintf(fp, "\t%d", n_walk);
 	for (k = 0; k < n_walk; ++k) {
 		const gt_walk_t *w = &walk[k];
 		int32_t c = 0;
-		printf("\t");
-		for (i = 0; i < w->l; ++i) {
-			if (!w->w[i].is_arc) {
-				uint32_t v = sub->v[w->w[i].x].v;
-				printf("%c%s", "><"[v&1], g->seg[v>>1].name);
-				++c;
+		fputc('\t', fp);
+		if (is_path) {
+			for (i = 0; i < w->l; ++i) {
+				if (!w->w[i].is_arc) {
+					uint32_t v = sub->v[w->w[i].x].v;
+					fprintf(fp, "%c%s", "><"[v&1], g->seg[v>>1].name);
+					++c;
+				}
 			}
+		} else {
+			int32_t l;
+			char *buf;
+			for (i = 0, l = 0; i < w->l; ++i)
+				if (!w->w[i].is_arc)
+					l += g->seg[sub->v[w->w[i].x].v>>1].len;
+			GFA_CALLOC(buf, l + 1);
+			for (i = 0, l = 0; i < w->l; ++i) {
+				if (!w->w[i].is_arc) {
+					uint32_t v = sub->v[w->w[i].x].v;
+					const gfa_seg_t *seg = &g->seg[v>>1];
+					if (v&1) {
+						for (k = seg->len - 1; k >= 0; --k)
+							buf[l++] = gfa_comp_table[(uint8_t)seg->seq[k]];
+					} else {
+						memcpy(&buf[l], seg->seq, seg->len);
+						l += seg->len;
+					}
+					++c;
+				}
+			}
+			fputs(buf, fp);
+			free(buf);
 		}
 		if (c == 0) printf("*");
 	}
-	printf("\n");
+	fputc('\n', fp);
 }
 
-static void gfa_gt_simple_interval(const gfa_t *g, const gfa_sub_t *sub, const float *wv, const float *wa, int32_t jst, int32_t jen, float min_dc)
+static void gfa_gt_simple_interval(const gfa_t *g, const gfa_sub_t *sub, const float *wv, const float *wa, int32_t jst, int32_t jen, float min_dc, int32_t is_path)
 {
 	int32_t k, n_walk;
 	gt_walk_t walk[GT_MAX_SC+1];
@@ -327,12 +353,12 @@ static void gfa_gt_simple_interval(const gfa_t *g, const gfa_sub_t *sub, const f
 	n_walk = gt_filter_walk(n_walk, walk);
 	gt_call(n_walk, walk, &call);
 	n_walk = gt_walk_compact(n_walk, walk, &call);
-	gt_print(g, sub, jst, jen, n_walk, walk, &call);
+	gt_print(g, sub, jst, jen, n_walk, walk, &call, is_path);
 	for (k = 0; k < n_walk; ++k)
 		free(walk[k].w);
 }
 
-void gfa_gt_simple_print(const gfa_t *g, float min_dc) // FIXME: doesn't work with translocations
+void gfa_gt_simple_print(const gfa_t *g, float min_dc, int32_t is_path) // FIXME: doesn't work with translocations
 {
 	uint32_t i, *vs, *vmin;
 	GFA_MALLOC(vs, g->n_sseq);
@@ -362,7 +388,7 @@ void gfa_gt_simple_print(const gfa_t *g, float min_dc) // FIXME: doesn't work wi
 				const gfa_seg_t *sst = &g->seg[sub->v[jst].v>>1];
 				const gfa_seg_t *sen = &g->seg[t->v>>1];
 				if (sst->snid == i && sen->snid == i)
-					gfa_gt_simple_interval(g, sub, wv, wa, jst, j, min_dc);
+					gfa_gt_simple_interval(g, sub, wv, wa, jst, j, min_dc, is_path);
 				max_a = -1, jst = j;
 			}
 			for (k = 0; k < t->n; ++k)

@@ -303,17 +303,19 @@ int main_blacklist(int argc, char *argv[])
 int main_gt(int argc, char *argv[])
 {
 	ketopt_t o = KETOPT_INIT;
-	int32_t c;
+	int32_t c, is_path = 0;
 	float min_dc = 5.0f;
 	gfa_t *g;
 
-	while ((c = ketopt(&o, argc, argv, 1, "d:", 0)) >= 0) {
+	while ((c = ketopt(&o, argc, argv, 1, "d:p", 0)) >= 0) {
 		if (c == 'd') min_dc = atof(o.arg);
+		else if (c == 'p') is_path = 1;
 	}
 	if (o.ind == argc) {
 		fprintf(stderr, "Usage: gfatools gt [options] <in.gfa>\n");
 		fprintf(stderr, "Options:\n");
 		fprintf(stderr, "  -d FLOAT      min depth [%g]\n", min_dc);
+		fprintf(stderr, "  -p            print path instead of allele sequences (for debugging)\n");
 		return 1;
 	}
 	g = gfa_read(argv[o.ind]);
@@ -321,7 +323,7 @@ int main_gt(int argc, char *argv[])
 		fprintf(stderr, "ERROR: failed to read the graph\n");
 		return 2;
 	}
-	gfa_gt_simple_print(g, min_dc);
+	gfa_gt_simple_print(g, min_dc, is_path);
 	gfa_destroy(g);
 	return 0;
 }
