@@ -10,7 +10,6 @@ typedef struct {
 } gt_sc_t;
 
 #define GT_MAX_SC 3
-#define GT_MAX_AL 3
 
 typedef struct {
 	int32_t n;
@@ -32,10 +31,8 @@ typedef struct {
 
 typedef struct {
 	int32_t n_al;
-	int32_t is_var;
-	int32_t al[GT_MAX_AL];
-	double sc[GT_MAX_AL];
-	double alt;
+	int32_t al[2];
+	double s_alt, s_het;
 } gt_call_t;
 
 static inline float gt_get_dc(const gfa_aux_t *aux)
@@ -196,36 +193,66 @@ static int32_t gt_filter_walk(int32_t n_walk, gt_walk_t *walk)
 	return j;
 }
 
-static void gt_call(int32_t n_walk, gt_walk_t *walk, float min_dc, gt_call_t *c)
+static void gt_genotype(int32_t n_walk, const gt_walk_t *walk, gt_call_t *c)
+{
+	int32_t j, k, max_j = -1, max_k = -1;
+	double max = 0.0;
+	assert(n_walk >= 1);
+	for (j = 0; j < n_walk; ++j) { // choose the pair of walks that maximize the weight
+		int32_t i;
+		double sj = 0.0;
+		khash_t(gt) *h;
+		const gt_walk_t *wj = &walk[j];
+		h = kh_init(gt);
+		kh_resize(gt, h, wj->l);
+		for (i = 0; i < wj->l; ++i) {
+			uint32_t x = wj->w[i].is_arc? 1U<<31|wj->w[i].x : wj->w[i].x;
+			int absent;
+			kh_put(gt, h, x, &absent);
+			sj += wj->w[i].w;
+		}
+		for (k = j; k < n_walk; ++k) {
+			const gt_walk_t *wk = &walk[k];
+			double sk = sj;
+			for (i = 0; i < wk->l; ++i) {
+				uint32_t x = wk->w[i].is_arc? 1U<<31|wk->w[i].x : wk->w[i].x;
+				if (kh_get(gt, h, x) == kh_end(h))
+					sk += wk->w[i].w;
+			}
+			if (max < sk) max = sk, max_j = j, max_k = k;
+		}
+		kh_destroy(gt, h);
+	}
+	if (max_j != max_k) {
+		double skj, sjk;
+		sjk = gt_relative(walk[max_j].l, walk[max_j].w, walk[max_k].l, walk[max_k].w);
+		skj = gt_relative(walk[max_k].l, walk[max_k].w, walk[max_j].l, walk[max_j].w);
+		if (sjk < skj) { // max_j is the better allele
+			if ((float)sjk + 1.0f == 1.0f) c->n_al = 1, c->al[0] = max_j, c->s_het = 0.0;
+			else c->n_al = 2, c->al[0] = max_j, c->al[1] = max_k, c->s_het = sjk;
+		} else {
+			if ((float)skj + 1.0f == 1.0f) c->n_al = 1, c->al[0] = max_k, c->s_het = 0.0;
+			else c->n_al = 2, c->al[0] = max_k, c->al[1] = max_j, c->s_het = skj;
+		}
+	} else c->n_al = 1, c->al[0] = max_j, c->s_het = 0.0;
+}
+
+static void gt_call(int32_t n_walk, gt_walk_t *walk, gt_call_t *c)
 {
 	double max_s;
-	int32_t k, max_k, a1;
-
+	int32_t k, max_k;
 	assert(n_walk > 0);
 	memset(c, 0, sizeof(gt_call_t));
-	c->n_al = 1; // reference allele only
+	c->n_al = 1, c->al[0] = 0, c->s_alt = c->s_het = 0.0; // reference allele only
 	if (n_walk == 1) return;
-
 	max_s = -1.0, max_k = -1;
 	for (k = 1; k < n_walk; ++k) {
 		double s;
 		s = gt_relative(walk[0].l, walk[0].w, walk[k].l, walk[k].w);
 		if (max_s < s) max_s = s, max_k = k;
 	}
-	if (max_s < min_dc) return; // no good ALT
-	a1 = max_k;
-	c->alt = max_s;
-	c->is_var = 1, c->al[0] = a1, c->sc[0] = max_s;
-
-	max_s = -1.0, max_k = -1;
-	for (k = 0; k < n_walk; ++k) {
-		double s;
-		if (k == a1) continue;
-		s = gt_relative(walk[a1].l, walk[a1].w, walk[k].l, walk[k].w);
-		if (max_s < s) max_s = s, max_k = k;
-	}
-	if (max_s >= min_dc)
-		c->n_al = 2, c->al[1] = max_k, c->sc[1] = max_k;
+	c->s_alt = max_s;
+	gt_genotype(n_walk, walk, c);
 }
 
 static int32_t gt_walk_compact(int32_t n_walk, gt_walk_t *walk, gt_call_t *c)
@@ -249,6 +276,38 @@ static int32_t gt_walk_compact(int32_t n_walk, gt_walk_t *walk, gt_call_t *c)
 	return n;
 }
 
+static void gt_print(const gfa_t *g, const gfa_sub_t *sub, int32_t jst, int32_t jen, int32_t n_walk, const gt_walk_t *walk, const gt_call_t *call)
+{
+	int32_t i, k, is_path = 1;
+	const gfa_seg_t *seg_st, *seg_en;
+	seg_st = &g->seg[sub->v[jst].v>>1];
+	seg_en = &g->seg[sub->v[jen].v>>1];
+	printf("%s\t%d\t%d", g->sseq[seg_st->snid].name, seg_st->soff + seg_st->len, seg_en->soff);
+	if (is_path) printf("\t%c%s\t%c%s", "><"[sub->v[jst].v&1], g->seg[sub->v[jst].v>>1].name, "><"[sub->v[jen].v&1], g->seg[sub->v[jen].v>>1].name);
+	printf("\t%.2f\t%.2f", call->s_alt, call->s_het);
+	if (n_walk == 1) { // only the reference path is present
+		printf("\t0/0\n");
+		return;
+	}
+	if (call->n_al == 1) printf("\t%d/%d", call->al[0], call->al[0]);
+	else printf("\t%d/%d", call->al[0], call->al[1]);
+	printf("\t%d", n_walk);
+	for (k = 0; k < n_walk; ++k) {
+		const gt_walk_t *w = &walk[k];
+		int32_t c = 0;
+		printf("\t");
+		for (i = 0; i < w->l; ++i) {
+			if (!w->w[i].is_arc) {
+				uint32_t v = sub->v[w->w[i].x].v;
+				printf("%c%s", "><"[v&1], g->seg[v>>1].name);
+				++c;
+			}
+		}
+		if (c == 0) printf("*");
+	}
+	printf("\n");
+}
+
 static void gfa_gt_simple_interval(const gfa_t *g, const gfa_sub_t *sub, const float *wv, const float *wa, int32_t jst, int32_t jen, float min_dc)
 {
 	int32_t k, n_walk;
@@ -266,26 +325,9 @@ static void gfa_gt_simple_interval(const gfa_t *g, const gfa_sub_t *sub, const f
 	for (k = 0; k < n_walk; ++k)
 		walk[k].s = gt_cal_weight(g, sub, wv, wa, walk[k].l, walk[k].w);
 	n_walk = gt_filter_walk(n_walk, walk);
-	gt_call(n_walk, walk, min_dc, &call);
+	gt_call(n_walk, walk, &call);
 	n_walk = gt_walk_compact(n_walk, walk, &call);
-
-	// print
-	printf("%s\t%d\t%d", g->sseq[seg_st->snid].name, seg_st->soff + seg_st->len, seg_en->soff);
-	printf("\t%c%s\t%c%s", "><"[sub->v[jst].v&1], g->seg[sub->v[jst].v>>1].name, "><"[sub->v[jen].v&1], g->seg[sub->v[jen].v>>1].name);
-	printf("\t%d\t%d\t%.3f\t%d", call.is_var, call.n_al, call.alt, n_walk);
-	for (k = 0; k < n_walk; ++k) {
-		int32_t i;
-		printf("\t%.2f:", walk[k].s);
-		for (i = 0; i < walk[k].l; ++i) {
-			if (!walk[k].w[i].is_arc) {
-				uint32_t v = sub->v[walk[k].w[i].x].v;
-				printf("%c%s", "><"[v&1], g->seg[v>>1].name);
-			}
-		}
-	}
-	printf("\n");
-
-	// free
+	gt_print(g, sub, jst, jen, n_walk, walk, &call);
 	for (k = 0; k < n_walk; ++k)
 		free(walk[k].w);
 }
