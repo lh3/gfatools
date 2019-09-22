@@ -306,7 +306,7 @@ static void gt_print(const gfa_t *g, const gfa_sub_t *sub, int32_t jst, int32_t 
 				}
 			}
 		} else {
-			int32_t l;
+			int32_t j, l;
 			char *buf;
 			for (i = 0, l = 0; i < w->l; ++i)
 				if (!w->w[i].is_arc)
@@ -317,8 +317,8 @@ static void gt_print(const gfa_t *g, const gfa_sub_t *sub, int32_t jst, int32_t 
 					uint32_t v = sub->v[w->w[i].x].v;
 					const gfa_seg_t *seg = &g->seg[v>>1];
 					if (v&1) {
-						for (k = seg->len - 1; k >= 0; --k)
-							buf[l++] = gfa_comp_table[(uint8_t)seg->seq[k]];
+						for (j = seg->len - 1; j >= 0; --j)
+							buf[l++] = gfa_comp_table[(uint8_t)seg->seq[j]];
 					} else {
 						memcpy(&buf[l], seg->seq, seg->len);
 						l += seg->len;
@@ -329,7 +329,7 @@ static void gt_print(const gfa_t *g, const gfa_sub_t *sub, int32_t jst, int32_t 
 			fputs(buf, fp);
 			free(buf);
 		}
-		if (c == 0) printf("*");
+		if (c == 0) fputc('*', fp);
 	}
 	fputc('\n', fp);
 }
