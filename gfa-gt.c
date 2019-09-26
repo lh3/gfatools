@@ -32,7 +32,7 @@ typedef struct {
 typedef struct {
 	int32_t n_al;
 	int32_t al[2];
-	double s_alt, s_het;
+	double s_alt, s_ref, s_het;
 } gt_call_t;
 
 static inline float gt_get_dc(const gfa_aux_t *aux)
@@ -243,7 +243,7 @@ static void gt_call(int32_t n_walk, gt_walk_t *walk, gt_call_t *c)
 	int32_t k, max_k;
 	assert(n_walk > 0);
 	memset(c, 0, sizeof(gt_call_t));
-	c->n_al = 1, c->al[0] = 0, c->s_alt = c->s_het = 0.0; // reference allele only
+	c->n_al = 1, c->al[0] = 0, c->s_alt = c->s_het = c->s_ref = 0.0; // reference allele only
 	if (n_walk == 1) return;
 	max_s = -1.0, max_k = -1;
 	for (k = 1; k < n_walk; ++k) {
@@ -252,6 +252,7 @@ static void gt_call(int32_t n_walk, gt_walk_t *walk, gt_call_t *c)
 		if (max_s < s) max_s = s, max_k = k;
 	}
 	c->s_alt = max_s;
+	c->s_ref = gt_relative(walk[max_k].l, walk[max_k].w, walk[0].l, walk[0].w);
 	gt_genotype(n_walk, walk, c);
 }
 
@@ -285,7 +286,7 @@ static void gt_print(const gfa_t *g, const gfa_sub_t *sub, int32_t jst, int32_t 
 	seg_en = &g->seg[sub->v[jen].v>>1];
 	fprintf(fp, "%s\t%d\t%d", g->sseq[seg_st->snid].name, seg_st->soff + seg_st->len, seg_en->soff);
 	if (is_path) fprintf(fp, "\t%c%s\t%c%s", "><"[sub->v[jst].v&1], g->seg[sub->v[jst].v>>1].name, "><"[sub->v[jen].v&1], g->seg[sub->v[jen].v>>1].name);
-	fprintf(fp, "\t%.2f\t%.2f", call->s_alt, call->s_het);
+	fprintf(fp, "\t%.2f\t%.2f:%.2f", call->s_alt, call->s_ref, call->s_het);
 	if (n_walk == 1) { // only the reference path is present
 		fputs("\t0/0\n", stdout);
 		return;
