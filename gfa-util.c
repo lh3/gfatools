@@ -300,8 +300,33 @@ void gfa_bubble_print(const gfa_t *g, FILE *fp) // FIXME: doesn't work with tran
 				const gfa_seg_t *sst = &g->seg[sub->v[jst].v>>1];
 				const gfa_seg_t *sen = &g->seg[t->v>>1];
 				if (sst->snid == i && sen->snid == i) {
-					int32_t rst = sst->soff + sst->len, ren = sen->soff;
-					fprintf(fp, "%s\t%d\t%d\t%d\t%d\n", g->sseq[i].name, rst, ren, bb[j].sd - bb[jst].sd - sst->len, bb[j].ld - bb[jst].ld - sst->len);
+					int32_t n, l, ld, rst = sst->soff + sst->len, ren = sen->soff;
+					uint32_t *vs;
+					char *seq;
+					GFA_MALLOC(vs, j - jst);
+					k = j, n = 0;
+					while (k > jst) {
+						if (k < j) vs[n++] = sub->v[k].v;
+						k = bb[k].lp;
+					}
+					ld = bb[j].ld - bb[jst].ld - sst->len;
+					GFA_MALLOC(seq, ld + 1);
+					for (k = n - 1, l = 0; k >= 0; --k) {
+						const gfa_seg_t *s = &g->seg[vs[k]>>1];
+						if (vs[k]&1) {
+							int32_t p;
+							for (p = s->len - 1; p >= 0; --p)
+								seq[l++] = gfa_comp_table[(uint8_t)s->seq[p]];
+						} else {
+							memcpy(&seq[l], s->seq, s->len);
+							l += s->len;
+						}
+					}
+					assert(l == ld);
+					seq[l] = 0;
+					free(vs);
+					fprintf(fp, "%s\t%d\t%d\t%d\t%d\t%s\n", g->sseq[i].name, rst, ren, bb[j].sd - bb[jst].sd - sst->len, ld, seq);
+					free(seq);
 				}
 				max_a = -1, jst = j;
 			}
