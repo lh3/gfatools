@@ -326,7 +326,7 @@ void gfa_bubble_print(const gfa_t *g, FILE *fp) // FIXME: doesn't work with tran
 					assert(l == ld);
 					seq[l] = 0;
 					free(vs);
-					fprintf(fp, "%s\t%d\t%d\t%d\t%d\t%s\n", g->sseq[i].name, rst, ren, bb[j].sd - bb[jst].sd - sst->len, ld, seq);
+					fprintf(fp, "%s\t%d\t%d\t%d\t%d\t%d\t%s\n", g->sseq[i].name, rst, ren, j - jst + 1, bb[j].sd - bb[jst].sd - sst->len, ld, seq);
 					free(seq);
 				}
 				max_a = -1, jst = j;
