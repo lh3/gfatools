@@ -252,3 +252,65 @@ void gfa_blacklist_print(const gfa_t *g, FILE *fp, int32_t min_len) // FIXME: do
 	}
 	free(vs);
 }
+
+typedef struct {
+	int32_t ld, sd;
+	int32_t lp, sp;
+} bubble1_t;
+
+void gfa_bubble_print(const gfa_t *g, FILE *fp) // FIXME: doesn't work with translocations
+{
+	uint32_t i, *vs, *vmin;
+	GFA_MALLOC(vs, g->n_sseq);
+	GFA_MALLOC(vmin, g->n_sseq);
+	for (i = 0; i < g->n_sseq; ++i)
+		vs[i] = (uint32_t)-1, vmin[i] = UINT32_MAX;
+	for (i = 0; i < g->n_seg; ++i) {
+		const gfa_seg_t *s = &g->seg[i];
+		if (s->rank != 0 || s->snid < 0) continue;
+		if ((uint32_t)s->soff < vmin[s->snid])
+			vmin[s->snid] = s->soff, vs[s->snid] = i<<1;
+	}
+	free(vmin);
+	for (i = 0; i < g->n_sseq; ++i) {
+		gfa_sub_t *sub;
+		int32_t j, jst, max_a;
+		bubble1_t *bb;
+		if (vs[i] == (uint32_t)-1) continue;
+		sub = gfa_sub_from(0, g, vs[i], 0);
+		GFA_MALLOC(bb, sub->n_v);
+		for (j = 1; j < sub->n_v; ++j)
+			bb[j].sd = INT32_MAX, bb[j].lp = bb[j].sp = 0;
+		for (j = 0; j < sub->n_v; ++j) {
+			gfa_subv_t *t = &sub->v[j];
+			int32_t k;
+			for (k = 0; k < t->n; ++k) {
+				uint64_t a = sub->a[t->off + k];
+				int32_t jv = (int32_t)(a>>32);
+				int32_t l = (int32_t)g->arc[(int32_t)a].v_lv;
+				if (jv <= j) continue; // skip loop or cycle
+				if (bb[jv].sd > bb[j].sd + l) bb[jv].sd = bb[j].sd + l, bb[jv].sp = j;
+				if (bb[jv].ld < bb[j].ld + l) bb[jv].ld = bb[j].ld + l, bb[jv].lp = j;
+			}
+		}
+		for (j = 0, jst = 0, max_a = -1; j < sub->n_v; ++j) {
+			gfa_subv_t *t = &sub->v[j];
+			int32_t k;
+			if (j == max_a) {
+				const gfa_seg_t *sst = &g->seg[sub->v[jst].v>>1];
+				const gfa_seg_t *sen = &g->seg[t->v>>1];
+				if (sst->snid == i && sen->snid == i) {
+					int32_t rst = sst->soff + sst->len, ren = sen->soff;
+					fprintf(fp, "%s\t%d\t%d\t%d\t%d\n", g->sseq[i].name, rst, ren, bb[j].sd - bb[jst].sd - sst->len, bb[j].ld - bb[jst].ld - sst->len);
+				}
+				max_a = -1, jst = j;
+			}
+			for (k = 0; k < t->n; ++k)
+				if ((int32_t)(sub->a[t->off + k]>>32) > max_a)
+					max_a = sub->a[t->off + k]>>32;
+		}
+		free(bb);
+		gfa_sub_destroy(sub);
+	}
+	free(vs);
+}
