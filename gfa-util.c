@@ -279,8 +279,9 @@ void gfa_bubble_print(const gfa_t *g, FILE *fp) // FIXME: doesn't work with tran
 		if (vs[i] == (uint32_t)-1) continue;
 		sub = gfa_sub_from(0, g, vs[i], 0);
 		GFA_MALLOC(bb, sub->n_v);
-		for (j = 1; j < sub->n_v; ++j)
+		for (j = 0; j < sub->n_v; ++j)
 			bb[j].sd = INT32_MAX, bb[j].ld = 0, bb[j].lp = bb[j].sp = -1;
+		bb[j].sd = 0;
 		for (j = 0; j < sub->n_v; ++j) {
 			gfa_subv_t *t = &sub->v[j];
 			int32_t k;
