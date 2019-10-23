@@ -205,7 +205,7 @@ end_check:
 typedef struct {
 	int32_t ld, sd;
 	int32_t lp, sp;
-	uint32_t la, sa;
+	float lf, sf;
 } bb_aux_t;
 
 static void bb_write_seq(const gfa_t *g, int32_t n, const uint32_t *v, int32_t l_seq, char *seq)
@@ -224,6 +224,13 @@ static void bb_write_seq(const gfa_t *g, int32_t n, const uint32_t *v, int32_t l
 	}
 	assert(l == l_seq);
 	seq[l] = 0;
+}
+
+static float aux_get_f(const gfa_aux_t *aux, const char tag[2], float fallback)
+{
+	const uint8_t *s;
+	s = gfa_aux_get(aux->l_aux, aux->aux, tag);
+	return s && *s == 'f'? *(float*)(s+1) : fallback;
 }
 
 gfa_bubble_t *gfa_bubble(const gfa_t *g, int32_t *n_bb_)
@@ -251,9 +258,9 @@ gfa_bubble_t *gfa_bubble(const gfa_t *g, int32_t *n_bb_)
 
 		if (vs[i] == (uint32_t)-1) continue;
 		sub = gfa_sub_from(0, g, vs[i], 0);
-		GFA_MALLOC(ba, sub->n_v);
+		GFA_CALLOC(ba, sub->n_v);
 		for (j = 0; j < sub->n_v; ++j)
-			ba[j].sd = INT32_MAX, ba[j].ld = 0, ba[j].lp = ba[j].sp = -1, ba[j].la = ba[j].sa = UINT32_MAX;
+			ba[j].sd = INT32_MAX, ba[j].lp = ba[j].sp = -1;
 		ba[0].sd = 0;
 		for (j = 0; j < sub->n_v; ++j) {
 			gfa_subv_t *t = &sub->v[j];
@@ -263,8 +270,10 @@ gfa_bubble_t *gfa_bubble(const gfa_t *g, int32_t *n_bb_)
 				int32_t jv = (int32_t)(a>>32);
 				int32_t l = (int32_t)g->arc[(uint32_t)a].v_lv;
 				if (jv <= j) continue; // skip loop or cycle
-				if (ba[jv].sd > ba[j].sd + l) ba[jv].sd = ba[j].sd + l, ba[jv].sp = j, ba[j].sa = (uint32_t)a;
-				if (ba[jv].ld < ba[j].ld + l) ba[jv].ld = ba[j].ld + l, ba[jv].lp = j, ba[j].la = (uint32_t)a;
+				if (ba[jv].sd > ba[j].sd + l)
+					ba[jv].sd = ba[j].sd + l, ba[jv].sp = j, ba[jv].sf = aux_get_f(&g->link_aux[g->arc[(uint32_t)a].link_id], "cf", -1.0f);
+				if (ba[jv].ld < ba[j].ld + l)
+					ba[jv].ld = ba[j].ld + l, ba[jv].lp = j, ba[jv].lf = aux_get_f(&g->link_aux[g->arc[(uint32_t)a].link_id], "cf", -1.0f);
 			}
 		}
 		for (j = 0, jst = 0, max_a = -1; j < sub->n_v; ++j) {
@@ -276,6 +285,7 @@ gfa_bubble_t *gfa_bubble(const gfa_t *g, int32_t *n_bb_)
 				if (sst->snid == i && sen->snid == i) {
 					int32_t n, l;
 					uint32_t *v;
+					float f;
 					gfa_bubble_t *b;
 
 					if (n_bb == m_bb) GFA_EXPAND(bb, m_bb);
@@ -299,17 +309,21 @@ gfa_bubble_t *gfa_bubble(const gfa_t *g, int32_t *n_bb_)
 						b->v[k - jst] = sub->v[k].v;
 
 					GFA_MALLOC(v, j - jst);
-					k = j, n = 0;
+					k = j, n = 0, f = 0.0f;
 					while (k > jst) {
 						if (k < j) v[n++] = sub->v[k].v;
+						if (f < ba[k].sf) f = ba[k].sf;
 						k = ba[k].sp;
 					}
+					b->cf_min = f;
 					bb_write_seq(g, n, v, b->len_min, b->seq_min);
-					k = j, n = 0;
+					k = j, n = 0, f = 0.0f;
 					while (k > jst) {
 						if (k < j) v[n++] = sub->v[k].v;
+						if (f < ba[k].lf) f = ba[k].lf;
 						k = ba[k].lp;
 					}
+					b->cf_max = f;
 					bb_write_seq(g, n, v, b->len_max, b->seq_max);
 					free(v);
 				}

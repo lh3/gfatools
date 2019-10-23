@@ -341,7 +341,8 @@ int main_bubble(int argc, char *argv[])
 	bb = gfa_bubble(g, &n_bb);
 	for (i = 0; i < n_bb; ++i) {
 		gfa_bubble_t *b = &bb[i];
-		printf("%s\t%d\t%d\t%d\t%d\t%d\t0\t0\t", g->sseq[b->snid].name, b->ss, b->se, b->n_seg, b->len_min, b->len_max);
+		printf("%s\t%d\t%d\t%d\t%d\t%d\t%.3g\t%.3g\t", g->sseq[b->snid].name, b->ss, b->se, b->n_seg,
+			   b->len_min, b->len_max, b->cf_min, b->cf_max);
 		for (j = 0; j < b->n_seg; ++j) {
 			if (j) fputc(',', stdout);
 			printf("%s", g->seg[b->v[j]>>1].name);
