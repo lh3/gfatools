@@ -256,11 +256,33 @@ void gfa_blacklist_print(const gfa_t *g, FILE *fp, int32_t min_len) // FIXME: do
 typedef struct {
 	int32_t ld, sd;
 	int32_t lp, sp;
-} bubble1_t;
+	uint32_t la, sa;
+} bb_aux_t;
 
-void gfa_bubble_print(const gfa_t *g, FILE *fp) // FIXME: doesn't work with translocations
+static void bb_write_seq(const gfa_t *g, int32_t n, const uint32_t *v, int32_t l_seq, char *seq)
+{
+	int32_t k, l;
+	for (k = n - 1, l = 0; k >= 0; --k) {
+		const gfa_seg_t *s = &g->seg[v[k]>>1];
+		if (v[k]&1) {
+			int32_t p;
+			for (p = s->len - 1; p >= 0; --p)
+				seq[l++] = gfa_comp_table[(uint8_t)s->seq[p]];
+		} else {
+			memcpy(&seq[l], s->seq, s->len);
+			l += s->len;
+		}
+	}
+	assert(l == l_seq);
+	seq[l] = 0;
+}
+
+gfa_bubble_t *gfa_bubble(const gfa_t *g, int32_t *n_bb_)
 {
 	uint32_t i, *vs, *vmin;
+	int32_t n_bb = 0, m_bb = 0;
+	gfa_bubble_t *bb = 0;
+
 	GFA_MALLOC(vs, g->n_sseq);
 	GFA_MALLOC(vmin, g->n_sseq);
 	for (i = 0; i < g->n_sseq; ++i)
@@ -272,26 +294,28 @@ void gfa_bubble_print(const gfa_t *g, FILE *fp) // FIXME: doesn't work with tran
 			vmin[s->snid] = s->soff, vs[s->snid] = i<<1;
 	}
 	free(vmin);
+
 	for (i = 0; i < g->n_sseq; ++i) {
 		gfa_sub_t *sub;
 		int32_t j, jst, max_a;
-		bubble1_t *bb;
+		bb_aux_t *ba;
+
 		if (vs[i] == (uint32_t)-1) continue;
 		sub = gfa_sub_from(0, g, vs[i], 0);
-		GFA_MALLOC(bb, sub->n_v);
+		GFA_MALLOC(ba, sub->n_v);
 		for (j = 0; j < sub->n_v; ++j)
-			bb[j].sd = INT32_MAX, bb[j].ld = 0, bb[j].lp = bb[j].sp = -1;
-		bb[j].sd = 0;
+			ba[j].sd = INT32_MAX, ba[j].ld = 0, ba[j].lp = ba[j].sp = -1, ba[j].la = ba[j].sa = UINT32_MAX;
+		ba[0].sd = 0;
 		for (j = 0; j < sub->n_v; ++j) {
 			gfa_subv_t *t = &sub->v[j];
 			int32_t k;
 			for (k = 0; k < t->n; ++k) {
 				uint64_t a = sub->a[t->off + k];
 				int32_t jv = (int32_t)(a>>32);
-				int32_t l = (int32_t)g->arc[(int32_t)a].v_lv;
+				int32_t l = (int32_t)g->arc[(uint32_t)a].v_lv;
 				if (jv <= j) continue; // skip loop or cycle
-				if (bb[jv].sd > bb[j].sd + l) bb[jv].sd = bb[j].sd + l, bb[jv].sp = j;
-				if (bb[jv].ld < bb[j].ld + l) bb[jv].ld = bb[j].ld + l, bb[jv].lp = j;
+				if (ba[jv].sd > ba[j].sd + l) ba[jv].sd = ba[j].sd + l, ba[jv].sp = j, ba[j].sa = (uint32_t)a;
+				if (ba[jv].ld < ba[j].ld + l) ba[jv].ld = ba[j].ld + l, ba[jv].lp = j, ba[j].la = (uint32_t)a;
 			}
 		}
 		for (j = 0, jst = 0, max_a = -1; j < sub->n_v; ++j) {
@@ -301,33 +325,44 @@ void gfa_bubble_print(const gfa_t *g, FILE *fp) // FIXME: doesn't work with tran
 				const gfa_seg_t *sst = &g->seg[sub->v[jst].v>>1];
 				const gfa_seg_t *sen = &g->seg[t->v>>1];
 				if (sst->snid == i && sen->snid == i) {
-					int32_t n, l, ld, rst = sst->soff + sst->len, ren = sen->soff;
-					uint32_t *vs;
-					char *seq;
-					GFA_MALLOC(vs, j - jst);
+					int32_t n, l;
+					uint32_t *v;
+					gfa_bubble_t *b;
+
+					if (n_bb == m_bb) GFA_EXPAND(bb, m_bb);
+					b = &bb[n_bb++];
+					b->snid = i;
+					b->vs = sub->v[jst].v;
+					b->ve = t->v;
+					b->ss = sst->soff + sst->len;
+					b->se = sen->soff;
+					b->len_min = ba[j].sd - ba[jst].sd - sst->len;
+					b->len_max = ba[j].ld - ba[jst].ld - sst->len;
+					assert(b->len_min >= 0);
+					assert(b->len_max > 0 && b->len_max >= b->len_min);
+					b->n_seg = j - jst + 1;
+					l = (b->len_min + 1) + (b->len_max + 1);
+					l = (l + 3) / 4 + b->n_seg;
+					GFA_CALLOC(b->v, l);
+					b->seq_min = (char*)(b->v + b->n_seg);
+					b->seq_max = b->seq_min + b->len_min + 1;
+					for (k = jst; k <= j; ++k)
+						b->v[k - jst] = sub->v[k].v;
+
+					GFA_MALLOC(v, j - jst);
 					k = j, n = 0;
 					while (k > jst) {
-						if (k < j) vs[n++] = sub->v[k].v;
-						k = bb[k].lp;
+						if (k < j) v[n++] = sub->v[k].v;
+						k = ba[k].sp;
 					}
-					ld = bb[j].ld - bb[jst].ld - sst->len;
-					GFA_MALLOC(seq, ld + 1);
-					for (k = n - 1, l = 0; k >= 0; --k) {
-						const gfa_seg_t *s = &g->seg[vs[k]>>1];
-						if (vs[k]&1) {
-							int32_t p;
-							for (p = s->len - 1; p >= 0; --p)
-								seq[l++] = gfa_comp_table[(uint8_t)s->seq[p]];
-						} else {
-							memcpy(&seq[l], s->seq, s->len);
-							l += s->len;
-						}
+					bb_write_seq(g, n, v, b->len_min, b->seq_min);
+					k = j, n = 0;
+					while (k > jst) {
+						if (k < j) v[n++] = sub->v[k].v;
+						k = ba[k].lp;
 					}
-					assert(l == ld);
-					seq[l] = 0;
-					free(vs);
-					fprintf(fp, "%s\t%d\t%d\t%d\t%d\t%d\t%s\n", g->sseq[i].name, rst, ren, j - jst + 1, bb[j].sd - bb[jst].sd - sst->len, ld, seq);
-					free(seq);
+					bb_write_seq(g, n, v, b->len_max, b->seq_max);
+					free(v);
 				}
 				max_a = -1, jst = j;
 			}
@@ -335,8 +370,10 @@ void gfa_bubble_print(const gfa_t *g, FILE *fp) // FIXME: doesn't work with tran
 				if ((int32_t)(sub->a[t->off + k]>>32) > max_a)
 					max_a = sub->a[t->off + k]>>32;
 		}
-		free(bb);
+		free(ba);
 		gfa_sub_destroy(sub);
 	}
 	free(vs);
+	*n_bb_ = n_bb;
+	return bb;
 }
