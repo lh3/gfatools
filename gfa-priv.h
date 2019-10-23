@@ -87,8 +87,6 @@ void gfa_augment(gfa_t *g, int32_t n_ins, const gfa_ins_t *ins, int32_t n_ctg, c
 
 gfa_sfa_t *gfa_gfa2sfa(const gfa_t *g, int32_t *n_sfa_, int32_t write_seq);
 
-void gfa_blacklist_print(const gfa_t *g, FILE *fp, int32_t min_len); // FIXME: doesn't work with translocations
-void gfa_bubble_print(const gfa_t *g, FILE *fp); // FIXME: doesn't work with translocation
 gfa_bubble_t *gfa_bubble(const gfa_t *g, int32_t *n_); // FIXME: doesn't work with translocation
 
 void gfa_gt_simple_print(const gfa_t *g, float min_dc, int32_t is_path); // FIXME: doesn't work with translocations

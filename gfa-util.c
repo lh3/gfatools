@@ -202,57 +202,6 @@ end_check:
 	return sfa;
 }
 
-void gfa_blacklist_print(const gfa_t *g, FILE *fp, int32_t min_len) // FIXME: doesn't work with translocations
-{
-	uint32_t i, *vs, *vmin;
-	GFA_MALLOC(vs, g->n_sseq);
-	GFA_MALLOC(vmin, g->n_sseq);
-	for (i = 0; i < g->n_sseq; ++i)
-		vs[i] = (uint32_t)-1, vmin[i] = UINT32_MAX;
-	for (i = 0; i < g->n_seg; ++i) {
-		const gfa_seg_t *s = &g->seg[i];
-		if (s->rank != 0 || s->snid < 0) continue;
-		if ((uint32_t)s->soff < vmin[s->snid])
-			vmin[s->snid] = s->soff, vs[s->snid] = i<<1;
-	}
-	free(vmin);
-	for (i = 0; i < g->n_sseq; ++i) {
-		gfa_sub_t *sub;
-		int32_t j, jst, max_a;
-		if (vs[i] == (uint32_t)-1) continue;
-		sub = gfa_sub_from(0, g, vs[i], 0);
-		for (j = 0, jst = 0, max_a = -1; j < sub->n_v; ++j) {
-			gfa_subv_t *t = &sub->v[j];
-			int32_t k;
-			if (j == max_a) {
-				const gfa_seg_t *sst = &g->seg[sub->v[jst].v>>1];
-				const gfa_seg_t *sen = &g->seg[t->v>>1];
-				if (sst->snid == i && sen->snid == i) {
-					int32_t rst = sst->soff + sst->len, ren = sen->soff;
-					if (ren - rst < min_len) {
-						int32_t ext = (min_len - (ren - rst) + 1) / 2;
-						rst -= ext, ren += ext;
-						if (rst < 0) rst = 0;
-						if (ren > g->sseq[i].max) ren = g->sseq[i].max;
-					}
-					fprintf(fp, "%s\t%d\t%d\t%d\t", g->sseq[i].name, rst, ren, j - jst + 1);
-					for (k = jst; k <= j; ++k) {
-						if (k > jst) fputc(',', fp);
-						fputs(g->seg[sub->v[k].v>>1].name, fp);
-					}
-					fputc('\n', fp);
-				}
-				max_a = -1, jst = j;
-			}
-			for (k = 0; k < t->n; ++k)
-				if ((int32_t)(sub->a[t->off + k]>>32) > max_a)
-					max_a = sub->a[t->off + k]>>32;
-		}
-		gfa_sub_destroy(sub);
-	}
-	free(vs);
-}
-
 typedef struct {
 	int32_t ld, sd;
 	int32_t lp, sp;

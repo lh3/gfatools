@@ -278,8 +278,9 @@ int main_gfa2fa(int argc, char *argv[])
 int main_blacklist(int argc, char *argv[])
 {
 	ketopt_t o = KETOPT_INIT;
-	int32_t c, min_len = 100;
+	int32_t i, j, c, n_bb, min_len = 100;
 	gfa_t *g;
+	gfa_bubble_t *bb;
 
 	while ((c = ketopt(&o, argc, argv, 1, "l:", 0)) >= 0) {
 		if (c == 'l') min_len = atoi(o.arg);
@@ -295,7 +296,26 @@ int main_blacklist(int argc, char *argv[])
 		fprintf(stderr, "ERROR: failed to read the graph\n");
 		return 2;
 	}
-	gfa_blacklist_print(g, stdout, min_len);
+	bb = gfa_bubble(g, &n_bb);
+	for (i = 0; i < n_bb; ++i) {
+		gfa_bubble_t *b = &bb[i];
+		int32_t rst = b->ss, ren = b->se;
+		if (ren - rst < min_len) {
+			int32_t ext = (min_len - (ren - rst) + 1) / 2;
+			rst -= ext, ren += ext;
+			if (rst < 0) rst = 0;
+			if (ren > g->sseq[b->snid].max)
+				ren = g->sseq[b->snid].max;
+		}
+		printf("%s\t%d\t%d\t%d\t", g->sseq[b->snid].name, rst, ren, b->n_seg);
+		for (j = 0; j < b->n_seg; ++j) {
+			if (j) fputc(',', stdout);
+			printf("%s", g->seg[b->v[j]>>1].name);
+		}
+		putchar('\n');
+		free(b->v);
+	}
+	free(bb);
 	gfa_destroy(g);
 	return 0;
 }
