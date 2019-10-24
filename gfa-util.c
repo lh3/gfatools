@@ -270,7 +270,7 @@ gfa_bubble_t *gfa_bubble(const gfa_t *g, int32_t *n_bb_)
 				int32_t jv = (int32_t)(a>>32);
 				int32_t l = (int32_t)g->arc[(uint32_t)a].v_lv;
 				if (jv <= j) continue; // skip loop or cycle
-				if (ba[jv].sd > ba[j].sd + l)
+				if (ba[jv].sd >= ba[j].sd + l)
 					ba[jv].sd = ba[j].sd + l, ba[jv].sp = j, ba[jv].sf = aux_get_f(&g->link_aux[g->arc[(uint32_t)a].link_id], "cf", -1.0f);
 				if (ba[jv].ld < ba[j].ld + l)
 					ba[jv].ld = ba[j].ld + l, ba[jv].lp = j, ba[jv].lf = aux_get_f(&g->link_aux[g->arc[(uint32_t)a].link_id], "cf", -1.0f);
