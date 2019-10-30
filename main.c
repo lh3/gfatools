@@ -389,7 +389,7 @@ int main_asm(int argc, char *argv[])
 {
 	const char *tr_opts = "v:R:T:B:O:rtbomu";
 	ketopt_t o = KETOPT_INIT;
-	int c, gap_fuzz = 1000, max_ext = 4, bub_dist = 50000, M_only = 1;
+	int c, gap_fuzz = 1000, max_ext = 4, bub_dist = 50000, oflag = 0;
 	float ovlp_drop_ratio = .7f;
 	gfa_t *g;
 
@@ -446,7 +446,7 @@ int main_asm(int argc, char *argv[])
 		}
 	}
 
-	gfa_print(g, stdout, M_only);
+	gfa_print(g, stdout, oflag);
 	gfa_destroy(g);
 	return 0;
 }
