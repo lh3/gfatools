@@ -407,6 +407,7 @@ int main_asm(int argc, char *argv[])
 		fprintf(stderr, "  -B INT      max bubble dist for -b [%d]\n", bub_dist);
 		fprintf(stderr, "  -o          drop shorter overlaps\n");
 		fprintf(stderr, "  -O FLOAT    dropped/longest<FLOAT, for -o [%g]\n", ovlp_drop_ratio);
+		fprintf(stderr, "  -c          topology-aware edge cutting\n");
 		fprintf(stderr, "  -m          misc trimming\n");
 		fprintf(stderr, "Note: the order of options matters; one option may be applied >1 times.\n");
 		return 1;
