@@ -387,7 +387,7 @@ int main_gt(int argc, char *argv[])
 
 int main_asm(int argc, char *argv[])
 {
-	const char *tr_opts = "v:R:T:B:O:rtbomu";
+	const char *tr_opts = "v:R:T:B:O:rtbomuc";
 	ketopt_t o = KETOPT_INIT;
 	int c, gap_fuzz = 1000, max_ext = 4, bub_dist = 50000, oflag = 0;
 	float ovlp_drop_ratio = .7f;
@@ -425,6 +425,7 @@ int main_asm(int argc, char *argv[])
 		else if (c == 'r') gfa_arc_del_trans(g, gap_fuzz);
 		else if (c == 'T') max_ext = atoi(o.arg);
 		else if (c == 't') gfa_cut_tip(g, max_ext);
+		else if (c == 'c') gfa_topocut(g, max_ext, ovlp_drop_ratio);
 		else if (c == 'B') bub_dist = atoi(o.arg);
 		else if (c == 'b') gfa_pop_bubble(g, bub_dist);
 		else if (c == 'O') ovlp_drop_ratio = atof(o.arg);

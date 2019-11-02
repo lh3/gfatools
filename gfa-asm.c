@@ -236,6 +236,98 @@ int gfa_cut_biloop(gfa_t *g, int max_ext)
 	return cnt;
 }
 
+/*******************************
+ * Topology-aware edge cutting *
+ *******************************/
+
+static int gfa_topocut_aux(gfa_t *g, uint32_t v, int max_ext)
+{
+	int32_t n_ext;
+	for (n_ext = 1; n_ext < max_ext; ++n_ext) {
+		gfa_arc_t *av = gfa_arc_a(g, v);
+		uint32_t i, nv = gfa_arc_n(g, v);
+		uint32_t k = nv, kv;
+		for (i = 0, kv = 0; i < nv; ++i)
+			if (!av[i].del) ++kv, k = i;
+		if (kv != 1) continue;
+		v = av[k].w;
+	}
+	return n_ext;
+}
+
+int gfa_topocut(gfa_t *g, int max_ext, float drop_ratio)
+{
+	uint32_t n_vtx = gfa_n_vtx(g), v, n_cut = 0;
+	uint64_t k, n_b = 0, *b;
+
+	// collect all overlaps at bifurcations
+	assert(g->n_arc < UINT32_MAX);
+	GFA_MALLOC(b, g->n_arc); // ddFIXME: we don't need an array this large, but probably it doesn't matter.
+	for (v = 0; v < n_vtx; ++v) {
+		gfa_arc_t *av = gfa_arc_a(g, v);
+		uint32_t i, nv = gfa_arc_n(g, v);
+		if (nv < 2) continue;
+		for (i = 0; i < nv; ++i)
+			b[n_b++] = (uint64_t)av[i].ov << 32 | (av - g->arc + i);
+	}
+	radix_sort_gfa64(b, b + n_b);
+
+	// test each edge
+	for (k = 0; k < n_b; ++k) {
+		gfa_arc_t *a = &g->arc[(uint32_t)b[k]];
+		uint32_t i, iv, iw, v = a->v_lv>>32, w = a->w^1, to_del = 0;
+		uint32_t nv = gfa_arc_n(g, v), nw = gfa_arc_n(g, w), kv, kw;
+		uint32_t ov_max = 0, ow_max = 0;
+		gfa_arc_t *av, *aw;
+
+		if (nv == 1 && nw == 1) continue;
+		av = gfa_arc_a(g, v);
+		aw = gfa_arc_a(g, w);
+
+		for (i = 0, kv = 0; i < nv; ++i) {
+			if (av[i].del) continue;
+			if (ov_max < av[i].ov) ov_max = av[i].ov;
+			++kv;
+		}
+		if (kv >= 2 && a->ov > ov_max * drop_ratio) continue;
+		for (i = 0, kw = 0; i < nw; ++i) {
+			if (aw[i].del) continue;
+			if (ow_max < aw[i].ov) ow_max = aw[i].ov;
+			++kw;
+		}
+		if (kw >= 2 && a->ow > ow_max * drop_ratio) continue;
+		if (kv == 1 && kw == 1) continue;
+
+		for (iv = 0; iv < nv; ++iv)
+			if (av[iv].w == (w^1)) break;
+		assert(iv < nv);
+		for (iw = 0; iw < nw; ++iw)
+			if (aw[iw].w == (v^1)) break;
+		assert(iw < nw);
+		assert(av[iv].del == aw[iw].del);
+		if (av[iv].del && aw[iw].del) continue;
+
+		if (kv > 1 && kw > 1) {
+			if (a->ov < ov_max * drop_ratio && a->ow < ow_max * drop_ratio)
+				to_del = 1;
+		} else if (kw == 1) {
+			if (gfa_topocut_aux(g, w^1, max_ext) < max_ext) to_del = 1;
+		} else if (kv == 1) {
+			if (gfa_topocut_aux(g, v^1, max_ext) < max_ext) to_del = 1;
+		}
+		if (to_del)
+			av[iv].del = aw[iw].del = 1, ++n_cut;
+	}
+
+	free(b);
+	if (n_cut) {
+		gfa_cleanup(g);
+		gfa_symm(g);
+	}
+	if (gfa_verbose >= 3) fprintf(stderr, "[M] %d topology-aware cuts\n", n_cut);
+	return n_cut;
+}
+
 /******************
  * Bubble popping *
  ******************/
