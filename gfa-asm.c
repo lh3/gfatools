@@ -240,17 +240,26 @@ int gfa_cut_biloop(gfa_t *g, int max_ext)
  * Topology-aware edge cutting *
  *******************************/
 
+static uint32_t gfa_check_unambi1(gfa_t *g, uint32_t v)
+{
+	gfa_arc_t *av = gfa_arc_a(g, v);
+	uint32_t i, nv = gfa_arc_n(g, v);
+	uint32_t k = nv, kv;
+	for (i = 0, kv = 0; i < nv; ++i)
+		if (!av[i].del) ++kv, k = i;
+	if (kv != 1) return (uint32_t)-1;
+	return av[k].w;
+}
+
 static int gfa_topocut_aux(gfa_t *g, uint32_t v, int max_ext)
 {
 	int32_t n_ext;
-	for (n_ext = 1; n_ext < max_ext; ++n_ext) {
-		gfa_arc_t *av = gfa_arc_a(g, v);
-		uint32_t i, nv = gfa_arc_n(g, v);
-		uint32_t k = nv, kv;
-		for (i = 0, kv = 0; i < nv; ++i)
-			if (!av[i].del) ++kv, k = i;
-		if (kv != 1) continue;
-		v = av[k].w;
+	for (n_ext = 1; n_ext < max_ext && v != (uint32_t)-1; ++n_ext) {
+		if (gfa_check_unambi1(g, v^1) == (uint32_t)-1) {
+			--n_ext;
+			break;
+		}
+		v = gfa_check_unambi1(g, v);
 	}
 	return n_ext;
 }
