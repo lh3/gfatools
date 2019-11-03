@@ -358,18 +358,20 @@ int gfa_bub_simple(gfa_t *g, int min_side, int max_side)
 		if (reason[0] != 1 || reason[1] != 1) continue;
 		if (e[0] > min_side && e[1] > min_side) continue;
 		if (end_v[0] != end_v[1]) continue;
+		if (gfa_arc_n(g, end_v[0]^1) != 2) continue;
+		++n_pop;
 		if (e[0] == e[1]) i = av[0].ov < av[1].ov? 0 : 1;
 		else i = e[0] < e[1]? 0 : 1;
-		gfa_arc_del(g, v, av[i].w, 0);
-		gfa_arc_del(g, av[i].w^1, v^1, 0);
+		gfa_arc_del(g, v, av[i].w, 1);
+		gfa_arc_del(g, av[i].w^1, v^1, 1);
 		w = av[i].w;
 		while (w != end_v[0]) {
 			av = gfa_arc_a(g, w);
 			nv = gfa_arc_n(g, w);
 			assert(nv == 1);
-			if (w != end_v[0]) g->seg[w>>1].del = 1;
-			gfa_arc_del(g, w, av[0].w, 0);
-			gfa_arc_del(g, av[0].w, w^1, 0);
+			g->seg[w>>1].del = 1;
+			gfa_arc_del(g, w, av[0].w, 1);
+			gfa_arc_del(g, av[0].w^1, w^1, 1);
 			w = av[0].w;
 		}
 	}
