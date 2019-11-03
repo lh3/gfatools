@@ -251,15 +251,21 @@ static uint32_t gfa_check_unambi1(gfa_t *g, uint32_t v)
 	return av[k].w;
 }
 
-static int gfa_topocut_aux(gfa_t *g, uint32_t v, int max_ext)
+static int gfa_check_ext(gfa_t *g, uint32_t v, int max_ext, int *reason, uint32_t *end_v)
 {
 	int32_t n_ext;
-	for (n_ext = 1; n_ext < max_ext && v != (uint32_t)-1; ++n_ext) {
+	*reason = 0;
+	for (n_ext = 1; n_ext < max_ext; ++n_ext) {
+		*end_v = v;
 		if (gfa_check_unambi1(g, v^1) == (uint32_t)-1) {
-			--n_ext;
+			--n_ext, *reason = 1;
 			break;
 		}
 		v = gfa_check_unambi1(g, v);
+		if (v == (uint32_t)-1) {
+			*reason = 2;
+			break;
+		}
 	}
 	return n_ext;
 }
@@ -271,7 +277,7 @@ int gfa_topocut(gfa_t *g, int max_ext, float drop_ratio)
 
 	// collect all overlaps at bifurcations
 	assert(g->n_arc < UINT32_MAX);
-	GFA_MALLOC(b, g->n_arc); // ddFIXME: we don't need an array this large, but probably it doesn't matter.
+	GFA_MALLOC(b, g->n_arc); // FIXME: we don't need an array this large, but probably it doesn't matter.
 	for (v = 0; v < n_vtx; ++v) {
 		gfa_arc_t *av = gfa_arc_a(g, v);
 		uint32_t i, nv = gfa_arc_n(g, v);
@@ -284,9 +290,10 @@ int gfa_topocut(gfa_t *g, int max_ext, float drop_ratio)
 	// test each edge
 	for (k = 0; k < n_b; ++k) {
 		gfa_arc_t *a = &g->arc[(uint32_t)b[k]];
-		uint32_t i, iv, iw, v = a->v_lv>>32, w = a->w^1, to_del = 0;
+		uint32_t i, iv, iw, v = a->v_lv>>32, w = a->w^1, to_del = 0, end_v;
 		uint32_t nv = gfa_arc_n(g, v), nw = gfa_arc_n(g, w), kv, kw;
 		uint32_t ov_max = 0, ow_max = 0;
+		int reason;
 		gfa_arc_t *av, *aw;
 
 		if (nv == 1 && nw == 1) continue;
@@ -320,9 +327,9 @@ int gfa_topocut(gfa_t *g, int max_ext, float drop_ratio)
 			if (a->ov < ov_max * drop_ratio && a->ow < ow_max * drop_ratio)
 				to_del = 1;
 		} else if (kw == 1) {
-			if (gfa_topocut_aux(g, w^1, max_ext) < max_ext) to_del = 1;
+			if (gfa_check_ext(g, w^1, max_ext, &reason, &end_v) < max_ext) to_del = 1;
 		} else if (kv == 1) {
-			if (gfa_topocut_aux(g, v^1, max_ext) < max_ext) to_del = 1;
+			if (gfa_check_ext(g, v^1, max_ext, &reason, &end_v) < max_ext) to_del = 1;
 		}
 		if (to_del)
 			av[iv].del = aw[iw].del = 1, ++n_cut;
@@ -335,6 +342,40 @@ int gfa_topocut(gfa_t *g, int max_ext, float drop_ratio)
 	}
 	if (gfa_verbose >= 3) fprintf(stderr, "[M] %d topology-aware cuts\n", n_cut);
 	return n_cut;
+}
+
+int gfa_bub_simple(gfa_t *g, int min_side, int max_side)
+{
+	uint32_t n_vtx = gfa_n_vtx(g), v, n_pop = 0;
+	for (v = 0; v < n_vtx; ++v) {
+		gfa_arc_t *av = gfa_arc_a(g, v);
+		uint32_t i, w, nv = gfa_arc_n(g, v), end_v[2];
+		int reason[2], e[2];
+		if (nv != 2) continue;
+		if (av[0].del || av[1].del) continue;
+		e[0] = gfa_check_ext(g, av[0].w, max_side, &reason[0], &end_v[0]);
+		e[1] = gfa_check_ext(g, av[1].w, max_side, &reason[1], &end_v[1]);
+		if (reason[0] != 1 || reason[1] != 1) continue;
+		if (e[0] > min_side && e[1] > min_side) continue;
+		if (end_v[0] != end_v[1]) continue;
+		if (e[0] == e[1]) i = av[0].ov < av[1].ov? 0 : 1;
+		else i = e[0] < e[1]? 0 : 1;
+		gfa_arc_del(g, v, av[i].w, 0);
+		gfa_arc_del(g, av[i].w^1, v^1, 0);
+		w = av[i].w;
+		while (w != end_v[0]) {
+			av = gfa_arc_a(g, w);
+			nv = gfa_arc_n(g, w);
+			assert(nv == 1);
+			if (w != end_v[0]) g->seg[w>>1].del = 1;
+			gfa_arc_del(g, w, av[0].w, 0);
+			gfa_arc_del(g, av[0].w, w^1, 0);
+			w = av[0].w;
+		}
+	}
+	if (n_pop) gfa_cleanup(g);
+	if (gfa_verbose >= 3) fprintf(stderr, "[M] popped %d simple bubbles\n", n_pop);
+	return n_pop;
 }
 
 /******************

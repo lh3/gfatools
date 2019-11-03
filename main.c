@@ -387,9 +387,9 @@ int main_gt(int argc, char *argv[])
 
 int main_asm(int argc, char *argv[])
 {
-	const char *tr_opts = "v:R:T:B:O:rtbomuc";
+	const char *tr_opts = "v:R:T:B:O:rtbomucse:f:d:";
 	ketopt_t o = KETOPT_INIT;
-	int c, gap_fuzz = 1000, max_ext = 4, bub_dist = 50000, oflag = 0;
+	int c, gap_fuzz = 1000, max_ext = 3, min_side = 1, max_side = 20, bub_dist = 50000, oflag = 0;
 	float ovlp_drop_ratio = .7f;
 	gfa_t *g;
 
@@ -397,18 +397,21 @@ int main_asm(int argc, char *argv[])
 	if (o.ind == argc) {
 		fprintf(stderr, "Usage: gfatools asm [options] <in.gfa>\n");
 		fprintf(stderr, "Options:\n");
-		fprintf(stderr, "  -v INT      verbose level [%d]\n", gfa_verbose);
-		fprintf(stderr, "  -u          generate unitig graph (unambiguous merge)\n");
-		fprintf(stderr, "  -r          transitive reduction\n");
-		fprintf(stderr, "  -R INT      fuzzy length for -r [%d]\n", gap_fuzz);
-		fprintf(stderr, "  -t          trim tips\n");
-		fprintf(stderr, "  -T INT      tip length for -t [%d]\n", max_ext);
-		fprintf(stderr, "  -b          pop bubbles\n");
-		fprintf(stderr, "  -B INT      max bubble dist for -b [%d]\n", bub_dist);
-		fprintf(stderr, "  -o          drop shorter overlaps\n");
-		fprintf(stderr, "  -O FLOAT    dropped/longest<FLOAT, for -o [%g]\n", ovlp_drop_ratio);
-		fprintf(stderr, "  -c          topology-aware edge cutting\n");
-		fprintf(stderr, "  -m          misc trimming\n");
+		fprintf(stderr, "  Actions:\n");
+		fprintf(stderr, "    -u          generate unitig graph (unambiguous merge)\n");
+		fprintf(stderr, "    -r          transitive reduction (-f)\n");
+		fprintf(stderr, "    -t          trim tips (-e)\n");
+		fprintf(stderr, "    -b          pop bubbles (-B)\n");
+		fprintf(stderr, "    -c          topology-aware edge cutting (-e/-d)\n");
+		fprintf(stderr, "    -o          drop shorter overlaps (-d)\n");
+		fprintf(stderr, "    -s          pop small simple bubbles\n");
+		fprintf(stderr, "    -m          misc trimming\n");
+		fprintf(stderr, "  Parameters:\n");
+		fprintf(stderr, "    -f INT      fuzzy length [%d]\n", gap_fuzz);
+		fprintf(stderr, "    -e INT      max extend (for tip trimming and edge cutting) [%d]\n", max_ext);
+		fprintf(stderr, "    -B INT      max bubble dist for -b [%d]\n", bub_dist);
+		fprintf(stderr, "    -d FLOAT    dropped/longest<FLOAT, for -o [%g]\n", ovlp_drop_ratio);
+		fprintf(stderr, "    -v INT      verbose level [%d]\n", gfa_verbose);
 		fprintf(stderr, "Note: the order of options matters; one option may be applied >1 times.\n");
 		return 1;
 	}
@@ -422,14 +425,15 @@ int main_asm(int argc, char *argv[])
 	o = KETOPT_INIT;
 	while ((c = ketopt(&o, argc, argv, 1, tr_opts, 0)) >= 0) {
 		if (c == 'v') gfa_verbose = atoi(o.arg);
-		else if (c == 'R') gap_fuzz = atoi(o.arg);
+		else if (c == 'R' || c == 'f') gap_fuzz = atoi(o.arg);
 		else if (c == 'r') gfa_arc_del_trans(g, gap_fuzz);
-		else if (c == 'T') max_ext = atoi(o.arg);
+		else if (c == 'T' || c == 'e') max_ext = atoi(o.arg);
 		else if (c == 't') gfa_cut_tip(g, max_ext);
 		else if (c == 'c') gfa_topocut(g, max_ext, ovlp_drop_ratio);
+		else if (c == 's') gfa_bub_simple(g, min_side, max_side);
 		else if (c == 'B') bub_dist = atoi(o.arg);
 		else if (c == 'b') gfa_pop_bubble(g, bub_dist);
-		else if (c == 'O') ovlp_drop_ratio = atof(o.arg);
+		else if (c == 'O' || c == 'd') ovlp_drop_ratio = atof(o.arg);
 		else if (c == 'o') {
 			if (gfa_arc_del_short(g, ovlp_drop_ratio) != 0) {
 				gfa_cut_tip(g, max_ext);
