@@ -210,10 +210,16 @@ void gfa_fix_arc_len(gfa_t *g)
 	for (k = 0; k < g->n_arc; ++k) {
 		gfa_arc_t *a = &g->arc[k];
 		uint32_t v = gfa_arc_head(*a), w = gfa_arc_tail(*a);
-		if (g->seg[v>>1].del || g->seg[w>>1].del) {
+		const gfa_seg_t *sv = &g->seg[v>>1];
+		if (!sv->del && sv->len < a->ov) {
+			if (gfa_verbose >= 2)
+				fprintf(stderr, "[W] overlap length longer than segment length for '%s': %d > %d\n", sv->name, a->ov, sv->len);
+			sv->ov = sv->len;
+		}
+		if (sv->del || g->seg[w>>1].del) {
 			a->del = 1;
 		} else {
-			a->v_lv |= g->seg[v>>1].len - a->ov;
+			a->v_lv |= sv->len - a->ov;
 		}
 	}
 }
@@ -330,7 +336,7 @@ int32_t gfa_check_multi(const gfa_t *g)
 		int32_t nv = gfa_arc_n(g, v);
 		max_nv = max_nv > nv? max_nv : nv;
 	}
-	if (max_nv == 1) return 0;
+	if (max_nv == 1 || max_nv < 0) return 0;
 	GFA_MALLOC(buf, max_nv);
 	for (v = 0; v < n_vtx; ++v) {
 		int32_t i, s, nv = gfa_arc_n(g, v);
