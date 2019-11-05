@@ -214,7 +214,7 @@ void gfa_fix_arc_len(gfa_t *g)
 		if (!sv->del && sv->len < a->ov) {
 			if (gfa_verbose >= 2)
 				fprintf(stderr, "[W] overlap length longer than segment length for '%s': %d > %d\n", sv->name, a->ov, sv->len);
-			sv->ov = sv->len;
+			a->ov = sv->len;
 		}
 		if (sv->del || g->seg[w>>1].del) {
 			a->del = 1;
