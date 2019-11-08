@@ -387,9 +387,9 @@ int main_gt(int argc, char *argv[])
 
 int main_asm(int argc, char *argv[])
 {
-	const char *tr_opts = "v:R:T:B:O:rtbomucse:f:d:";
+	const char *tr_opts = "v:R:T:l:BO:rtbomucse:f:d:";
 	ketopt_t o = KETOPT_INIT;
-	int c, gap_fuzz = 1000, max_ext = 3, min_side = 1, max_side = 20, bub_dist = 50000, oflag = 0;
+	int c, gap_fuzz = 1000, max_ext = 3, min_side = 1, max_side = 20, max_dist = 50000, oflag = 0;
 	float ovlp_drop_ratio = .7f;
 	gfa_t *g;
 
@@ -401,16 +401,17 @@ int main_asm(int argc, char *argv[])
 		fprintf(stderr, "    -u          generate unitig graph (unambiguous merge)\n");
 		fprintf(stderr, "    -r          transitive reduction (-f)\n");
 		fprintf(stderr, "    -t          trim tips (-e)\n");
-		fprintf(stderr, "    -b          pop bubbles (-B)\n");
+		fprintf(stderr, "    -b          pop bubbles and trim tips on bubbles (-l)\n");
+		fprintf(stderr, "    -B          pop bubbles w/o trimming tips on bubbles (-l)\n");
 		fprintf(stderr, "    -c          topology-aware edge cutting (-e/-d)\n");
-		fprintf(stderr, "    -o          drop shorter overlaps (-d)\n");
+//		fprintf(stderr, "    -o          drop shorter overlaps (-d; DEPRECATED)\n");
 		fprintf(stderr, "    -s          pop small simple bubbles\n");
-		fprintf(stderr, "    -m          misc trimming\n");
+//		fprintf(stderr, "    -m          misc trimming (DEPRECATED)\n");
 		fprintf(stderr, "  Parameters:\n");
 		fprintf(stderr, "    -f INT      fuzzy length [%d]\n", gap_fuzz);
 		fprintf(stderr, "    -e INT      max extend (for tip trimming and edge cutting) [%d]\n", max_ext);
-		fprintf(stderr, "    -B INT      max bubble dist for -b [%d]\n", bub_dist);
-		fprintf(stderr, "    -d FLOAT    dropped/longest<FLOAT, for -o [%g]\n", ovlp_drop_ratio);
+		fprintf(stderr, "    -l INT      max distance for -b/-B [%d]\n", max_dist);
+		fprintf(stderr, "    -d FLOAT    dropped/longest<FLOAT, for -c [%g]\n", ovlp_drop_ratio);
 		fprintf(stderr, "    -v INT      verbose level [%d]\n", gfa_verbose);
 		fprintf(stderr, "Note: the order of options matters; one option may be applied >1 times.\n");
 		return 1;
@@ -431,19 +432,20 @@ int main_asm(int argc, char *argv[])
 		else if (c == 't') gfa_cut_tip(g, max_ext);
 		else if (c == 'c') gfa_topocut(g, max_ext, ovlp_drop_ratio);
 		else if (c == 's') gfa_bub_simple(g, min_side, max_side);
-		else if (c == 'B') bub_dist = atoi(o.arg);
-		else if (c == 'b') gfa_pop_bubble(g, bub_dist);
+		else if (c == 'l') max_dist = atoi(o.arg);
+		else if (c == 'b') gfa_pop_bubble(g, max_dist, 0);
+		else if (c == 'B') gfa_pop_bubble(g, max_dist, 1);
 		else if (c == 'O' || c == 'd') ovlp_drop_ratio = atof(o.arg);
-		else if (c == 'o') {
+		else if (c == 'o') { // deprecated
 			if (gfa_arc_del_short(g, ovlp_drop_ratio) != 0) {
 				gfa_cut_tip(g, max_ext);
-				gfa_pop_bubble(g, bub_dist);
+				gfa_pop_bubble(g, max_dist, 0);
 			}
-		} else if (c == 'm') {
+		} else if (c == 'm') { // deprecated
 			gfa_cut_internal(g, 1);
 			gfa_cut_biloop(g, max_ext);
 			gfa_cut_tip(g, max_ext);
-			gfa_pop_bubble(g, bub_dist);
+			gfa_pop_bubble(g, max_dist, 0);
 		} else if (c == 'u') {
 			gfa_t *ug;
 			ug = gfa_ug_gen(g);

@@ -432,7 +432,7 @@ static void gfa_bub_backtrack(gfa_t *g, uint32_t v0, buf_t *b)
 }
 
 // pop bubbles from vertex v0; the graph MJUST BE symmetric: if u->v present, v'->u' must be present as well
-static uint64_t gfa_bub_pop1(gfa_t *g, uint32_t v0, int max_dist, buf_t *b)
+static uint64_t gfa_bub_pop1(gfa_t *g, uint32_t v0, int max_dist, int protect_tip, buf_t *b)
 {
 	uint32_t i, n_pending = 0;
 	uint64_t n_pop = 0;
@@ -467,7 +467,10 @@ static uint64_t gfa_bub_pop1(gfa_t *g, uint32_t v0, int max_dist, buf_t *b)
 			if (--(t->r) == 0) {
 				uint32_t x = gfa_arc_n(g, w);
 				if (x) kv_push(uint32_t, b->S, w);
-				else kv_push(uint32_t, b->T, w); // a tip
+				else {
+					if (protect_tip) goto pop_reset;
+					kv_push(uint32_t, b->T, w); // a tip
+				}
 				--n_pending;
 			}
 		}
@@ -484,7 +487,7 @@ pop_reset:
 }
 
 // pop bubbles
-int gfa_pop_bubble(gfa_t *g, int max_dist)
+int gfa_pop_bubble(gfa_t *g, int max_dist, int protect_tip)
 {
 	uint32_t v, n_vtx = gfa_n_vtx(g);
 	uint64_t n_pop = 0;
@@ -499,7 +502,7 @@ int gfa_pop_bubble(gfa_t *g, int max_dist)
 		for (i = 0; i < nv; ++i) // gfa_bub_pop1() may delete some edges/arcs
 			if (!av[i].del) ++n_arc;
 		if (n_arc > 1)
-			n_pop += gfa_bub_pop1(g, v, max_dist, &b);
+			n_pop += gfa_bub_pop1(g, v, max_dist, protect_tip, &b);
 	}
 	free(b.a); free(b.S.a); free(b.T.a); free(b.b.a); free(b.e.a);
 	if (n_pop) gfa_cleanup(g);

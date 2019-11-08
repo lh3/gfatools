@@ -72,7 +72,7 @@ int gfa_topocut(gfa_t *g, int max_ext, float drop_ratio);
 int gfa_bub_simple(gfa_t *g, int min_side, int max_side);
 int gfa_cut_internal(gfa_t *g, int max_ext); // drop internal segments
 int gfa_cut_biloop(gfa_t *g, int max_ext); // Hmm... I forgot... Some type of weird local topology
-int gfa_pop_bubble(gfa_t *g, int max_dist); // bubble popping
+int gfa_pop_bubble(gfa_t *g, int max_dist, int protect_tip); // bubble popping
 gfa_t *gfa_ug_gen(const gfa_t *g);
 
 // subset, modifying the graph
