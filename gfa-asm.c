@@ -11,7 +11,7 @@
 typedef struct { size_t n, m; uint64_t *a; } gfa64_v;
 
 // delete short arcs
-int gfa_arc_del_short(gfa_t *g, float drop_ratio)
+int gfa_arc_del_short(gfa_t *g, int min_ovlp_len, float drop_ratio)
 {
 	uint32_t v, n_vtx = gfa_n_vtx(g), n_short = 0;
 	for (v = 0; v < n_vtx; ++v) {
@@ -19,6 +19,7 @@ int gfa_arc_del_short(gfa_t *g, float drop_ratio)
 		uint32_t i, thres, nv = gfa_arc_n(g, v);
 		if (nv < 2) continue;
 		thres = (uint32_t)(av[0].ov * drop_ratio + .499);
+		if (thres < min_ovlp_len) thres = min_ovlp_len;
 		for (i = nv - 1; i >= 1 && av[i].ov < thres; --i);
 		for (i = i + 1; i < nv; ++i)
 			av[i].del = 1, ++n_short;
