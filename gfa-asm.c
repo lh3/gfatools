@@ -136,10 +136,14 @@ int gfa_arc_del_trans(gfa_t *g, int fuzz)
 static inline int gfa_is_utg_end(const gfa_t *g, uint32_t v, uint64_t *lw)
 {
 	uint32_t w, nv, nw, nw0, nv0 = gfa_arc_n(g, v^1);
-	int i, i0 = -1;
+	int i, i0 = -1, min_l = g->seg[v>>1].len;
 	gfa_arc_t *aw, *av = gfa_arc_a(g, v^1);
-	for (i = nv = 0; i < nv0; ++i)
-		if (!av[i].del) i0 = i, ++nv;
+	for (i = nv = 0; i < nv0; ++i) {
+		if (av[i].del) continue;
+		min_l = (int32_t)av[i].v_lv < min_l? (int32_t)av[i].v_lv : min_l;
+		i0 = i, ++nv;
+	}
+	if (lw) *lw = (uint64_t)min_l<<32 | (uint32_t)-1;
 	if (nv == 0) return GFA_ET_TIP; // tip
 	if (nv > 1) return GFA_ET_MULTI_OUT; // multiple outgoing arcs
 	if (lw) *lw = av[i0].v_lv<<32 | av[i0].w;
@@ -152,29 +156,33 @@ static inline int gfa_is_utg_end(const gfa_t *g, uint32_t v, uint64_t *lw)
 	return GFA_ET_MERGEABLE;
 }
 
-int gfa_extend(const gfa_t *g, uint32_t v, int max_ext, gfa64_v *a)
+int gfa_extend(const gfa_t *g, uint32_t v, int max_ext, gfa64_v *a, int *len_)
 {
-	int ret;
+	int ret, len = 0;
 	uint64_t lw;
 	a->n = 0;
 	kv_push(uint64_t, *a, v);
 	do {
 		ret = gfa_is_utg_end(g, v^1, &lw);
 		if (ret != 0) break;
+		len += lw>>32;
 		kv_push(uint64_t, *a, lw);
 		v = (uint32_t)lw;
 	} while (--max_ext > 0);
+	if (len_) *len_ = len;
 	return ret;
 }
 
-int gfa_cut_tip(gfa_t *g, int max_ext)
+int gfa_cut_tip(gfa_t *g, int max_ext, int max_len)
 {
 	gfa64_v a = {0,0,0};
 	uint32_t n_vtx = gfa_n_vtx(g), v, i, cnt = 0;
 	for (v = 0; v < n_vtx; ++v) {
+		int len;
 		if (g->seg[v>>1].del) continue;
 		if (gfa_is_utg_end(g, v, 0) != GFA_ET_TIP) continue; // not a tip
-		if (gfa_extend(g, v, max_ext, &a) == GFA_ET_MERGEABLE) continue; // not a short unitig
+		if (gfa_extend(g, v, max_ext, &a, &len) == GFA_ET_MERGEABLE) continue; // not a short unitig
+		if (len > max_len) continue; // tip too long
 		for (i = 0; i < a.n; ++i)
 			gfa_seg_del(g, (uint32_t)a.a[i]>>1);
 		++cnt;
@@ -192,7 +200,7 @@ int gfa_cut_internal(gfa_t *g, int max_ext)
 	for (v = 0; v < n_vtx; ++v) {
 		if (g->seg[v>>1].del) continue;
 		if (gfa_is_utg_end(g, v, 0) != GFA_ET_MULTI_NEI) continue;
-		if (gfa_extend(g, v, max_ext, &a) != GFA_ET_MULTI_NEI) continue;
+		if (gfa_extend(g, v, max_ext, &a, 0) != GFA_ET_MULTI_NEI) continue;
 		for (i = 0; i < a.n; ++i)
 			gfa_seg_del(g, (uint32_t)a.a[i]>>1);
 		++cnt;
@@ -212,7 +220,7 @@ int gfa_cut_biloop(gfa_t *g, int max_ext)
 		gfa_arc_t *av, *aw;
 		if (g->seg[v>>1].del) continue;
 		if (gfa_is_utg_end(g, v, 0) != GFA_ET_MULTI_NEI) continue;
-		if (gfa_extend(g, v, max_ext, &a) != GFA_ET_MULTI_OUT) continue;
+		if (gfa_extend(g, v, max_ext, &a, 0) != GFA_ET_MULTI_OUT) continue;
 		x = (uint32_t)a.a[a.n - 1] ^ 1;
 		nv = gfa_arc_n(g, v ^ 1), av = gfa_arc_a(g, v ^ 1);
 		for (i = 0; i < nv; ++i)

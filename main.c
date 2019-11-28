@@ -387,7 +387,7 @@ int main_gt(int argc, char *argv[])
 
 int main_asm(int argc, char *argv[])
 {
-	const char *tr_opts = "v:T:l:Brtbomucse:f:d:";
+	const char *tr_opts = "v:T:l:Brtboucse:f:d:";
 	ketopt_t o = KETOPT_INIT;
 	int c, gap_fuzz = 1000, min_ovlp_len = 2000, max_ext = 3, max_side = 20, max_dist = 50000, oflag = 0;
 	float ovlp_drop_ratio = .7f;
@@ -400,13 +400,12 @@ int main_asm(int argc, char *argv[])
 		fprintf(stderr, "  Actions:\n");
 		fprintf(stderr, "    -u          generate unitig graph (unambiguous merge)\n");
 		fprintf(stderr, "    -r          transitive reduction (-f)\n");
-		fprintf(stderr, "    -t          trim tips (-e)\n");
+		fprintf(stderr, "    -t          trim tips (-e/-l)\n");
 		fprintf(stderr, "    -b          pop bubbles and trim tips on bubbles (-l)\n");
 		fprintf(stderr, "    -B          pop bubbles w/o trimming tips on bubbles (-l)\n");
 		fprintf(stderr, "    -c          topology-aware edge cutting (-e/-d)\n");
 		fprintf(stderr, "    -o          drop shorter overlaps (-d/-p)\n");
 		fprintf(stderr, "    -s          pop small simple bubbles (-e)\n");
-//		fprintf(stderr, "    -m          misc trimming (DEPRECATED)\n");
 		fprintf(stderr, "  Parameters:\n");
 		fprintf(stderr, "    -f INT      fuzzy length [%d]\n", gap_fuzz);
 		fprintf(stderr, "    -p INT      min overlap length (for -o) [%d]\n", min_ovlp_len);
@@ -430,7 +429,7 @@ int main_asm(int argc, char *argv[])
 		else if (c == 'f') gap_fuzz = atoi(o.arg);
 		else if (c == 'r') gfa_arc_del_trans(g, gap_fuzz);
 		else if (c == 'T' || c == 'e') max_ext = atoi(o.arg);
-		else if (c == 't') gfa_cut_tip(g, max_ext);
+		else if (c == 't') gfa_cut_tip(g, max_ext, max_dist);
 		else if (c == 'c') gfa_topocut(g, max_ext, ovlp_drop_ratio);
 		else if (c == 's') gfa_bub_simple(g, max_ext, max_side);
 		else if (c == 'l') max_dist = atoi(o.arg);
@@ -438,12 +437,7 @@ int main_asm(int argc, char *argv[])
 		else if (c == 'B') gfa_pop_bubble(g, max_dist, 1);
 		else if (c == 'd') ovlp_drop_ratio = atof(o.arg);
 		else if (c == 'o') gfa_arc_del_short(g, min_ovlp_len, ovlp_drop_ratio);
-		else if (c == 'm') { // deprecated
-			gfa_cut_internal(g, 1);
-			gfa_cut_biloop(g, max_ext);
-			gfa_cut_tip(g, max_ext);
-			gfa_pop_bubble(g, max_dist, 0);
-		} else if (c == 'u') {
+		else if (c == 'u') {
 			gfa_t *ug;
 			ug = gfa_ug_gen(g);
 			gfa_destroy(g);
