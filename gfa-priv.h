@@ -68,10 +68,8 @@ uint32_t gfa_fix_multi(gfa_t *g);
 int gfa_arc_del_trans(gfa_t *g, int fuzz); // transitive reduction
 int gfa_arc_del_short(gfa_t *g, int min_ovlp_len, float drop_ratio); // delete short arcs
 int gfa_cut_tip(gfa_t *g, int max_ext, int max_len); // cut tips
-int gfa_topocut(gfa_t *g, int max_ext, float drop_ratio);
+int gfa_topocut(gfa_t *g, float drop_ratio, int32_t tip_cnt, int32_t tip_len);
 int gfa_bub_simple(gfa_t *g, int min_side, int max_side);
-int gfa_cut_internal(gfa_t *g, int max_ext); // drop internal segments
-int gfa_cut_biloop(gfa_t *g, int max_ext); // Hmm... I forgot... Some type of weird local topology
 int gfa_pop_bubble(gfa_t *g, int max_dist, int protect_tip); // bubble popping
 gfa_t *gfa_ug_gen(const gfa_t *g);
 
