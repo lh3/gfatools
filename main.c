@@ -54,6 +54,18 @@ char **gv_read_list(const char *o, int *n_)
 	return s;
 }
 
+static inline int64_t gfa_str2num(const char *str, char **q)
+{
+	double x;
+	char *p;
+	x = strtod(str, &p);
+	if (*p == 'G' || *p == 'g') x *= 1e9, ++p;
+	else if (*p == 'M' || *p == 'm') x *= 1e6, ++p;
+	else if (*p == 'K' || *p == 'k') x *= 1e3, ++p;
+	*q = p;
+	return (int64_t)(x + .499);
+}
+
 int main_view(int argc, char *argv[])
 {
 	ketopt_t o = KETOPT_INIT;
@@ -387,32 +399,25 @@ int main_gt(int argc, char *argv[])
 
 int main_asm(int argc, char *argv[])
 {
-	const char *tr_opts = "v:T:l:Brtboucse:f:d:";
+	const char *tr_opts = "v:ur:t:b:B:s:o:c:";
 	ketopt_t o = KETOPT_INIT;
-	int c, gap_fuzz = 1000, min_ovlp_len = 2000, max_ext = 3, max_side = 20, max_dist = 50000, oflag = 0;
-	float ovlp_drop_ratio = .7f;
+	int c, oflag = 0;
 	gfa_t *g;
+	char *p;
 
 	while ((c = ketopt(&o, argc, argv, 1, tr_opts, 0)) >= 0);
 	if (o.ind == argc) {
 		fprintf(stderr, "Usage: gfatools asm [options] <in.gfa>\n");
 		fprintf(stderr, "Options:\n");
-		fprintf(stderr, "  Actions:\n");
-		fprintf(stderr, "    -u          generate unitig graph (unambiguous merge)\n");
-		fprintf(stderr, "    -r          transitive reduction (-f)\n");
-		fprintf(stderr, "    -t          trim tips (-e/-l)\n");
-		fprintf(stderr, "    -b          pop bubbles and trim tips on bubbles (-l)\n");
-		fprintf(stderr, "    -B          pop bubbles w/o trimming tips on bubbles (-l)\n");
-		fprintf(stderr, "    -c          topology-aware edge cutting (-e/-d)\n");
-		fprintf(stderr, "    -o          drop shorter overlaps (-d/-p)\n");
-		fprintf(stderr, "    -s          pop small simple bubbles (-e)\n");
-		fprintf(stderr, "  Parameters:\n");
-		fprintf(stderr, "    -f INT      fuzzy length [%d]\n", gap_fuzz);
-		fprintf(stderr, "    -p INT      min overlap length (for -o) [%d]\n", min_ovlp_len);
-		fprintf(stderr, "    -e INT      max extend (for -t/-c/-s) [%d]\n", max_ext);
-		fprintf(stderr, "    -l INT      max distance for -b/-B [%d]\n", max_dist);
-		fprintf(stderr, "    -d FLOAT    dropped/longest<FLOAT, for -c [%g]\n", ovlp_drop_ratio);
-		fprintf(stderr, "    -v INT      verbose level [%d]\n", gfa_verbose);
+		fprintf(stderr, "  -r INT          transitive reduction (fuzzy length)\n");
+		fprintf(stderr, "  -t INT1[,INT2]  cut tips (tip seg count, tip length [0])\n");
+		fprintf(stderr, "  -b INT          pop bubbles along with small tips (max dist)\n");
+		fprintf(stderr, "  -B INT          pop bubbles but protect small tips (max dist)\n");
+		fprintf(stderr, "  -s INT          pop simple bubbles (max seg count)\n");
+		fprintf(stderr, "  -o FLOAT[,INT]  cut short overlaps (ratio to the longest overlap, overlap length [0])\n");
+		fprintf(stderr, "  -c FLOAT[,INT]  cut overlaps, topology aware (ratio, tip seg count [3])\n");
+		fprintf(stderr, "  -u              generate unitigs\n");
+		fprintf(stderr, "  -v INT          verbose level [%d]\n", gfa_verbose);
 		fprintf(stderr, "Note: the order of options matters; one option may be applied >1 times.\n");
 		return 1;
 	}
@@ -425,23 +430,47 @@ int main_asm(int argc, char *argv[])
 
 	o = KETOPT_INIT;
 	while ((c = ketopt(&o, argc, argv, 1, tr_opts, 0)) >= 0) {
-		if (c == 'v') gfa_verbose = atoi(o.arg);
-		else if (c == 'f') gap_fuzz = atoi(o.arg);
-		else if (c == 'r') gfa_arc_del_trans(g, gap_fuzz);
-		else if (c == 'T' || c == 'e') max_ext = atoi(o.arg);
-		else if (c == 't') gfa_cut_tip(g, max_ext, max_dist);
-		else if (c == 'c') gfa_topocut(g, max_ext, ovlp_drop_ratio);
-		else if (c == 's') gfa_bub_simple(g, max_ext, max_side);
-		else if (c == 'l') max_dist = atoi(o.arg);
-		else if (c == 'b') gfa_pop_bubble(g, max_dist, 0);
-		else if (c == 'B') gfa_pop_bubble(g, max_dist, 1);
-		else if (c == 'd') ovlp_drop_ratio = atof(o.arg);
-		else if (c == 'o') gfa_arc_del_short(g, min_ovlp_len, ovlp_drop_ratio);
-		else if (c == 'u') {
+		if (c == 'v') {
+			gfa_verbose = atoi(o.arg);
+		} else if (c == 'u') {
 			gfa_t *ug;
 			ug = gfa_ug_gen(g);
 			gfa_destroy(g);
 			g = ug;
+		} else if (c == 'r') {
+			int32_t fuzz;
+			fuzz = gfa_str2num(o.arg, &p);
+			gfa_arc_del_trans(g, fuzz);
+		} else if (c == 't') {
+			int32_t max_ext, max_len = 0;
+			max_ext = gfa_str2num(o.arg, &p);
+			if (*p == ',') max_len = gfa_str2num(p + 1, &p);
+			gfa_cut_tip(g, max_ext, max_len);
+		} else if (c == 'b') {
+			int32_t dist;
+			dist = gfa_str2num(o.arg, &p);
+			gfa_pop_bubble(g, dist, 0);
+		} else if (c == 'B') {
+			int32_t dist;
+			dist = gfa_str2num(o.arg, &p);
+			gfa_pop_bubble(g, dist, 1);
+		} else if (c == 's') {
+			int32_t min_side, max_side = 20;
+			min_side = gfa_str2num(o.arg, &p);
+			if (*p == ',') max_side = gfa_str2num(p + 1, &p);
+			gfa_bub_simple(g, min_side, max_side);
+		} else if (c == 'o') {
+			double ratio;
+			int32_t min_len = 0;
+			ratio = strtod(o.arg, &p);
+			if (*p == ',') min_len = gfa_str2num(p + 1, &p);
+			gfa_arc_del_short(g, min_len, ratio);
+		} else if (c == 'c') {
+			double ratio;
+			int32_t max_ext = 3;
+			ratio = strtod(o.arg, &p);
+			if (*p == ',') max_ext = gfa_str2num(p + 1, &p);
+			gfa_topocut(g, max_ext, ratio);
 		}
 	}
 
