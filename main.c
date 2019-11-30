@@ -410,12 +410,13 @@ int main_asm(int argc, char *argv[])
 		fprintf(stderr, "Usage: gfatools asm [options] <in.gfa>\n");
 		fprintf(stderr, "Options:\n");
 		fprintf(stderr, "  -r INT          transitive reduction (fuzzy length)\n");
-		fprintf(stderr, "  -t INT1[,INT2]  cut tips (tip seg count, tip length [0])\n");
+		fprintf(stderr, "  -t INT1[,INT2]  cut tips (tip seg count, tip length [inf])\n");
 		fprintf(stderr, "  -b INT          pop bubbles along with small tips (max dist)\n");
 		fprintf(stderr, "  -B INT          pop bubbles but protect small tips (max dist)\n");
 		fprintf(stderr, "  -s INT          pop simple bubbles (max seg count)\n");
 		fprintf(stderr, "  -o FLOAT[,INT]  cut short overlaps (ratio to the longest overlap, overlap length [0])\n");
-		fprintf(stderr, "  -c FLOAT[,INT]  cut overlaps, topology aware (ratio, tip seg count [3])\n");
+		fprintf(stderr, "  -c FLOAT[,INT1[,INT2]]\n");
+		fprintf(stderr, "                  cut overlaps, topology aware (ratio, tip seg count [3], tip length [inf])\n");
 		fprintf(stderr, "  -u              generate unitigs\n");
 		fprintf(stderr, "  -v INT          verbose level [%d]\n", gfa_verbose);
 		fprintf(stderr, "Note: the order of options matters; one option may be applied >1 times.\n");
@@ -467,10 +468,11 @@ int main_asm(int argc, char *argv[])
 			gfa_arc_del_short(g, min_len, ratio);
 		} else if (c == 'c') {
 			double ratio;
-			int32_t max_ext = 3;
+			int32_t tip_cnt = 3, tip_len = INT32_MAX;
 			ratio = strtod(o.arg, &p);
-			if (*p == ',') max_ext = gfa_str2num(p + 1, &p);
-			gfa_topocut(g, max_ext, ratio);
+			if (*p == ',') tip_cnt = gfa_str2num(p + 1, &p);
+			if (*p == ',') tip_len = gfa_str2num(p + 1, &p);
+			gfa_topocut(g, ratio, tip_cnt, tip_len);
 		}
 	}
 
