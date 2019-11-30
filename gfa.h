@@ -93,7 +93,7 @@ typedef struct {
 	gfa_sseq_t *sseq;
 	void *h_snames;
 	// links
-	uint64_t m_arc, n_arc:62, is_srt:1, is_symm:1;
+	uint64_t m_arc, n_arc;
 	gfa_arc_t *arc;
 	gfa_aux_t *link_aux;
 	uint64_t *idx;

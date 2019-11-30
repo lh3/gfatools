@@ -48,7 +48,7 @@ static int gfa_arc_del_multi(gfa_t *g)
 	}
 	free(cnt);
 	if (n_multi) gfa_cleanup(g);
-	if (gfa_verbose >= 3) fprintf(stderr, "[M] removed %d multi-arcs\n", n_multi);
+	if (gfa_verbose >= 3 && n_multi > 0) fprintf(stderr, "[M::%s] removed %d multi-arcs\n", __func__, n_multi);
 	return n_multi;
 }
 
@@ -65,7 +65,7 @@ static int gfa_arc_del_asymm(gfa_t *g)
 		if (i == nv) g->arc[e].del = 1, ++n_asymm;
 	}
 	if (n_asymm) gfa_cleanup(g);
-	if (gfa_verbose >= 3) fprintf(stderr, "[M] removed %d asymmetric arcs\n", n_asymm);
+	if (gfa_verbose >= 3) fprintf(stderr, "[M::%s] removed %d asymmetric arcs\n", __func__, n_asymm);
 	return n_asymm;
 }
 
@@ -73,7 +73,6 @@ void gfa_symm(gfa_t *g)
 {
 	gfa_arc_del_multi(g);
 	gfa_arc_del_asymm(g);
-	g->is_symm = 1;
 }
 
 // transitive reduction; see Myers, 2005
@@ -114,7 +113,7 @@ int gfa_arc_del_trans(gfa_t *g, int fuzz)
 		}
 	}
 	free(mark);
-	if (gfa_verbose >= 3) fprintf(stderr, "[M] transitively reduced %d arcs\n", n_reduced);
+	if (gfa_verbose >= 3) fprintf(stderr, "[M::%s] transitively reduced %d arcs\n", __func__, n_reduced);
 	if (n_reduced) {
 		gfa_cleanup(g);
 		gfa_symm(g);
@@ -196,7 +195,7 @@ int gfa_cut_tip(gfa_t *g, int tip_cnt, int tip_len)
 	}
 	free(a.a);
 	if (cnt > 0) gfa_cleanup(g);
-	if (gfa_verbose >= 3) fprintf(stderr, "[M] cut %d tips\n", cnt);
+	if (gfa_verbose >= 3) fprintf(stderr, "[M::%s] cut %d tips\n", __func__, cnt);
 	return cnt;
 }
 
@@ -270,11 +269,11 @@ int gfa_topocut(gfa_t *g, float drop_ratio, int32_t tip_cnt, int32_t tip_len)
 	}
 
 	free(b);
+	if (gfa_verbose >= 3) fprintf(stderr, "[M::%s] %d topology-aware cuts\n", __func__, n_cut);
 	if (n_cut) {
 		gfa_cleanup(g);
 		gfa_symm(g);
 	}
-	if (gfa_verbose >= 3) fprintf(stderr, "[M] %d topology-aware cuts\n", n_cut);
 	return n_cut;
 }
 
@@ -426,7 +425,6 @@ int gfa_pop_bubble(gfa_t *g, int max_dist, int protect_tip)
 	uint32_t v, n_vtx = gfa_n_vtx(g);
 	uint64_t n_pop = 0;
 	buf_t b;
-	if (!g->is_symm) gfa_symm(g);
 	memset(&b, 0, sizeof(buf_t));
 	b.a = (binfo_t*)calloc(n_vtx, sizeof(binfo_t));
 	for (v = 0; v < n_vtx; ++v) {

@@ -60,11 +60,11 @@ void ma_sg_print(const gfa_t *g, const sdict_t *d, const ma_sub_t *sub, FILE *fp
 		const gfa_arc_t *p = &g->arc[i];
 		if (sub) {
 			const ma_sub_t *sq = &sub[p->v_lv>>33], *st = &sub[p->w>>1];
-			fprintf(fp, "L\t%s:%d-%d\t%c\t%s:%d-%d\t%c\t%d:\tL1:i:%d\n", d->seq[p->v_lv>>33].name, sq->s + 1, sq->e, "+-"[p->v_lv>>32&1],
-					d->seq[p->w>>1].name, st->s + 1, st->e, "+-"[p->w&1], p->ov, (uint32_t)p->v_lv);
+			fprintf(fp, "L\t%s:%d-%d\t%c\t%s:%d-%d\t%c\t%d:%d\tL1:i:%d\n", d->seq[p->v_lv>>33].name, sq->s + 1, sq->e, "+-"[p->v_lv>>32&1],
+					d->seq[p->w>>1].name, st->s + 1, st->e, "+-"[p->w&1], p->ov, p->ow, (uint32_t)p->v_lv);
 		} else {
-			fprintf(fp, "L\t%s\t%c\t%s\t%c\t%d:\tL1:i:%d\n", d->seq[p->v_lv>>33].name, "+-"[p->v_lv>>32&1],
-					d->seq[p->w>>1].name, "+-"[p->w&1], p->ov, (uint32_t)p->v_lv);
+			fprintf(fp, "L\t%s\t%c\t%s\t%c\t%d:%d\tL1:i:%d\n", d->seq[p->v_lv>>33].name, "+-"[p->v_lv>>32&1],
+					d->seq[p->w>>1].name, "+-"[p->w&1], p->ov, p->ow, (uint32_t)p->v_lv);
 		}
 	}
 }

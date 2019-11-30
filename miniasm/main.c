@@ -37,24 +37,27 @@ int main(int argc, char *argv[])
 	char *fn_reads = 0;
 
 	double int_frac = 0.8, min_iden = 0.0;
-	int add_dual = 1, flt = 0, gen_ug = 0, clean = 0;
+	int add_dual = 1, flt = 0, gen_ug = 0, clean = 0, keep_uni_edge = 0;
 	int min_dp = 2, min_ovlp = 500, min_match = 0, max_hang = 100;
 
 	gfa_t *sg = 0;
 	ma_ug_t *ug = 0;
 
-	while ((c = ketopt(&o, argc, argv, 1, "bfh:o:uc", 0)) >= 0) {
+	while ((c = ketopt(&o, argc, argv, 1, "bfh:o:ucU", 0)) >= 0) {
 		if (c == 'b') add_dual = 0;
 		else if (c == 'f') ++flt;
 		else if (c == 'h') max_hang = gfa_str2num(o.arg, 0);
 		else if (c == 'o') min_ovlp = gfa_str2num(o.arg, 0);
 		else if (c == 'u') gen_ug = 1;
+		else if (c == 'U') keep_uni_edge = 1;
 		else if (c == 'c') ++clean;
 		else if (c == 'V') {
 			printf("%s\n", MA_VERSION);
 			return 0;
 		}
 	}
+	if (add_dual) keep_uni_edge = 1;
+	gfa_verbose = ma_verbose;
 	if (argc == o.ind) {
 		fprintf(stderr, "Usage: paf2gfa [options] <in.paf>\n");
 		fprintf(stderr, "Options:\n");
@@ -77,6 +80,8 @@ int main(int argc, char *argv[])
 	if (flt >= 1) GFA_REALLOC(hit, n_hits);
 
 	sg = ma_sg_gen(max_hang, int_frac, min_ovlp, d, sub, n_hits, hit);
+	if (!keep_uni_edge) gfa_symm(sg);
+	gfa_finalize(sg);
 	if (clean >= 1) {
 		gfa_arc_del_trans(sg, 100);
 		gfa_cut_tip(sg, 1, INT32_MAX);

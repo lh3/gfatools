@@ -2,7 +2,7 @@ CC=			gcc
 CFLAGS=		-g -Wall -Wc++-compat -std=c99 -O2
 CPPFLAGS=
 INCLUDES=	-I..
-OBJS=		misc.o paf.o hit.o utg.o
+OBJS=		misc.o paf.o hit.o asm.o
 EXE=		paf2gfa
 LIBS=		-lz
 

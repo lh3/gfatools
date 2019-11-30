@@ -164,10 +164,18 @@ gfa_arc_t *gfa_add_arc1(gfa_t *g, uint32_t v, uint32_t w, int32_t ov, int32_t ow
 	return a;
 }
 
+int gfa_arc_is_sorted(const gfa_t *g)
+{
+	uint64_t e;
+	for (e = 1; e < g->n_arc; ++e)
+		if (g->arc[e-1].v_lv > g->arc[e].v_lv)
+			break;
+	return (e == g->n_arc);
+}
+
 void gfa_arc_sort(gfa_t *g)
 {
 	radix_sort_arc(g->arc, g->arc + g->n_arc);
-	// g->is_srt = 1; // FIXME: having this line will lead to errors elsewhere. INVESTIGATE!!!
 }
 
 uint64_t *gfa_arc_index_core(size_t max_seq, size_t n, const gfa_arc_t *a)
@@ -321,9 +329,8 @@ void gfa_arc_rm(gfa_t *g)
 void gfa_cleanup(gfa_t *g)
 {
 	gfa_arc_rm(g);
-	if (!g->is_srt) {
+	if (!gfa_arc_is_sorted(g)) {
 		gfa_arc_sort(g);
-		g->is_srt = 1;
 		if (g->idx) free(g->idx);
 		g->idx = 0;
 	}
