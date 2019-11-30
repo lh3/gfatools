@@ -257,11 +257,13 @@ int gfa_topocut(gfa_t *g, float drop_ratio, int32_t tip_cnt, int32_t tip_len)
 			if (a->ov < ov_max * drop_ratio && a->ow < ow_max * drop_ratio)
 				to_del = 1;
 		} else if (kw == 1) {
-			vt = gfa_uext(g, w^1, tip_cnt - 1, 0, &l_ext, 0, 0);
-			if (vt != GFA_VT_MERGEABLE && l_ext < tip_len) to_del = 1;
+			vt = gfa_uext(g, w^1, tip_cnt, 0, &l_ext, 0, 0);
+			//if (vt != GFA_VT_MERGEABLE && l_ext < tip_len) to_del = 1;
+			if (vt == GFA_VT_MULTI_IN && l_ext < tip_len) to_del = 1;
 		} else if (kv == 1) {
-			vt = gfa_uext(g, v^1, tip_cnt - 1, 0, &l_ext, 0, 0);
-			if (vt != GFA_VT_MERGEABLE && l_ext < tip_len) to_del = 1;
+			vt = gfa_uext(g, v^1, tip_cnt, 0, &l_ext, 0, 0);
+			//if (vt != GFA_VT_MERGEABLE && l_ext < tip_len) to_del = 1;
+			if (vt == GFA_VT_MULTI_IN && l_ext < tip_len) to_del = 1;
 		}
 		if (to_del)
 			av[iv].del = aw[iw].del = 1, ++n_cut;
