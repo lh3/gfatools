@@ -33,39 +33,7 @@ void ma_hit_mark_unused(sdict_t *d, size_t n, const ma_hit_t *a)
 	}
 }
 
-sdict_t *ma_hit_no_cont(const char *fn, int min_span, int min_match, int max_hang, float int_frac)
-{
-	paf_file_t *fp;
-	paf_rec_t r;
-	sdict_t *d;
-
-	fp = paf_open(fn);
-	if (!fp) {
-		fprintf(stderr, "[E::%s] could not open PAF file %s\n", __func__, fn);
-		exit(1);
-	}
-	d = sd_init();
-	while (paf_read(fp, &r) >= 0) {
-		int l5, l3;
-		if (r.qe - r.qs < min_span || r.te - r.ts < min_span || r.ml < min_match) continue;
-		l5 = r.rev? r.tl - r.te : r.ts;
-		l3 = r.rev? r.ts : r.tl - r.te;
-		if (r.ql>>1 > r.tl) {
-			if (l5 > max_hang>>2 || l3 > max_hang>>2 || r.te - r.ts < r.tl * int_frac) continue; // internal match
-			if ((int)r.qs - l5 > max_hang<<1 && (int)(r.ql - r.qe) - l3 > max_hang<<1)
-				sd_put(d, r.tn, r.tl);
-		} else if (r.ql < r.tl>>1) {
-			if (r.qs > max_hang>>2 || r.ql - r.qe > max_hang>>2 || r.qe - r.qs < r.ql * int_frac) continue; // internal
-			if (l5 - (int)r.qs > max_hang<<1 && l3 - (int)(r.ql - r.qe) > max_hang<<1)
-				sd_put(d, r.qn, r.ql);
-		}
-	}
-	paf_close(fp);
-	if (ma_verbose >= 3) fprintf(stderr, "[M::%s::%s] dropped %d contained reads\n", __func__, ma_timestamp(), d->n_seq);
-	return d;
-}
-
-ma_hit_t *ma_hit_read(const char *fn, int min_span, int min_match, sdict_t *d, size_t *n, int bi_dir, const sdict_t *excl)
+ma_hit_t *ma_hit_read(const char *fn, int min_span, int min_match, sdict_t *d, size_t *n, int add_dual, const sdict_t *excl)
 {
 	paf_file_t *fp;
 	paf_rec_t r;
@@ -87,7 +55,7 @@ ma_hit_t *ma_hit_read(const char *fn, int min_span, int min_match, sdict_t *d, s
 		p->qe = r.qe;
 		p->tn = sd_put(d, r.tn, r.tl);
 		p->ts = r.ts, p->te = r.te, p->rev = r.rev, p->ml = r.ml, p->bl = r.bl;
-		if (bi_dir && p->qns>>32 != p->tn) {
+		if (add_dual && p->qns>>32 != p->tn) {
 			kv_pushp(ma_hit_t, h, &p);
 			p->qns = (uint64_t)sd_put(d, r.tn, r.tl)<<32 | r.ts;
 			p->qe = r.te;
@@ -220,7 +188,7 @@ void ma_sub_merge(size_t n_sub, ma_sub_t *a, const ma_sub_t *b)
 		a[i].e = a[i].s + b[i].e, a[i].s += b[i].s;
 }
 
-size_t ma_hit_contained(const ma_opt_t *opt, sdict_t *d, ma_sub_t *sub, size_t n, ma_hit_t *a)
+size_t ma_hit_contained(int max_hang, float int_frac, int min_ovlp, sdict_t *d, ma_sub_t *sub, size_t n, ma_hit_t *a)
 {
 	int32_t *map, r;
 	size_t i, m, old_n_seq = d->n_seq;
@@ -228,7 +196,7 @@ size_t ma_hit_contained(const ma_opt_t *opt, sdict_t *d, ma_sub_t *sub, size_t n
 	for (i = m = 0; i < n; ++i) {
 		ma_hit_t *h = &a[i];
 		ma_sub_t *sq = &sub[h->qns>>32], *st = &sub[h->tn];
-		r = ma_hit2arc(h, sq->e - sq->s, st->e - st->s, opt->max_hang, opt->int_frac, opt->min_ovlp, &t);
+		r = ma_hit2arc(h, sq->e - sq->s, st->e - st->s, max_hang, int_frac, min_ovlp, &t);
 		if (r == MA_HT_QCONT) sq->del = 1;
 		else if (r == MA_HT_TCONT) st->del = 1;
 	}

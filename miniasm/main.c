@@ -13,165 +13,86 @@ extern double gfa_realtime0;
 extern double gfa_realtime(void);
 extern double gfa_cputime(void);
 
-static void print_subs(const sdict_t *d, const ma_sub_t *sub)
+static inline int64_t gfa_str2num(const char *str, char **q)
 {
-	uint32_t i;
-	for (i = 0; i < d->n_seq; ++i)
-		if (!d->seq[i].del && sub[i].s != sub[i].e)
-			printf("%s\t%d\t%d\n", d->seq[i].name, sub[i].s, sub[i].e);
-}
-
-static void print_hits(size_t n_hits, const ma_hit_t *hit, const sdict_t *d, const ma_sub_t *sub)
-{
-	size_t i;
-	for (i = 0; i < n_hits; ++i) {
-		const ma_hit_t *p = &hit[i];
-		const ma_sub_t *rq = &sub[p->qns>>32], *rt = &sub[p->tn];
-		printf("%s:%d-%d\t%d\t%d\t%d\t%c\t%s:%d-%d\t%d\t%d\t%d\t%d\t%d\t255\n", d->seq[p->qns>>32].name, rq->s + 1, rq->e, rq->e - rq->s, (uint32_t)p->qns, p->qe,
-				"+-"[p->rev], d->seq[p->tn].name, rt->s + 1, rt->e, rt->e - rt->s, p->ts, p->te, p->ml, p->bl);
-	}
+	double x;
+	char *p;
+	x = strtod(str, &p);
+	if (*p == 'G' || *p == 'g') x *= 1e9, ++p;
+	else if (*p == 'M' || *p == 'm') x *= 1e6, ++p;
+	else if (*p == 'K' || *p == 'k') x *= 1e3, ++p;
+	if (q) *q = p;
+	return (int64_t)(x + .499);
 }
 
 int main(int argc, char *argv[])
 {
 	ketopt_t o = KETOPT_INIT;
-	ma_opt_t opt;
-	int i, c, stage = 100, no_first = 0, no_second = 0, bi_dir = 1, o_set = 0, no_cont = 0;
-	sdict_t *d, *excl = 0;
-	ma_sub_t *sub = 0;
+	int i, c;
+	sdict_t *d;
 	ma_hit_t *hit;
+	ma_sub_t *sub = 0;
 	size_t n_hits;
 	float cov = 40.0;
-	char *fn_reads = 0, *outfmt = "ug";
+	char *fn_reads = 0;
 
-	ma_opt_init(&opt);
-	while ((c = ketopt(&o, argc, argv, 1, "n:m:s:c:S:i:d:g:o:h:I:r:f:e:p:12VBRbF:", 0)) >= 0) {
-		if (c == 'm') opt.min_match = atoi(o.arg);
-		else if (c == 'i') opt.min_iden = atof(o.arg);
-		else if (c == 's') opt.min_span = atoi(o.arg);
-		else if (c == 'c') opt.min_dp = atoi(o.arg);
-		else if (c == 'o') opt.min_ovlp = atoi(o.arg), o_set = 1;
-		else if (c == 'S') stage = atoi(o.arg);
-		else if (c == 'd') opt.bub_dist = atoi(o.arg);
-		else if (c == 'g') opt.gap_fuzz = atoi(o.arg);
-		else if (c == 'h') opt.max_hang = atoi(o.arg);
-		else if (c == 'I') opt.int_frac = atof(o.arg);
-		else if (c == 'e') opt.max_ext = atoi(o.arg);
-		else if (c == 'f') fn_reads = o.arg;
-		else if (c == 'p') outfmt = o.arg;
-		else if (c == '1') no_first = 1;
-		else if (c == '2') no_second = 1;
-		else if (c == 'n') opt.n_rounds = atoi(o.arg) - 1;
-		else if (c == 'B') bi_dir = 1;
-		else if (c == 'b') bi_dir = 0;
-		else if (c == 'R') no_cont = 1;
-		else if (c == 'F') opt.final_ovlp_drop_ratio = atof(o.arg);
+	double int_frac = 0.8, min_iden = 0.0;
+	int add_dual = 1, flt = 0, gen_ug = 0, clean = 0;
+	int min_dp = 2, min_ovlp = 500, min_match = 0, max_hang = 100;
+
+	gfa_t *sg = 0;
+	ma_ug_t *ug = 0;
+
+	while ((c = ketopt(&o, argc, argv, 1, "bfh:o:uc", 0)) >= 0) {
+		if (c == 'b') add_dual = 0;
+		else if (c == 'f') ++flt;
+		else if (c == 'h') max_hang = gfa_str2num(o.arg, 0);
+		else if (c == 'o') min_ovlp = gfa_str2num(o.arg, 0);
+		else if (c == 'u') gen_ug = 1;
+		else if (c == 'c') ++clean;
 		else if (c == 'V') {
 			printf("%s\n", MA_VERSION);
 			return 0;
-		} else if (c == 'r') {
-			char *s;
-			opt.max_ovlp_drop_ratio = strtod(o.arg, &s);
-			if (*s == ',') opt.min_ovlp_drop_ratio = strtod(s + 1, &s);
 		}
 	}
-	if (o_set == 0) opt.min_ovlp = opt.min_span;
 	if (argc == o.ind) {
-		fprintf(stderr, "Usage: miniasm [options] <in.paf>\n");
+		fprintf(stderr, "Usage: paf2gfa [options] <in.paf>\n");
 		fprintf(stderr, "Options:\n");
-		fprintf(stderr, "  Pre-selection:\n");
-		fprintf(stderr, "    -R          prefilter clearly contained reads (2-pass required)\n");
-		fprintf(stderr, "    -m INT      min match length [%d]\n", opt.min_match);
-		fprintf(stderr, "    -i FLOAT    min identity [%.2g]\n", opt.min_iden);
-		fprintf(stderr, "    -s INT      min span [%d]\n", opt.min_span);
-		fprintf(stderr, "    -c INT      min coverage [%d]\n", opt.min_dp);
-		fprintf(stderr, "  Overlap:\n");
-		fprintf(stderr, "    -o INT      min overlap [same as -s]\n");
-		fprintf(stderr, "    -h INT      max over hang length [%d]\n", opt.max_hang);
-		fprintf(stderr, "    -I FLOAT    min end-to-end match ratio [%.2g]\n", opt.int_frac);
-		fprintf(stderr, "  Layout:\n");
-		fprintf(stderr, "    -g INT      max gap differences between reads for trans-reduction [%d]\n", opt.gap_fuzz);
-		fprintf(stderr, "    -d INT      max distance for bubble popping [%d]\n", opt.bub_dist);
-		fprintf(stderr, "    -e INT      small unitig threshold [%d]\n", opt.max_ext);
-		fprintf(stderr, "    -f FILE     read sequences []\n");
-		fprintf(stderr, "    -n INT      rounds of short overlap removal [%d]\n", opt.n_rounds + 1);
-		fprintf(stderr, "    -r FLOAT[,FLOAT]\n");
-		fprintf(stderr, "                max and min overlap drop ratio [%.2g,%.2g]\n", opt.max_ovlp_drop_ratio, opt.min_ovlp_drop_ratio);
-		fprintf(stderr, "    -F FLOAT    aggressive overlap drop ratio in the end [%.2g]\n", opt.final_ovlp_drop_ratio);
-		fprintf(stderr, "  Miscellaneous:\n");
-		fprintf(stderr, "    -p STR      output information: bed, paf, sg or ug [%s]\n", outfmt);
-//		fprintf(stderr, "    -B          only one direction of an arc is present in input PAF\n"); // deprecated; for backward compatibility
-		fprintf(stderr, "    -b          both directions of an arc are present in input\n");
-		fprintf(stderr, "    -1          skip 1-pass read selection\n");
-		fprintf(stderr, "    -2          skip 2-pass read selection\n");
-		fprintf(stderr, "    -V          print version number\n");
-		fprintf(stderr, "\nSee miniasm.1 for detailed description of the command-line options.\n");
+		fprintf(stderr, "  -b          both directions of an arc are present in input\n");
+		fprintf(stderr, "  -f          cut and filter initial hits\n");
+		fprintf(stderr, "  -h NUM      max overhang length [%d]\n", max_hang);
+		fprintf(stderr, "  -o NUM      min overlap length [%d]\n", min_ovlp);
 		return 1;
 	}
 
 	ma_sys_init();
 	d = sd_init();
 
-	if (no_cont) {
-		fprintf(stderr, "[M::%s] ===> Step 0: removing contained reads <===\n", __func__);
-		excl = ma_hit_no_cont(argv[o.ind], opt.min_span, opt.min_match, opt.max_hang, opt.int_frac);
+	hit = ma_hit_read(argv[o.ind], min_ovlp, min_match, d, &n_hits, add_dual, 0);
+	if (flt >= 1) {
+		sub = ma_hit_sub(min_dp, min_iden, 0, n_hits, hit, d->n_seq);
+		n_hits = ma_hit_cut(sub, min_ovlp, n_hits, hit);
+		n_hits = ma_hit_flt(sub, (int)(max_hang * 1.5 + .499), (int)(min_ovlp * .5 + .499), n_hits, hit, &cov);
+	}
+	if (flt >= 1) GFA_REALLOC(hit, n_hits);
+
+	sg = ma_sg_gen(max_hang, int_frac, min_ovlp, d, sub, n_hits, hit);
+	if (clean >= 1) {
+		gfa_arc_del_trans(sg, 100);
+		gfa_cut_tip(sg, 1, INT32_MAX);
+		gfa_topocut(sg, 0.3, 3, INT32_MAX);
 	}
 
-	fprintf(stderr, "[M::%s] ===> Step 1: reading read mappings <===\n", __func__);
-	hit = ma_hit_read(argv[o.ind], opt.min_span, opt.min_match, d, &n_hits, bi_dir, excl);
-
-	if (!no_first) {
-		fprintf(stderr, "[M::%s] ===> Step 2: 1-pass (crude) read selection <===\n", __func__);
-		if (stage >= 2) {
-			sub = ma_hit_sub(opt.min_dp, opt.min_iden, 0, n_hits, hit, d->n_seq);
-			n_hits = ma_hit_cut(sub, opt.min_span, n_hits, hit);
-		}
-		if (stage >= 3) n_hits = ma_hit_flt(sub, opt.max_hang * 1.5, opt.min_ovlp * .5, n_hits, hit, &cov);
-	}
-
-	if (!no_second) {
-		fprintf(stderr, "[M::%s] ===> Step 3: 2-pass (fine) read selection <===\n", __func__);
-		if (stage >= 4) {
-			ma_sub_t *sub2;
-			sub2 = ma_hit_sub(opt.min_dp, opt.min_iden, opt.min_span/2, n_hits, hit, d->n_seq);
-			n_hits = ma_hit_cut(sub2, opt.min_span, n_hits, hit);
-			if (!no_first) {
-				ma_sub_merge(d->n_seq, sub, sub2);
-				free(sub2);
-			} else {
-				sub = sub2;
-			}
-		}
-		if (stage >= 5) n_hits = ma_hit_contained(&opt, d, sub, n_hits, hit);
-	}
-
-	hit = (ma_hit_t*)realloc(hit, n_hits * sizeof(ma_hit_t));
-
-	if (strcmp(outfmt, "bed") == 0) {
-		print_subs(d, sub);
-	} else if (strcmp(outfmt, "paf") == 0) {
-		print_hits(n_hits, hit, d, sub);
-	} else if (strcmp(outfmt, "ug") == 0 || strcmp(outfmt, "sg") == 0) {
-		gfa_t *sg = 0;
-		ma_ug_t *ug = 0;
-
-		fprintf(stderr, "[M::%s] ===> Step 4: graph cleaning <===\n", __func__);
-		sg = ma_sg_gen(&opt, d, sub, n_hits, hit);
-
-		if (strcmp(outfmt, "ug") == 0) {
-			fprintf(stderr, "[M::%s] ===> Step 5: generating unitigs <===\n", __func__);
-			ug = ma_ug_gen(sg);
-			if (fn_reads) ma_ug_seq(ug, d, sub, fn_reads);
-			ma_ug_print(ug, d, sub, stdout);
-		} else ma_sg_print(sg, d, sub, stdout);
-
-		gfa_destroy(sg);
-		ma_ug_destroy(ug);
+	if (gen_ug) {
+		ug = ma_ug_gen(sg);
+		if (fn_reads) ma_ug_seq(ug, d, sub, fn_reads);
+		ma_ug_print(ug, d, sub, stdout);
+	} else {
+		ma_sg_print(sg, d, sub, stdout);
 	}
 
 	free(sub); free(hit);
 	sd_destroy(d);
-	if (excl) sd_destroy(excl);
 
 	fprintf(stderr, "[M::%s] Version: %s\n", __func__, MA_VERSION);
 	fprintf(stderr, "[M::%s] CMD:", __func__);

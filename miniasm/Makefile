@@ -3,7 +3,7 @@ CFLAGS=		-g -Wall -Wc++-compat -std=c99 -O2
 CPPFLAGS=
 INCLUDES=	-I..
 OBJS=		misc.o paf.o hit.o utg.o
-EXE=		miniasm
+EXE=		paf2gfa
 LIBS=		-lz
 
 ifneq ($(asan),)
@@ -19,7 +19,7 @@ endif
 
 all:$(EXE)
 
-miniasm:$(OBJS) ../sys.o main.o ../libgfa1.a
+paf2gfa:$(OBJS) ../sys.o main.o ../libgfa1.a
 		$(CC) $(CFLAGS) $^ -o $@ $(LIBS)
 
 ../libgfa1.a:

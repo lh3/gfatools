@@ -16,7 +16,7 @@ static inline gfa_arc_t *gfa_arc_pushp(gfa_t *g)
 	return &g->arc[g->n_arc++];
 }
 
-gfa_t *ma_sg_gen(const ma_opt_t *opt, const sdict_t *d, const ma_sub_t *sub, int64_t n_hits, const ma_hit_t *hit)
+gfa_t *ma_sg_gen(int max_hang, float int_frac, int min_ovlp, const sdict_t *d, const ma_sub_t *sub, int64_t n_hits, const ma_hit_t *hit)
 {
 	int64_t i;
 	gfa_t *g;
@@ -35,7 +35,7 @@ gfa_t *ma_sg_gen(const ma_opt_t *opt, const sdict_t *d, const ma_sub_t *sub, int
 		uint32_t qn = h->qns>>32;
 		int ql = sub? sub[qn].e - sub[qn].s : d->seq[qn].len;
 		int tl = sub? sub[h->tn].e - sub[h->tn].s : d->seq[h->tn].len;
-		r = ma_hit2arc(h, ql, tl, opt->max_hang, opt->int_frac, opt->min_ovlp, &t);
+		r = ma_hit2arc(h, ql, tl, max_hang, int_frac, min_ovlp, &t);
 		if (r >= 0) {
 			if (qn == h->tn) { // self match
 				if ((uint32_t)h->qns == h->ts && h->qe == h->te && h->rev) // PacBio-specific artifact (TODO: is this right when we skip target containment above?)
