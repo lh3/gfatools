@@ -116,3 +116,19 @@ double gfa_realtime(void)
 	gettimeofday(&tp, NULL);
 	return tp.tv_sec + tp.tv_usec * 1e-6;
 }
+
+void gfa_liftrlimit(void)
+{
+#ifdef __linux__
+	struct rlimit r;
+	getrlimit(RLIMIT_AS, &r);
+	r.rlim_cur = r.rlim_max;
+	setrlimit(RLIMIT_AS, &r);
+#endif
+}
+
+void gfa_sys_init(void)
+{
+	gfa_liftrlimit();
+	gfa_realtime0 = gfa_realtime();
+}

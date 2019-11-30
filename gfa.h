@@ -35,7 +35,7 @@ typedef struct {
 	uint32_t w;
 	int32_t rank;
 	int32_t ov, ow;
-	uint64_t link_id:62, del:1, comp:1; // link_id: a pair of dual arcs are supposed to have the same link_id
+	uint64_t link_id:48, weight:14, del:1, comp:1; // link_id: a pair of dual arcs are supposed to have the same link_id
 } gfa_arc_t;
 
 #define gfa_arc_head(a) ((uint32_t)((a).v_lv>>32))

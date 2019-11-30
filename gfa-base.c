@@ -47,8 +47,9 @@ void gfa_destroy(gfa_t *g)
 	}
 	for (i = 0; i < g->n_sseq; ++i) free(g->sseq[i].name);
 	kh_destroy(seg, (seghash_t*)g->h_snames);
-	for (k = 0; k < g->n_arc; ++k)
-		free(g->link_aux[k].aux);
+	if (g->link_aux)
+		for (k = 0; k < g->n_arc; ++k)
+			free(g->link_aux[k].aux);
 	free(g->idx); free(g->seg); free(g->arc); free(g->link_aux); free(g->sseq);
 	free(g);
 }
@@ -303,9 +304,11 @@ void gfa_arc_rm(gfa_t *g)
 		if (!g->arc[e].del && !g->seg[u>>1].del && !g->seg[v>>1].del)
 			g->arc[n++] = g->arc[e];
 		else {
-			gfa_aux_t *aux = &g->link_aux[g->arc[e].link_id];
-			free(aux->aux);
-			aux->aux = 0, aux->l_aux = aux->m_aux = 0;
+			gfa_aux_t *aux = g->arc[e].link_id < g->n_arc? &g->link_aux[g->arc[e].link_id] : 0;
+			if (aux) {
+				free(aux->aux);
+				aux->aux = 0, aux->l_aux = aux->m_aux = 0;
+			}
 		}
 	}
 	if (n < g->n_arc) { // arc index is out of sync

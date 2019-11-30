@@ -367,7 +367,7 @@ void gfa_print(const gfa_t *g, FILE *fp, int flag)
 	}
 	for (k = 0; k < g->n_arc; ++k) {
 		const gfa_arc_t *a = &g->arc[k];
-		const gfa_aux_t *aux = &g->link_aux[a->link_id];
+		const gfa_aux_t *aux = a->link_id < g->n_arc? &g->link_aux[a->link_id] : 0;
 		if (a->del || a->comp) continue;
 		fprintf(fp, "L\t%s\t%c\t%s\t%c", g->seg[a->v_lv>>33].name, "+-"[a->v_lv>>32&1], g->seg[a->w>>1].name, "+-"[a->w&1]);
 		if (!(flag & GFA_O_OV_EXT)) {
@@ -379,7 +379,7 @@ void gfa_print(const gfa_t *g, FILE *fp, int flag)
 		if (a->rank >= 0) fprintf(fp, "\tSR:i:%d", a->rank);
 		fprintf(fp, "\tL1:i:%d", gfa_arc_len(*a));
 		fprintf(fp, "\tL2:i:%d", gfa_arc_lw(g, *a));
-		if (aux->l_aux) {
+		if (aux && aux->l_aux) {
 			char *t = 0;
 			int max = 0;
 			gfa_aux_format(aux->l_aux, aux->aux, &t, &max);

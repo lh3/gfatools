@@ -20,7 +20,7 @@ endif
 
 all:$(EXE)
 
-gfatools:libgfa1.a main.o sys.o
+gfatools:main.o sys.o libgfa1.a
 		$(CC) $(CFLAGS) $^ -o $@ $(LIBS)
 
 libgfa1.a:$(OBJS)
