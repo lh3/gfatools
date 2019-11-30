@@ -286,6 +286,7 @@ int gfa_bub_simple(gfa_t *g, int min_side, int max_side)
 		int32_t e[2], vt[2];
 		if (nv != 2) continue;
 		if (av[0].del || av[1].del) continue;
+		if (av[0].w>>1 == av[1].w>>1) continue;
 		vt[0] = gfa_uext(g, av[0].w, max_side, &e[0], 0, &end_v[0], 0);
 		vt[1] = gfa_uext(g, av[1].w, max_side, &e[1], 0, &end_v[1], 0);
 		if (vt[0] != GFA_VT_MULTI_IN || vt[1] != GFA_VT_MULTI_IN) continue;
