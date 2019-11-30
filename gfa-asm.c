@@ -179,7 +179,7 @@ static inline int32_t gfa_uext(const gfa_t *g, uint32_t v, int32_t max_ext, int3
 	return vt;
 }
 
-int gfa_cut_tip(gfa_t *g, int max_ext, int max_len)
+int gfa_cut_tip(gfa_t *g, int tip_cnt, int tip_len)
 {
 	gfa32_v a = {0,0,0};
 	uint32_t n_vtx = gfa_n_vtx(g), v, i, cnt = 0;
@@ -187,9 +187,9 @@ int gfa_cut_tip(gfa_t *g, int max_ext, int max_len)
 		int32_t l_ext, vt;
 		if (g->seg[v>>1].del) continue;
 		if (gfa_deg(g, v^1, 0, 0) != 0) continue; // not a tip
-		vt = gfa_uext(g, v, max_ext, 0, &l_ext, 0, &a);
+		vt = gfa_uext(g, v, tip_cnt - 1, 0, &l_ext, 0, &a);
 		if (vt == GFA_VT_MERGEABLE) continue; // not a short unitig
-		if (l_ext > max_len) continue; // tip too long
+		if (l_ext > tip_len) continue; // tip too long
 		for (i = 0; i < a.n; ++i)
 			gfa_seg_del(g, a.a[i]>>1);
 		++cnt;
@@ -257,10 +257,10 @@ int gfa_topocut(gfa_t *g, float drop_ratio, int32_t tip_cnt, int32_t tip_len)
 			if (a->ov < ov_max * drop_ratio && a->ow < ow_max * drop_ratio)
 				to_del = 1;
 		} else if (kw == 1) {
-			vt = gfa_uext(g, w^1, tip_cnt - 1, 0, &l_ext, 0, 0);
+			vt = gfa_uext(g, w, tip_cnt - 1, 0, &l_ext, 0, 0);
 			if (vt != GFA_VT_MERGEABLE && l_ext < tip_len) to_del = 1;
 		} else if (kv == 1) {
-			vt = gfa_uext(g, v^1, tip_cnt - 1, 0, &l_ext, 0, 0);
+			vt = gfa_uext(g, v, tip_cnt - 1, 0, &l_ext, 0, 0);
 			if (vt != GFA_VT_MERGEABLE && l_ext < tip_len) to_del = 1;
 		}
 		if (to_del)
@@ -285,8 +285,8 @@ int gfa_bub_simple(gfa_t *g, int min_side, int max_side)
 		int32_t e[2], vt[2];
 		if (nv != 2) continue;
 		if (av[0].del || av[1].del) continue;
-		vt[0] = gfa_uext(g, av[0].w, max_side, &e[0], 0, &end_v[0], 0);
-		vt[1] = gfa_uext(g, av[1].w, max_side, &e[1], 0, &end_v[1], 0);
+		vt[0] = gfa_uext(g, av[0].w^1, max_side, &e[0], 0, &end_v[0], 0);
+		vt[1] = gfa_uext(g, av[1].w^1, max_side, &e[1], 0, &end_v[1], 0);
 		if (vt[0] != GFA_VT_MULTI_IN || vt[1] != GFA_VT_MULTI_IN) continue;
 		if (e[0] > min_side && e[1] > min_side) continue;
 		if (end_v[0] != end_v[1]) continue;
