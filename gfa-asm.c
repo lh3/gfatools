@@ -135,7 +135,7 @@ static inline int32_t gfa_deg(const gfa_t *g, uint32_t v, uint32_t *w, int32_t *
 {
 	uint32_t i, nv, nv0 = gfa_arc_n(g, v), k = nv0;
 	int32_t min_l = g->seg[v>>1].len;
-	const gfa_arc_t *av = gfa_arc_a(g, v^1);
+	const gfa_arc_t *av = gfa_arc_a(g, v);
 	for (i = nv = 0; i < nv0; ++i)
 		if (!av[i].del)
 			++nv, k = i, min_l = gfa_arc_len(av[i]) < min_l? gfa_arc_len(av[i]) : min_l;
@@ -159,11 +159,11 @@ static inline int32_t gfa_vtype(const gfa_t *g, uint32_t v, uint32_t *w_, int32_
 
 static inline int32_t gfa_uext(const gfa_t *g, uint32_t v, int32_t max_ext, int32_t *ne, int32_t *le, uint32_t *end_v, gfa32_v *a)
 {
-	int32_t i, vt, n_ext = 0, l_ext = 0;
+	int32_t vt, n_ext = 0, l_ext = 0;
 	if (a) a->n = 0;
 	if (a) kv_push(uint32_t, *a, v);
 	if (end_v) *end_v = (uint32_t)-1;
-	for (i = 0; i < max_ext; ++i) {
+	do {
 		uint32_t w;
 		int32_t l;
 		vt = gfa_vtype(g, v, &w, &l);
@@ -173,7 +173,7 @@ static inline int32_t gfa_uext(const gfa_t *g, uint32_t v, int32_t max_ext, int3
 		++n_ext;
 		if (a) kv_push(uint32_t, *a, w);
 		v = w;
-	}
+	} while (--max_ext > 0);
 	if (ne) *ne = n_ext;
 	if (le) *le = l_ext;
 	return vt;
@@ -187,7 +187,7 @@ int gfa_cut_tip(gfa_t *g, int tip_cnt, int tip_len)
 		int32_t l_ext, vt;
 		if (g->seg[v>>1].del) continue;
 		if (gfa_deg(g, v^1, 0, 0) != 0) continue; // not a tip
-		vt = gfa_uext(g, v, tip_cnt - 1, 0, &l_ext, 0, &a);
+		vt = gfa_uext(g, v, tip_cnt, 0, &l_ext, 0, &a);
 		if (vt == GFA_VT_MERGEABLE) continue; // not a short unitig
 		if (l_ext > tip_len) continue; // tip too long
 		for (i = 0; i < a.n; ++i)
@@ -257,10 +257,10 @@ int gfa_topocut(gfa_t *g, float drop_ratio, int32_t tip_cnt, int32_t tip_len)
 			if (a->ov < ov_max * drop_ratio && a->ow < ow_max * drop_ratio)
 				to_del = 1;
 		} else if (kw == 1) {
-			vt = gfa_uext(g, w, tip_cnt - 1, 0, &l_ext, 0, 0);
+			vt = gfa_uext(g, w^1, tip_cnt - 1, 0, &l_ext, 0, 0);
 			if (vt != GFA_VT_MERGEABLE && l_ext < tip_len) to_del = 1;
 		} else if (kv == 1) {
-			vt = gfa_uext(g, v, tip_cnt - 1, 0, &l_ext, 0, 0);
+			vt = gfa_uext(g, v^1, tip_cnt - 1, 0, &l_ext, 0, 0);
 			if (vt != GFA_VT_MERGEABLE && l_ext < tip_len) to_del = 1;
 		}
 		if (to_del)
