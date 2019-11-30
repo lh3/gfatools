@@ -442,7 +442,7 @@ int main_asm(int argc, char *argv[])
 			fuzz = gfa_str2num(o.arg, &p);
 			gfa_arc_del_trans(g, fuzz);
 		} else if (c == 't') {
-			int32_t max_ext, max_len = 0;
+			int32_t max_ext, max_len = INT32_MAX;
 			max_ext = gfa_str2num(o.arg, &p);
 			if (*p == ',') max_len = gfa_str2num(p + 1, &p);
 			gfa_cut_tip(g, max_ext, max_len);
