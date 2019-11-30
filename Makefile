@@ -4,7 +4,7 @@ CPPFLAGS=
 INCLUDES=	-I.
 OBJS=		kalloc.o gfa-base.o gfa-io.o gfa-aug.o gfa-sub.o gfa-asm.o gfa-util.o \
 			gfa-gt.o
-PROG=		gfatools
+EXE=		gfatools
 LIBS=		-lz
 
 ifneq ($(asan),)
@@ -18,16 +18,19 @@ endif
 .c.o:
 		$(CC) -c $(CFLAGS) $(CPPFLAGS) $(INCLUDES) $< -o $@
 
-all:$(PROG)
+all:$(EXE)
 
-gfatools:$(OBJS) main.o sys.o
+gfatools:libgfa1.a main.o sys.o
 		$(CC) $(CFLAGS) $^ -o $@ $(LIBS)
+
+libgfa1.a:$(OBJS)
+		$(AR) -csr $@ $(OBJS)
 
 gfa-chk:gfa-chk.l
 		lex $< && $(CC) -O2 lex.yy.c -o $@
 
 clean:
-		rm -fr gmon.out *.o a.out $(PROG) *~ *.a *.dSYM session* gfa-chk
+		rm -fr gmon.out *.o a.out $(EXE) *~ *.a *.dSYM session* gfa-chk
 
 depend:
 		(LC_ALL=C; export LC_ALL; makedepend -Y -- $(CFLAGS) $(DFLAGS) -- *.c)

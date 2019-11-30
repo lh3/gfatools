@@ -68,7 +68,7 @@ int gettimeofday(struct timeval * tp, struct timezone *tzp)
 }
 
 // taken from https://stackoverflow.com/questions/5272470/c-get-cpu-usage-on-linux-and-windows
-double cputime()
+double gfa_cputime(void)
 {
 	HANDLE hProcess = GetCurrentProcess();
 	FILETIME ftCreation, ftExit, ftKernel, ftUser;
@@ -85,19 +85,19 @@ double cputime()
 	return kernelModeTime + userModeTime;
 }
 
-long peakrss(void) { return 0; }
+long gfa_peakrss(void) { return 0; }
 #else
 #include <sys/resource.h>
 #include <sys/time.h>
 
-double cputime(void)
+double gfa_cputime(void)
 {
 	struct rusage r;
 	getrusage(RUSAGE_SELF, &r);
 	return r.ru_utime.tv_sec + r.ru_stime.tv_sec + 1e-6 * (r.ru_utime.tv_usec + r.ru_stime.tv_usec);
 }
 
-long peakrss(void)
+long gfa_peakrss(void)
 {
 	struct rusage r;
 	getrusage(RUSAGE_SELF, &r);
@@ -110,7 +110,7 @@ long peakrss(void)
 
 #endif /* WIN32 || _WIN32 */
 
-double realtime(void)
+double gfa_realtime(void)
 {
 	struct timeval tp;
 	gettimeofday(&tp, NULL);

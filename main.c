@@ -483,8 +483,8 @@ int main_asm(int argc, char *argv[])
 
 int main(int argc, char *argv[])
 {
-	extern double realtime(void);
-	extern double cputime(void);
+	extern double gfa_realtime(void);
+	extern double gfa_cputime(void);
 	double t_start;
 	int ret = 0, i;
 
@@ -502,7 +502,7 @@ int main(int argc, char *argv[])
 		return 1;
 	}
 
-	t_start = realtime();
+	t_start = gfa_realtime();
 	if (strcmp(argv[1], "view") == 0) ret = main_view(argc-1, argv+1);
 	else if (strcmp(argv[1], "stat") == 0) ret = main_stat(argc-1, argv+1);
 	else if (strcmp(argv[1], "gfa2bed") == 0) ret = main_gfa2bed(argc-1, argv+1);
@@ -523,7 +523,7 @@ int main(int argc, char *argv[])
 		fprintf(stderr, "[M::%s] CMD:", __func__);
 		for (i = 0; i < argc; ++i)
 			fprintf(stderr, " %s", argv[i]);
-		fprintf(stderr, "\n[M::%s] Real time: %.3f sec; CPU: %.3f sec\n", __func__, realtime() - t_start, cputime());
+		fprintf(stderr, "\n[M::%s] Real time: %.3f sec; CPU: %.3f sec\n", __func__, gfa_realtime() - t_start, gfa_cputime());
 	}
 	return ret;
 }
