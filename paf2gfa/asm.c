@@ -105,7 +105,7 @@ void ma_ug_print(const ma_ug_t *ug, const sdict_t *d, const ma_sub_t *sub, FILE 
 	}
 	for (i = 0; i < ug->g->n_arc; ++i) { // the Link lines in GFA
 		uint32_t u = ug->g->arc[i].v_lv>>32, v = ug->g->arc[i].w;
-		fprintf(fp, "L\tutg%.6d%c\t%c\tutg%.6d%c\t%c\t%d:\tL1:i:%d\n", (u>>1)+1, "lc"[ug->u.a[u>>1].circ], "+-"[u&1],
+		fprintf(fp, "L\tutg%.6d%c\t%c\tutg%.6d%c\t%c\t%dM\tL1:i:%d\n", (u>>1)+1, "lc"[ug->u.a[u>>1].circ], "+-"[u&1],
 				(v>>1)+1, "lc"[ug->u.a[v>>1].circ], "+-"[v&1], ug->g->arc[i].ov, gfa_arc_len(ug->g->arc[i]));
 	}
 	for (i = 0; i < ug->u.n; ++i) { // summary of unitigs
@@ -215,6 +215,7 @@ add_unitig:
 	}
 	GFA_REALLOC(ug->g->seg, ug->u.n);
 	memset(ug->g->seg, 0, sizeof(gfa_seg_t) * ug->u.n);
+	ug->g->n_seg = ug->u.n;
 	for (i = 0; i < ug->u.n; ++i) {
 		gfa_seg_t *s = &ug->g->seg[i];
 		s->len = ug->u.a[i].len;
