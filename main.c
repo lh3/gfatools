@@ -428,6 +428,7 @@ int main_asm(int argc, char *argv[])
 		fprintf(stderr, "ERROR: failed to read the graph\n");
 		return 2;
 	}
+	gfa_arc_del_multi_risky(g);
 
 	o = KETOPT_INIT;
 	while ((c = ketopt(&o, argc, argv, 1, tr_opts, 0)) >= 0) {

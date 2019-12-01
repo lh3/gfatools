@@ -28,7 +28,7 @@ int gfa_arc_del_short(gfa_t *g, int min_ovlp_len, float drop_ratio)
 		gfa_cleanup(g);
 		gfa_fix_symm_del(g);
 	}
-	if (gfa_verbose >= 3) fprintf(stderr, "[M] removed %d short overlaps\n", n_short);
+	if (gfa_verbose >= 3) fprintf(stderr, "[M::%s] removed %d short overlaps\n", __func__, n_short);
 	return n_short;
 }
 
@@ -36,7 +36,7 @@ int gfa_arc_del_short(gfa_t *g, int min_ovlp_len, float drop_ratio)
 int gfa_arc_del_multi_risky(gfa_t *g)
 {
 	uint32_t *cnt, n_vtx = gfa_n_vtx(g), n_multi = 0, v;
-	cnt = (uint32_t*)calloc(n_vtx, 4);
+	GFA_CALLOC(cnt, n_vtx);
 	for (v = 0; v < n_vtx; ++v) {
 		gfa_arc_t *av = gfa_arc_a(g, v);
 		int32_t i, nv = gfa_arc_n(g, v);
