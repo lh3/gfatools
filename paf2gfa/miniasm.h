@@ -99,7 +99,7 @@ static inline int ma_hit2arc(const ma_hit_t *h, int ql, int tl, int max_hang, fl
 	else u = 1, v = !h->rev, lu = (ql - h->qe) - tl3, lv = tl5 - qs;
 	if (h->qe - qs + ext5 + ext3 < min_ovlp || h->te - h->ts + ext5 + ext3 < min_ovlp) return MA_HT_SHORT_OVLP; // short overlap
 	u |= h->qns>>32<<1, v |= h->tn<<1;
-	p->v_lv = (uint64_t)u<<32 | lu, p->w = v, p->ov = ql - lu, p->ow = tl - lv, p->del = 0, p->comp = 0, p->rank = -1, p->weight = 0, p->link_id = 0;
+	p->v_lv = (uint64_t)u<<32 | lu, p->w = v, p->ov = ql - lu, p->ow = tl - lv, p->del = 0, p->comp = 0, p->rank = -1, p->strong = (h->ml > 0), p->link_id = 0;
 	return lu;
 }
 

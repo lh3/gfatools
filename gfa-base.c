@@ -159,7 +159,7 @@ gfa_arc_t *gfa_add_arc1(gfa_t *g, uint32_t v, uint32_t w, int32_t ov, int32_t ow
 	a->w = w, a->ov = ov, a->ow = ow, a->rank = -1;
 	a->link_id = link_id >= 0? link_id : g->n_arc - 1;
 	if (link_id >= 0) a->rank = g->arc[link_id].rank; // TODO: this is not always correct!
-	a->del = 0;
+	a->del = a->strong = 0;
 	a->comp = comp;
 	return a;
 }
