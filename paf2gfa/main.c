@@ -62,9 +62,12 @@ int main(int argc, char *argv[])
 		fprintf(stderr, "Usage: paf2gfa [options] <in.paf>\n");
 		fprintf(stderr, "Options:\n");
 		fprintf(stderr, "  -b          both directions of an arc are present in input\n");
+		fprintf(stderr, "  -U          keep unidirectional edges (effective with -b)\n");
 		fprintf(stderr, "  -f          cut and filter initial hits\n");
 		fprintf(stderr, "  -h NUM      max overhang length [%d]\n", max_hang);
 		fprintf(stderr, "  -o NUM      min overlap length [%d]\n", min_ovlp);
+		fprintf(stderr, "  -c          apply graph cleaning (up to 3)\n");
+		fprintf(stderr, "  -u          generate unitigs\n");
 		return 1;
 	}
 
@@ -85,7 +88,19 @@ int main(int argc, char *argv[])
 	if (clean >= 1) {
 		gfa_arc_del_trans(sg, 100);
 		gfa_cut_tip(sg, 1, INT32_MAX);
+	}
+	if (clean >= 2) {
 		gfa_topocut(sg, 0.3, 3, INT32_MAX);
+		gfa_cut_tip(sg, 2, INT32_MAX);
+	}
+	if (clean >= 3) {
+		gfa_topocut(sg, 0.5, 3, INT32_MAX);
+		gfa_cut_tip(sg, 3, INT32_MAX);
+		gfa_topocut(sg, 0.7, 3, INT32_MAX);
+		gfa_cut_tip(sg, 3, INT32_MAX);
+		gfa_topocut(sg, 0.9, 3, INT32_MAX);
+		gfa_cut_tip(sg, 3, INT32_MAX);
+		gfa_bub_simple(sg, 2, 20);
 	}
 
 	if (gen_ug) {
