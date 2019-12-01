@@ -86,12 +86,12 @@ int gfa_arc_del_trans(gfa_t *g, int fuzz)
 		uint32_t L, i, nv = gfa_arc_n(g, v);
 		gfa_arc_t *av = gfa_arc_a(g, v);
 		if (nv == 0) continue; // no hits
-		int dbg = 0;
 		if (g->seg[v>>1].del) {
 			for (i = 0; i < nv; ++i) av[i].del = 1, ++n_reduced;
 			continue;
 		}
-		for (i = 0; i < nv; ++i) mark[av[i].w] = 1;
+		for (i = 0; i < nv; ++i)
+			mark[av[i].w] = g->seg[av[i].w>>1].del? 2 : 1;
 		L = gfa_arc_len(av[nv-1]) + fuzz;
 		for (i = 0; i < nv; ++i) {
 			uint32_t w = av[i].w;
@@ -109,7 +109,6 @@ int gfa_arc_del_trans(gfa_t *g, int fuzz)
 				if (mark[aw[j].w]) mark[aw[j].w] = 2;
 		}
 		for (i = 0; i < nv; ++i) {
-			if (dbg) fprintf(stderr, "X %s %d\n", g->seg[av[i].w>>1].name, mark[av[i].w]);
 			if (mark[av[i].w] == 2) av[i].del = 1, ++n_reduced;
 			mark[av[i].w] = 0;
 		}
