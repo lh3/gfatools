@@ -122,6 +122,52 @@ int gfa_arc_del_trans(gfa_t *g, int fuzz)
 	return n_reduced;
 }
 
+int gfa_arc_del_weak(gfa_t *g)
+{
+	uint32_t n_vtx = gfa_n_vtx(g), v, n_abnormal = 0, n_del = 0;
+	for (v = 0; v < n_vtx; ++v) {
+		uint32_t i, nv = gfa_arc_n(g, v), n_strong = 0, top_strong = 0, first_strong = nv;
+		gfa_arc_t *av = gfa_arc_a(g, v);
+		for (i = 0; i < nv; ++i) {
+			if (!av[i].strong) continue;
+			++n_strong;
+			if (first_strong == nv) first_strong = i;
+			if (i == 0) top_strong = 1;
+		}
+		if (n_strong == 0) continue;
+		if (top_strong == 0) ++n_abnormal;
+		for (i = first_strong + 1; i < nv; ++i)
+			if (!av[i].strong)
+				av[i].del = 1, ++n_del;
+	}
+	if (gfa_verbose >= 3 && n_del > 0)
+		fprintf(stderr, "[M::%s] removed %d weak arcs including %d abnormal arcs\n", __func__, n_del, n_abnormal);
+	if (n_del) {
+		gfa_cleanup(g);
+		gfa_fix_symm_del(g);
+	}
+	return n_del;
+}
+
+int gfa_arc_pair_strong(gfa_t *g)
+{
+	uint32_t e, n_flip = 0;
+	for (e = 0; e < g->n_arc; ++e) {
+		uint32_t v, u, i, nv;
+		gfa_arc_t *av;
+		if (g->arc[e].strong == 0) continue;
+		v = g->arc[e].w^1;
+		u = g->arc[e].v_lv>>32^1;
+		nv = gfa_arc_n(g, v);
+		av = gfa_arc_a(g, v);
+		for (i = 0; i < nv; ++i)
+			if (av[i].w == u && av[i].strong == 0)
+				av[i].strong = 1, ++n_flip;
+	}
+	if (gfa_verbose >= 3 && n_flip > 0) fprintf(stderr, "[M::%s] added %d strong arcs\n", __func__, n_flip);
+	return n_flip;
+}
+
 /**********************************
  * Filter short potential unitigs *
  **********************************/
@@ -544,10 +590,10 @@ add_unitig:
 		if (mark[p->v_lv>>32^1] >= 0 && mark[p->w] >= 0) {
 			gfa_seg_t *s1 = &ug->seg[mark[p->v_lv>>32^1]>>1];
 			gfa_seg_t *s2 = &ug->seg[mark[p->w]>>1];
-			int ov = p->ov;
-			if (ov >= s1->len || ov >= s2->len)
-				ov = (s1->len < s2->len? s1->len : s2->len) - 1;
-			gfa_add_arc1(ug, mark[p->v_lv>>32^1]^1, mark[p->w], ov, INT32_MAX, -1, 0);
+			int ov = p->ov, ow = p->ow;
+			if (ov >= s1->len) ov = s1->len - 1;
+			if (ow >= s2->len) ow = s2->len - 1;
+			gfa_add_arc1(ug, mark[p->v_lv>>32^1]^1, mark[p->w], ov, ow, -1, 0);
 		}
 	}
 	free(mark);

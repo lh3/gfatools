@@ -87,6 +87,8 @@ int main(int argc, char *argv[])
 	else gfa_fix_symm_add(sg);
 	gfa_arc_del_multi_risky(sg);
 	if (clean >= 1) {
+		gfa_arc_pair_strong(sg);
+		gfa_arc_del_weak(sg);
 		gfa_arc_del_trans(sg, 100);
 		gfa_cut_tip(sg, 1, INT32_MAX);
 	}

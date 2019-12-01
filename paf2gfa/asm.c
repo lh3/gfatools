@@ -61,10 +61,10 @@ void ma_sg_print(const gfa_t *g, const sdict_t *d, const ma_sub_t *sub, FILE *fp
 		const gfa_arc_t *p = &g->arc[i];
 		if (sub) {
 			const ma_sub_t *sq = &sub[p->v_lv>>33], *st = &sub[p->w>>1];
-			fprintf(fp, "L\t%s:%d-%d\t%c\t%s:%d-%d\t%c\t%d:%d\tL1:i:%d\tOT:i:%d\n", d->seq[p->v_lv>>33].name, sq->s + 1, sq->e, "+-"[p->v_lv>>32&1],
+			fprintf(fp, "L\t%s:%d-%d\t%c\t%s:%d-%d\t%c\t%d:%d\tL1:i:%d\tAO:i:%d\n", d->seq[p->v_lv>>33].name, sq->s + 1, sq->e, "+-"[p->v_lv>>32&1],
 					d->seq[p->w>>1].name, st->s + 1, st->e, "+-"[p->w&1], p->ov, p->ow, (uint32_t)p->v_lv, (int)p->strong);
 		} else {
-			fprintf(fp, "L\t%s\t%c\t%s\t%c\t%d:%d\tL1:i:%d\tOT:i:%d\n", d->seq[p->v_lv>>33].name, "+-"[p->v_lv>>32&1],
+			fprintf(fp, "L\t%s\t%c\t%s\t%c\t%d:%d\tL1:i:%d\tAO:i:%d\n", d->seq[p->v_lv>>33].name, "+-"[p->v_lv>>32&1],
 					d->seq[p->w>>1].name, "+-"[p->w&1], p->ov, p->ow, (uint32_t)p->v_lv, (int)p->strong);
 		}
 	}
@@ -106,7 +106,7 @@ void ma_ug_print(const ma_ug_t *ug, const sdict_t *d, const ma_sub_t *sub, FILE 
 	}
 	for (i = 0; i < ug->g->n_arc; ++i) { // the Link lines in GFA
 		uint32_t u = ug->g->arc[i].v_lv>>32, v = ug->g->arc[i].w;
-		fprintf(fp, "L\tutg%.6d%c\t%c\tutg%.6d%c\t%c\t%dM\tL1:i:%d\tOT:i:%d\n", (u>>1)+1, "lc"[ug->u.a[u>>1].circ], "+-"[u&1],
+		fprintf(fp, "L\tutg%.6d%c\t%c\tutg%.6d%c\t%c\t%dM\tL1:i:%d\tAO:i:%d\n", (u>>1)+1, "lc"[ug->u.a[u>>1].circ], "+-"[u&1],
 				(v>>1)+1, "lc"[ug->u.a[v>>1].circ], "+-"[v&1], ug->g->arc[i].ov, gfa_arc_len(ug->g->arc[i]), (int)ug->g->arc[i].strong);
 	}
 	for (i = 0; i < ug->u.n; ++i) { // summary of unitigs

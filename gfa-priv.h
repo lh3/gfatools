@@ -69,6 +69,8 @@ int gfa_arc_del_asymm_risky(gfa_t *g);
 
 // assembly related routines
 int gfa_arc_del_trans(gfa_t *g, int fuzz); // transitive reduction
+int gfa_arc_del_weak(gfa_t *g);
+int gfa_arc_pair_strong(gfa_t *g);
 int gfa_arc_del_short(gfa_t *g, int min_ovlp_len, float drop_ratio); // delete short arcs
 int gfa_cut_tip(gfa_t *g, int tip_cnt, int tip_len); // cut tips
 int gfa_topocut(gfa_t *g, float drop_ratio, int32_t tip_cnt, int32_t tip_len);
