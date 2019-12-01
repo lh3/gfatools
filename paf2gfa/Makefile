@@ -32,3 +32,9 @@ depend:
 		(LC_ALL=C; export LC_ALL; makedepend -Y -- $(CFLAGS) $(DFLAGS) -- *.c)
 
 # DO NOT DELETE
+
+asm.o: miniasm.h
+hit.o: paf.h miniasm.h
+main.o: paf.h miniasm.h
+misc.o: miniasm.h
+paf.o: paf.h

@@ -267,7 +267,7 @@ uint32_t gfa_fix_semi_arc(gfa_t *g)
 	return n_err;
 }
 
-uint32_t gfa_fix_symm(gfa_t *g)
+uint32_t gfa_fix_symm_add(gfa_t *g)
 {
 	uint32_t n_err = 0, v, n_vtx = gfa_n_vtx(g);
 	int i;
@@ -425,7 +425,7 @@ void gfa_finalize(gfa_t *g)
 	gfa_arc_sort(g);
 	gfa_arc_index(g);
 	gfa_fix_semi_arc(g);
-	gfa_fix_symm(g);
+	gfa_fix_symm_add(g);
 	gfa_fix_arc_len(g);
 	gfa_cleanup(g);
 }

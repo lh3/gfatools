@@ -83,8 +83,9 @@ int main(int argc, char *argv[])
 	if (flt >= 1) GFA_REALLOC(hit, n_hits);
 
 	sg = ma_sg_gen(max_hang, int_frac, min_ovlp, d, sub, n_hits, hit);
-	if (!keep_uni_edge) gfa_symm(sg);
-	gfa_finalize(sg);
+	if (!keep_uni_edge) gfa_fix_symm_del(sg);
+	else gfa_fix_symm_add(sg);
+	gfa_arc_del_multi_risky(sg);
 	if (clean >= 1) {
 		gfa_arc_del_trans(sg, 100);
 		gfa_cut_tip(sg, 1, INT32_MAX);

@@ -56,13 +56,16 @@ void gfa_sseq_update(gfa_t *g, const gfa_seg_t *s);
 // whole graph operations
 void gfa_arc_sort(gfa_t *g);
 void gfa_arc_index(gfa_t *g);
-uint32_t gfa_fix_symm(gfa_t *g);
-void gfa_symm(gfa_t *g); // delete multiple edges and restore skew-symmetry
+uint32_t gfa_fix_symm_add(gfa_t *g);
+void gfa_fix_symm_del(gfa_t *g); // delete multiple edges and restore skew-symmetry
 void gfa_arc_rm(gfa_t *g);
 void gfa_cleanup(gfa_t *g); // permanently delete arcs marked as deleted, sort and then index
 void gfa_finalize(gfa_t *g);
 int32_t gfa_check_multi(const gfa_t *g);
 uint32_t gfa_fix_multi(gfa_t *g);
+
+int gfa_arc_del_multi_risky(gfa_t *g);
+int gfa_arc_del_asymm_risky(gfa_t *g);
 
 // assembly related routines
 int gfa_arc_del_trans(gfa_t *g, int fuzz); // transitive reduction

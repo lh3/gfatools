@@ -49,6 +49,7 @@ gfa_t *ma_sg_gen(int max_hang, float int_frac, int min_ovlp, const sdict_t *d, c
 	for (i = 0; i < g->n_arc; ++i)
 		g->arc[i].link_id = g->n_arc;
 	gfa_cleanup(g);
+	gfa_arc_del_multi_risky(g);
 	fprintf(stderr, "[M::%s] read %ld arcs\n", __func__, (long)g->n_arc);
 	return g;
 }

@@ -26,14 +26,14 @@ int gfa_arc_del_short(gfa_t *g, int min_ovlp_len, float drop_ratio)
 	}
 	if (n_short) {
 		gfa_cleanup(g);
-		gfa_symm(g);
+		gfa_fix_symm_del(g);
 	}
 	if (gfa_verbose >= 3) fprintf(stderr, "[M] removed %d short overlaps\n", n_short);
 	return n_short;
 }
 
 // delete multi-arcs
-static int gfa_arc_del_multi(gfa_t *g)
+int gfa_arc_del_multi_risky(gfa_t *g)
 {
 	uint32_t *cnt, n_vtx = gfa_n_vtx(g), n_multi = 0, v;
 	cnt = (uint32_t*)calloc(n_vtx, 4);
@@ -53,7 +53,7 @@ static int gfa_arc_del_multi(gfa_t *g)
 }
 
 // remove asymmetric arcs: u->v is present, but v'->u' not
-static int gfa_arc_del_asymm(gfa_t *g)
+int gfa_arc_del_asymm_risky(gfa_t *g)
 {
 	uint32_t e, n_asymm = 0;
 	for (e = 0; e < g->n_arc; ++e) {
@@ -65,14 +65,14 @@ static int gfa_arc_del_asymm(gfa_t *g)
 		if (i == nv) g->arc[e].del = 1, ++n_asymm;
 	}
 	if (n_asymm) gfa_cleanup(g);
-	if (gfa_verbose >= 3) fprintf(stderr, "[M::%s] removed %d asymmetric arcs\n", __func__, n_asymm);
+	if (gfa_verbose >= 3 && n_asymm > 0) fprintf(stderr, "[M::%s] removed %d asymmetric arcs\n", __func__, n_asymm);
 	return n_asymm;
 }
 
-void gfa_symm(gfa_t *g)
+void gfa_fix_symm_del(gfa_t *g)
 {
-	gfa_arc_del_multi(g);
-	gfa_arc_del_asymm(g);
+	gfa_arc_del_multi_risky(g);
+	gfa_arc_del_asymm_risky(g);
 }
 
 // transitive reduction; see Myers, 2005
@@ -86,6 +86,8 @@ int gfa_arc_del_trans(gfa_t *g, int fuzz)
 		uint32_t L, i, nv = gfa_arc_n(g, v);
 		gfa_arc_t *av = gfa_arc_a(g, v);
 		if (nv == 0) continue; // no hits
+		int dbg = 0;
+		if (strstr(g->seg[v>>1].name, "27985147") != 0) dbg = 1;
 		if (g->seg[v>>1].del) {
 			for (i = 0; i < nv; ++i) av[i].del = 1, ++n_reduced;
 			continue;
@@ -108,6 +110,7 @@ int gfa_arc_del_trans(gfa_t *g, int fuzz)
 				if (mark[aw[j].w]) mark[aw[j].w] = 2;
 		}
 		for (i = 0; i < nv; ++i) {
+			if (dbg) fprintf(stderr, "X %s %d\n", g->seg[av[i].w>>1].name, mark[av[i].w]);
 			if (mark[av[i].w] == 2) av[i].del = 1, ++n_reduced;
 			mark[av[i].w] = 0;
 		}
@@ -116,7 +119,7 @@ int gfa_arc_del_trans(gfa_t *g, int fuzz)
 	if (gfa_verbose >= 3) fprintf(stderr, "[M::%s] transitively reduced %d arcs\n", __func__, n_reduced);
 	if (n_reduced) {
 		gfa_cleanup(g);
-		gfa_symm(g);
+		gfa_fix_symm_del(g);
 	}
 	return n_reduced;
 }
@@ -272,7 +275,7 @@ int gfa_topocut(gfa_t *g, float drop_ratio, int32_t tip_cnt, int32_t tip_len)
 	if (gfa_verbose >= 3) fprintf(stderr, "[M::%s] %d topology-aware cuts\n", __func__, n_cut);
 	if (n_cut) {
 		gfa_cleanup(g);
-		gfa_symm(g);
+		gfa_fix_symm_del(g);
 	}
 	return n_cut;
 }
