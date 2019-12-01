@@ -87,7 +87,6 @@ int gfa_arc_del_trans(gfa_t *g, int fuzz)
 		gfa_arc_t *av = gfa_arc_a(g, v);
 		if (nv == 0) continue; // no hits
 		int dbg = 0;
-		if (strstr(g->seg[v>>1].name, "27985147") != 0) dbg = 1;
 		if (g->seg[v>>1].del) {
 			for (i = 0; i < nv; ++i) av[i].del = 1, ++n_reduced;
 			continue;
