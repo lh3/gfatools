@@ -326,12 +326,31 @@ int gfa_topocut(gfa_t *g, float drop_ratio, int32_t tip_cnt, int32_t tip_len)
 	return n_cut;
 }
 
-int gfa_bub_simple(gfa_t *g, int min_side, int max_side)
+static void gfa_bub_simple_aux(gfa_t *g, uint32_t v, int i, uint32_t end_v)
+{
+	uint32_t w, nv = gfa_arc_n(g, v);
+	gfa_arc_t *av = gfa_arc_a(g, v);
+	assert(nv == 2 && i < nv);
+	gfa_arc_del(g, v, av[i].w, 1);
+	gfa_arc_del(g, av[i].w^1, v^1, 1);
+	w = av[i].w;
+	while (w != end_v) {
+		av = gfa_arc_a(g, w);
+		nv = gfa_arc_n(g, w);
+		assert(nv == 1);
+		g->seg[w>>1].del = 1;
+		gfa_arc_del(g, w, av[0].w, 1);
+		gfa_arc_del(g, av[0].w^1, w^1, 1);
+		w = av[0].w;
+	}
+}
+
+int gfa_bub_simple_sub(gfa_t *g, int min_side, int max_side)
 {
 	uint32_t n_vtx = gfa_n_vtx(g), v, n_pop = 0;
 	for (v = 0; v < n_vtx; ++v) {
 		gfa_arc_t *av = gfa_arc_a(g, v);
-		uint32_t i, w, nv = gfa_arc_n(g, v), end_v[2];
+		uint32_t i, nv = gfa_arc_n(g, v), end_v[2];
 		int32_t e[2], vt[2];
 		if (nv != 2) continue;
 		if (av[0].del || av[1].del) continue;
@@ -346,22 +365,44 @@ int gfa_bub_simple(gfa_t *g, int min_side, int max_side)
 		++n_pop;
 		if (e[0] == e[1]) i = av[0].ov < av[1].ov? 0 : 1;
 		else i = e[0] < e[1]? 0 : 1;
-		gfa_arc_del(g, v, av[i].w, 1);
-		gfa_arc_del(g, av[i].w^1, v^1, 1);
-		w = av[i].w;
-		while (w != end_v[0]) {
-			av = gfa_arc_a(g, w);
-			nv = gfa_arc_n(g, w);
-			assert(nv == 1);
-			g->seg[w>>1].del = 1;
-			gfa_arc_del(g, w, av[0].w, 1);
-			gfa_arc_del(g, av[0].w^1, w^1, 1);
-			w = av[0].w;
-		}
+		gfa_bub_simple_aux(g, v, i, end_v[0]);
 	}
 	if (n_pop) gfa_cleanup(g);
-	if (gfa_verbose >= 3) fprintf(stderr, "[M::%s] popped %d simple bubbles\n", __func__, n_pop);
+	if (gfa_verbose >= 3) fprintf(stderr, "[M::%s] popped %d simple substitution bubbles\n", __func__, n_pop);
 	return n_pop;
+}
+
+int gfa_bub_simple_indel(gfa_t *g, int max_ext)
+{
+	uint32_t n_vtx = gfa_n_vtx(g), v, n_pop = 0;
+	for (v = 0; v < n_vtx; ++v) {
+		gfa_arc_t *av = gfa_arc_a(g, v);
+		uint32_t i, w, nv = gfa_arc_n(g, v), end_v;
+		int32_t d[2], vt;
+		if (nv != 2) continue;
+		if (av[0].del || av[1].del) continue;
+		if (av[0].w>>1 == av[1].w>>1) continue;
+		d[0] = gfa_deg(g, av[0].w^1, 0, 0);
+		d[1] = gfa_deg(g, av[1].w^1, 0, 0);
+		if (d[0] + d[1] != 3) continue;
+		i = d[0] == 1? 0 : 1;
+		w = av[!i].w;
+		vt = gfa_uext(g, av[i].w, max_ext, 0, 0, &end_v, 0);
+		if (end_v != w || vt != GFA_VT_MULTI_IN) continue;
+		++n_pop;
+		gfa_bub_simple_aux(g, v, i, end_v);
+	}
+	if (n_pop) gfa_cleanup(g);
+	if (gfa_verbose >= 3) fprintf(stderr, "[M::%s] popped %d simple indel bubbles\n", __func__, n_pop);
+	return n_pop;
+}
+
+int gfa_bub_simple(gfa_t *g, int min_side, int max_side)
+{
+	int c = 0;
+	c += gfa_bub_simple_sub(g, min_side, max_side);
+	c += gfa_bub_simple_indel(g, min_side);
+	return c;
 }
 
 /******************

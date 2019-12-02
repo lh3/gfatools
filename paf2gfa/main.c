@@ -7,7 +7,7 @@
 #include "miniasm.h"
 #include "gfa-priv.h"
 
-#define MA_VERSION "0.3-r179"
+#define MA_VERSION "0.3-r143-dirty"
 
 extern double gfa_realtime0;
 extern double gfa_realtime(void);
@@ -105,7 +105,7 @@ int main(int argc, char *argv[])
 		gfa_cut_tip(sg, 3, INT32_MAX);
 		gfa_topocut(sg, 0.9, 3, INT32_MAX);
 		gfa_cut_tip(sg, 3, INT32_MAX);
-		gfa_bub_simple(sg, 2, 20);
+		gfa_bub_simple(sg, 3, 20);
 	}
 
 	if (gen_ug) {
