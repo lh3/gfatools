@@ -101,6 +101,8 @@ int main(int argc, char *argv[])
 		gfa_cut_tip(sg, 3, INT32_MAX);
 		gfa_topocut(sg, 0.7, 3, INT32_MAX);
 		gfa_cut_tip(sg, 3, INT32_MAX);
+		gfa_arc_del_short(sg, 2000, 0.5);
+		gfa_cut_tip(sg, 3, INT32_MAX);
 		gfa_topocut(sg, 0.9, 3, INT32_MAX);
 		gfa_cut_tip(sg, 3, INT32_MAX);
 		gfa_bub_simple(sg, 2, 20);

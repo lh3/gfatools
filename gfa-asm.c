@@ -24,11 +24,11 @@ int gfa_arc_del_short(gfa_t *g, int min_ovlp_len, float drop_ratio)
 		for (i = i + 1; i < nv; ++i)
 			av[i].del = 1, ++n_short;
 	}
+	if (gfa_verbose >= 3) fprintf(stderr, "[M::%s] removed %d short overlaps\n", __func__, n_short);
 	if (n_short) {
 		gfa_cleanup(g);
 		gfa_fix_symm_del(g);
 	}
-	if (gfa_verbose >= 3) fprintf(stderr, "[M::%s] removed %d short overlaps\n", __func__, n_short);
 	return n_short;
 }
 
@@ -47,8 +47,8 @@ int gfa_arc_del_multi_risky(gfa_t *g)
 				av[i].del = 1, ++n_multi;
 	}
 	free(cnt);
-	if (n_multi) gfa_cleanup(g);
 	if (gfa_verbose >= 3 && n_multi > 0) fprintf(stderr, "[M::%s] removed %d multi-arcs\n", __func__, n_multi);
+	if (n_multi) gfa_cleanup(g);
 	return n_multi;
 }
 
@@ -64,8 +64,8 @@ int gfa_arc_del_asymm_risky(gfa_t *g)
 			if (av[i].w == u) break;
 		if (i == nv) g->arc[e].del = 1, ++n_asymm;
 	}
-	if (n_asymm) gfa_cleanup(g);
 	if (gfa_verbose >= 3 && n_asymm > 0) fprintf(stderr, "[M::%s] removed %d asymmetric arcs\n", __func__, n_asymm);
+	if (n_asymm) gfa_cleanup(g);
 	return n_asymm;
 }
 
@@ -126,22 +126,24 @@ int gfa_arc_del_weak(gfa_t *g)
 {
 	uint32_t n_vtx = gfa_n_vtx(g), v, n_abnormal = 0, n_del = 0;
 	for (v = 0; v < n_vtx; ++v) {
-		uint32_t i, nv = gfa_arc_n(g, v), n_strong = 0, top_strong = 0, first_strong = nv;
+		uint32_t i, nv = gfa_arc_n(g, v), n_strong = 0, top_strong = 0;
 		gfa_arc_t *av = gfa_arc_a(g, v);
 		for (i = 0; i < nv; ++i) {
 			if (!av[i].strong) continue;
+			if (n_strong == i) ++top_strong;
 			++n_strong;
-			if (first_strong == nv) first_strong = i;
-			if (i == 0) top_strong = 1;
 		}
 		if (n_strong == 0) continue;
-		if (top_strong == 0) ++n_abnormal;
-		for (i = first_strong + 1; i < nv; ++i)
-			if (!av[i].strong)
-				av[i].del = 1, ++n_del;
+		if (top_strong == 0) {
+			++n_abnormal;
+		} else {
+			for (i = 0; i < nv; ++i)
+				if (!av[i].strong)
+					av[i].del = 1, ++n_del;
+		}
 	}
 	if (gfa_verbose >= 3 && n_del > 0)
-		fprintf(stderr, "[M::%s] removed %d weak arcs including %d abnormal arcs\n", __func__, n_del, n_abnormal);
+		fprintf(stderr, "[M::%s] removed %d weak arcs; %d abnormal arcs\n", __func__, n_del, n_abnormal);
 	if (n_del) {
 		gfa_cleanup(g);
 		gfa_fix_symm_del(g);
@@ -358,7 +360,7 @@ int gfa_bub_simple(gfa_t *g, int min_side, int max_side)
 		}
 	}
 	if (n_pop) gfa_cleanup(g);
-	if (gfa_verbose >= 3) fprintf(stderr, "[M] popped %d simple bubbles\n", n_pop);
+	if (gfa_verbose >= 3) fprintf(stderr, "[M::%s] popped %d simple bubbles\n", __func__, n_pop);
 	return n_pop;
 }
 
