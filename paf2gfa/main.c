@@ -7,7 +7,7 @@
 #include "miniasm.h"
 #include "gfa-priv.h"
 
-#define MA_VERSION "0.3-r143-dirty"
+#define MA_VERSION "0.3-r144-dirty"
 
 extern double gfa_realtime0;
 extern double gfa_realtime(void);
@@ -43,7 +43,7 @@ int main(int argc, char *argv[])
 	gfa_t *sg = 0;
 	ma_ug_t *ug = 0;
 
-	while ((c = ketopt(&o, argc, argv, 1, "bfh:o:ucU", 0)) >= 0) {
+	while ((c = ketopt(&o, argc, argv, 1, "bfh:o:ucUi:", 0)) >= 0) {
 		if (c == 'b') add_dual = 0;
 		else if (c == 'f') ++flt;
 		else if (c == 'h') max_hang = gfa_str2num(o.arg, 0);
@@ -51,6 +51,7 @@ int main(int argc, char *argv[])
 		else if (c == 'u') gen_ug = 1;
 		else if (c == 'U') keep_uni_edge = 1;
 		else if (c == 'c') ++clean;
+		else if (c == 'i') fn_reads = o.arg;
 		else if (c == 'V') {
 			printf("%s\n", MA_VERSION);
 			return 0;
@@ -68,6 +69,7 @@ int main(int argc, char *argv[])
 		fprintf(stderr, "  -o NUM      min overlap length [%d]\n", min_ovlp);
 		fprintf(stderr, "  -c          apply graph cleaning (up to 3)\n");
 		fprintf(stderr, "  -u          generate unitigs\n");
+		fprintf(stderr, "  -i FILE     input reads []\n");
 		return 1;
 	}
 
