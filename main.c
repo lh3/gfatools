@@ -447,7 +447,7 @@ int main_asm(int argc, char *argv[])
 			int32_t max_ext, max_len = INT32_MAX;
 			max_ext = gfa_str2num(o.arg, &p);
 			if (*p == ',') max_len = gfa_str2num(p + 1, &p);
-			gfa_cut_tip(g, max_ext, max_len);
+			gfa_drop_tip(g, max_ext, max_len);
 		} else if (c == 'b') {
 			int32_t dist;
 			dist = gfa_str2num(o.arg, &p);

@@ -227,7 +227,7 @@ static inline int32_t gfa_uext(const gfa_t *g, uint32_t v, int32_t max_ext, int3
 	return vt;
 }
 
-int gfa_cut_tip(gfa_t *g, int tip_cnt, int tip_len)
+int gfa_drop_tip(gfa_t *g, int tip_cnt, int tip_len)
 {
 	gfa32_v a = {0,0,0};
 	uint32_t n_vtx = gfa_n_vtx(g), v, i, cnt = 0;
@@ -244,7 +244,7 @@ int gfa_cut_tip(gfa_t *g, int tip_cnt, int tip_len)
 	}
 	free(a.a);
 	if (cnt > 0) gfa_cleanup(g);
-	if (gfa_verbose >= 3) fprintf(stderr, "[M::%s] cut %d tips\n", __func__, cnt);
+	if (gfa_verbose >= 3) fprintf(stderr, "[M::%s] drop %d tips\n", __func__, cnt);
 	return cnt;
 }
 
@@ -475,6 +475,7 @@ static uint64_t gfa_bub_pop1(gfa_t *g, uint32_t v0, int max_dist, int protect_ti
 			uint32_t w = av[i].w, l = (uint32_t)av[i].v_lv; // u->w with length l
 			binfo_t *t = &b->a[w];
 			if (w == v0) goto pop_reset;
+			// if (w>>1 == v0>>1) goto pop_reset; // Haoyu recommends this line
 			if (av[i].del) continue;
 			kv_push(uint32_t, b->e, (g->idx[v]>>32) + i);
 			if (d + l > max_dist) break; // too far

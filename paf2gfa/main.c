@@ -7,7 +7,7 @@
 #include "miniasm.h"
 #include "gfa-priv.h"
 
-#define MA_VERSION "0.3-r144-dirty"
+#define MA_VERSION "0.3-r145-dirty"
 
 extern double gfa_realtime0;
 extern double gfa_realtime(void);
@@ -92,21 +92,21 @@ int main(int argc, char *argv[])
 		gfa_arc_pair_strong(sg);
 		gfa_arc_del_weak(sg);
 		gfa_arc_del_trans(sg, 100);
-		gfa_cut_tip(sg, 1, INT32_MAX);
+		gfa_drop_tip(sg, 1, INT32_MAX);
 	}
 	if (clean >= 2) {
 		gfa_topocut(sg, 0.3, 3, INT32_MAX);
-		gfa_cut_tip(sg, 2, INT32_MAX);
+		gfa_drop_tip(sg, 2, INT32_MAX);
 	}
 	if (clean >= 3) {
 		gfa_topocut(sg, 0.5, 3, INT32_MAX);
-		gfa_cut_tip(sg, 3, INT32_MAX);
+		gfa_drop_tip(sg, 3, INT32_MAX);
 		gfa_topocut(sg, 0.7, 3, INT32_MAX);
-		gfa_cut_tip(sg, 3, INT32_MAX);
+		gfa_drop_tip(sg, 3, INT32_MAX);
 		gfa_arc_del_short(sg, 2000, 0.5);
-		gfa_cut_tip(sg, 3, INT32_MAX);
+		gfa_drop_tip(sg, 3, INT32_MAX);
 		gfa_topocut(sg, 0.9, 3, INT32_MAX);
-		gfa_cut_tip(sg, 3, INT32_MAX);
+		gfa_drop_tip(sg, 3, INT32_MAX);
 		gfa_bub_simple(sg, 3, 20);
 	}
 
