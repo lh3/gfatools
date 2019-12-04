@@ -4,9 +4,9 @@
 #include "gfa-priv.h"
 #include "kvec.h"
 
-/**********************
- * Graph manipulation *
- **********************/
+/********************************************
+ * Preprocessing up to transitive reduction *
+ ********************************************/
 
 typedef struct { uint32_t n, m; uint32_t *a; } gfa32_v;
 
@@ -170,9 +170,9 @@ int gfa_arc_pair_strong(gfa_t *g)
 	return n_flip;
 }
 
-/**********************************
- * Filter short potential unitigs *
- **********************************/
+/********************************
+ * Probe unitig ends from reads *
+ ********************************/
 
 #define GFA_VT_MERGEABLE 0
 #define GFA_VT_TIP       1
@@ -181,8 +181,11 @@ int gfa_arc_pair_strong(gfa_t *g)
 
 static inline int32_t gfa_deg(const gfa_t *g, uint32_t v) // compute out-degree, excluding deleted edges
 {
-	uint32_t i, n, nv = gfa_arc_n(g, v);
-	const gfa_arc_t *av = gfa_arc_a(g, v);
+	uint32_t i, n, nv;
+	const gfa_arc_t *av;
+	if (g->seg[v>>1].del) return 0;
+	nv = gfa_arc_n(g, v);
+	av = gfa_arc_a(g, v);
 	for (i = n = 0; i < nv; ++i)
 		if (!av[i].del) ++n;
 	return n;
@@ -190,14 +193,19 @@ static inline int32_t gfa_deg(const gfa_t *g, uint32_t v) // compute out-degree,
 
 static inline int32_t gfa_deg2(const gfa_t *g, uint32_t v, uint32_t *w, int32_t *l)
 {
-	uint32_t i, nv, nv0 = gfa_arc_n(g, v), k = nv0;
-	int32_t min_l = g->seg[v>>1].len;
-	const gfa_arc_t *av = gfa_arc_a(g, v);
+	uint32_t i, nv, nv0, k;
+	int32_t min_l;
+	const gfa_arc_t *av;
+	*l = 0, *w = (uint32_t)-1;
+	if (g->seg[v>>1].del) return 0;
+	min_l = g->seg[v>>1].len;
+	nv0 = k = gfa_arc_n(g, v);
+	av = gfa_arc_a(g, v);
 	for (i = nv = 0; i < nv0; ++i)
 		if (!av[i].del)
 			++nv, k = i, min_l = gfa_arc_len(av[i]) < min_l? gfa_arc_len(av[i]) : min_l;
-	if (l) *l = min_l;
-	if (w) *w = nv == 1? av[k].w : (uint32_t)-1;
+	*l = min_l;
+	*w = nv == 1? av[k].w : (uint32_t)-1;
 	return nv;
 }
 
@@ -210,7 +218,7 @@ static inline int32_t gfa_vtype(const gfa_t *g, uint32_t v, uint32_t *w_, int32_
 	if (w_) *w_ = w;
 	if (nv == 0) return GFA_VT_TIP;
 	if (nv > 1) return GFA_VT_MULTI_OUT;
-	nw = gfa_deg2(g, w^1, 0, 0);
+	nw = gfa_deg(g, w^1);
 	return nw == 1? GFA_VT_MERGEABLE : GFA_VT_MULTI_IN;
 }
 
@@ -235,6 +243,133 @@ static inline int32_t gfa_uext(const gfa_t *g, uint32_t v, int32_t max_ext, int3
 	if (le) *le = l_ext;
 	return vt;
 }
+
+/*************************
+ * Topological extension *
+ *************************/
+
+typedef struct {
+	uint32_t p; // the optimal parent vertex
+	int32_t d; // the shortest distance from the initial vertex
+	uint32_t c; // max count of reads
+	uint32_t r:31, s:1; // r: the number of remaining incoming arc; s: whether the vertex has been visited before
+} gfa_tinfo_t;
+
+typedef struct {
+	gfa_tinfo_t *a;
+	kvec_t(uint32_t) S; // set of vertices without parents
+	kvec_t(uint32_t) b; // visited vertices
+	kvec_t(uint32_t) e; // visited edges/arcs
+	int32_t n_tip, n_bb, dist; // n_tip: number of short tips; n_bb: number of bubbles; dist: min distance from one of the input vertices
+	uint32_t v_end;     // end vertex; dist and v_end only set when n_bb>0
+} gfa_tbuf_t;
+
+#define GFA_TES_SHORT_TIP  0x1
+#define GFA_TES_BB         0x2
+
+#define GFA_TET_NONE       0x0
+#define GFA_TET_BB         0x1
+#define GFA_TET_SHORT_TIP  0x2
+#define GFA_TET_SELF_CYC   0x4
+#define GFA_TET_SELF_BICYC 0x8
+
+static gfa_tbuf_t *gfa_tbuf_init(const gfa_t *g)
+{
+	uint32_t v, n_vtx = gfa_n_vtx(g);
+	gfa_tbuf_t *b;
+	GFA_CALLOC(b, 1);
+	GFA_CALLOC(b->a, gfa_n_vtx(g));
+	for (v = 0; v < n_vtx; ++v) b->a[v].p = (uint32_t)-1;
+	return b;
+}
+
+static void gfa_tbuf_destroy(gfa_tbuf_t *b)
+{
+	if (b == 0) return;
+	free(b->a); free(b->S.a); free(b->b.a); free(b->e.a);
+	free(b);
+}
+
+static void gfa_tbuf_reset(gfa_tbuf_t *b)
+{
+	uint32_t i;
+	for (i = 0; i < b->b.n; ++i) { // clear the states of visited vertices
+		gfa_tinfo_t *t = &b->a[b->b.a[i]];
+		t->s = t->c = t->d = t->r = 0, t->p = (uint32_t)-1;
+	}
+}
+
+static int32_t gfa_topo_ext(const gfa_t *g, uint32_t n_v0, const uint32_t *v0, int32_t max_dist, int32_t stop_flag, gfa_tbuf_t *b)
+{
+	uint32_t i, n_pending = 0; // n_pending: number of visited vertices that are not sorted
+	uint32_t type = 0, max_d = 0; // max_d: max gfa_tinfo_t::d of visited vertices
+
+	b->S.n = b->b.n = b->e.n = 0;
+	b->n_tip = b->n_bb = 0, b->dist = -1, b->v_end = (uint32_t)-1;
+	if (n_v0 == 0) return 0;
+	for (i = 0; i < n_v0; ++i) {
+		uint32_t v = v0[i];
+		gfa_tinfo_t *t = &b->a[v];
+		if (g->seg[v>>1].del) continue;
+		t->p = (uint32_t)-1, t->r = 0, t->c = t->d = 0, t->s = 0; // ->s has to be 0, as gfa_tbuf_reset() doesn't reset the initial vertices
+		kv_push(uint32_t, b->S, v);
+	}
+
+	while (b->S.n > 0 && max_d <= max_dist) {
+		uint32_t v = kv_pop(b->S), d = b->a[v].d, c = b->a[v].c;
+		uint32_t nv = gfa_arc_n(g, v);
+		gfa_arc_t *av = gfa_arc_a(g, v);
+		assert(nv > 0); // a tip should never be added to S
+		for (i = 0; i < nv; ++i) { // loop through v's neighbors
+			uint32_t j, w = av[i].w, l = (uint32_t)av[i].v_lv; // u->w with length l
+			gfa_tinfo_t *t = &b->a[w];
+			if (av[i].del) continue;
+			for (j = 0; j < n_v0; ++j)
+				if (w>>1 == v0[j]>>1 && !g->seg[v0[j]>>1].del) break;
+			if (j < n_v0) {
+				type |= w == v0[j]? GFA_TET_SELF_CYC : GFA_TET_SELF_BICYC; // cycle or bi-cycle involving one of the starting vertex
+				break;
+			}
+			kv_push(uint32_t, b->e, (g->idx[v]>>32) + i); // save the edge
+			if (t->s == 0) { // this vertex has never been visited
+				kv_push(uint32_t, b->b, w); // save it for gfa_tbuf_reset()
+				t->p = v, t->s = 1, t->d = d + l, t->c = c + 1;
+				t->r = gfa_deg(g, w^1);
+				++n_pending;
+			} else { // visited before
+				if (c + 1 > t->c || (c + 1 == t->c && d + l > t->d)) t->p = v;
+				if (c + 1 > t->c) t->c = c + 1;
+				if (d + l < t->d) t->d = d + l; // update dist
+			}
+			max_d = max_d > t->d? max_d : t->d;
+			assert(t->r > 0);
+			if (--(t->r) == 0) {
+				uint32_t x;
+				x = gfa_deg(g, w);
+				if (x) kv_push(uint32_t, b->S, w);
+				else { // a tip shorter than max_dist
+					++b->n_tip;
+					if (stop_flag & GFA_TES_SHORT_TIP) break;
+				}
+				--n_pending;
+			}
+		}
+		if (i < nv || b->S.n == 0) break;
+		if (b->S.n == 1 && n_pending == 0) { // a bubble
+			uint32_t v = b->S.a[0];
+			b->dist = b->a[v].d, b->v_end = v;
+			++b->n_bb;
+			if (stop_flag & GFA_TES_BB) break;
+		}
+	}
+	if (b->n_bb)  type |= GFA_TET_BB;
+	if (b->n_tip) type |= GFA_TET_SHORT_TIP;
+	return type;
+}
+
+/************************
+ * Basic graph cleaning *
+ ************************/
 
 int gfa_drop_tip(gfa_t *g, int tip_cnt, int tip_len)
 {
@@ -363,7 +498,7 @@ int gfa_bub_simple_sub(gfa_t *g, int min_side, int max_side)
 		int32_t e[2], vt[2];
 		if (nv != 2) continue;
 		if (av[0].del || av[1].del) continue;
-		if (gfa_deg2(g, av[0].w^1, 0, 0) != 1 || gfa_deg2(g, av[1].w^1, 0, 0) != 1) continue;
+		if (gfa_deg(g, av[0].w^1) != 1 || gfa_deg(g, av[1].w^1) != 1) continue;
 		if (av[0].w>>1 == av[1].w>>1) continue;
 		vt[0] = gfa_uext(g, av[0].w, max_side, &e[0], 0, &end_v[0], 0);
 		vt[1] = gfa_uext(g, av[1].w, max_side, &e[1], 0, &end_v[1], 0);
@@ -391,8 +526,8 @@ int gfa_bub_simple_indel(gfa_t *g, int max_ext)
 		if (nv != 2) continue;
 		if (av[0].del || av[1].del) continue;
 		if (av[0].w>>1 == av[1].w>>1) continue;
-		d[0] = gfa_deg2(g, av[0].w^1, 0, 0);
-		d[1] = gfa_deg2(g, av[1].w^1, 0, 0);
+		d[0] = gfa_deg(g, av[0].w^1);
+		d[1] = gfa_deg(g, av[1].w^1);
 		if (d[0] + d[1] != 3) continue;
 		i = d[0] == 1? 0 : 1;
 		w = av[!i].w;
@@ -414,25 +549,6 @@ int gfa_bub_simple(gfa_t *g, int min_side, int max_side)
 	return c;
 }
 
-/*************************
- * Topological extension *
- *************************/
-
-typedef struct {
-	uint32_t p; // the optimal parent vertex
-	uint32_t d; // the shortest distance from the initial vertex
-	uint32_t c; // max count of reads
-	uint32_t r:31, s:1; // r: the number of remaining incoming arc; s: state
-} gfa_tinfo_t;
-
-typedef struct {
-	gfa_tinfo_t *a;
-	kvec_t(uint32_t) S; // set of vertices without parents
-	kvec_t(uint32_t) T; // set of tips
-	kvec_t(uint32_t) b; // visited vertices
-	kvec_t(uint32_t) e; // visited edges/arcs
-} gfa_tbuf_t;
-
 /******************
  * Bubble popping *
  ******************/
@@ -449,7 +565,7 @@ static void gfa_bub_backtrack(gfa_t *g, uint32_t v0, gfa_tbuf_t *b)
 		a->del = 1;
 		gfa_arc_del(g, a->w^1, a->v_lv>>32^1, 1);
 	}
-	v = b->S.a[0];
+	v = b->v_end;
 	do {
 		uint32_t u = b->a[v].p; // u->v
 		g->seg[v>>1].del = 0;
@@ -460,59 +576,20 @@ static void gfa_bub_backtrack(gfa_t *g, uint32_t v0, gfa_tbuf_t *b)
 }
 
 // pop bubbles from vertex v0; the graph MJUST BE symmetric: if u->v present, v'->u' must be present as well
-static uint64_t gfa_bub_pop1(gfa_t *g, uint32_t v0, int max_dist, int protect_tip, gfa_tbuf_t *b)
+static int32_t gfa_bub_pop1(gfa_t *g, uint32_t v0, int max_dist, int protect_tip, gfa_tbuf_t *b)
 {
-	uint32_t i, n_pending = 0;
-	uint64_t n_pop = 0;
+	uint32_t stop_flag = GFA_TES_BB;
+	uint64_t ret = 0;
 	if (g->seg[v0>>1].del) return 0; // already deleted
-	if ((uint32_t)g->idx[v0] < 2) return 0; // no bubbles
-	b->S.n = b->T.n = b->b.n = b->e.n = 0;
-	b->a[v0].c = b->a[v0].d = 0, b->a[v0].s = 1;
-	kv_push(uint32_t, b->S, v0);
-	do {
-		uint32_t v = kv_pop(b->S), d = b->a[v].d, c = b->a[v].c;
-		uint32_t nv = gfa_arc_n(g, v);
-		gfa_arc_t *av = gfa_arc_a(g, v);
-		assert(nv > 0);
-		for (i = 0; i < nv; ++i) { // loop through v's neighbors
-			uint32_t w = av[i].w, l = (uint32_t)av[i].v_lv; // u->w with length l
-			gfa_tinfo_t *t = &b->a[w];
-			// if (w == v0) goto pop_reset;
-			if (w>>1 == v0>>1) goto pop_reset; // Haoyu recommends this line
-			if (av[i].del) continue;
-			kv_push(uint32_t, b->e, (g->idx[v]>>32) + i);
-			if (d + l > max_dist) break; // too far
-			if (t->s == 0) { // this vertex has never been visited
-				kv_push(uint32_t, b->b, w); // save it for revert
-				t->p = v, t->s = 1, t->d = d + l;
-				t->r = gfa_deg(g, w^1);
-				++n_pending;
-			} else { // visited before
-				if (c + 1 > t->c || (c + 1 == t->c && d + l > t->d)) t->p = v;
-				if (c + 1 > t->c) t->c = c + 1;
-				if (d + l < t->d) t->d = d + l; // update dist
-			}
-			assert(t->r > 0);
-			if (--(t->r) == 0) {
-				uint32_t x = gfa_arc_n(g, w);
-				if (x) kv_push(uint32_t, b->S, w);
-				else {
-					if (protect_tip) goto pop_reset;
-					kv_push(uint32_t, b->T, w); // a tip
-				}
-				--n_pending;
-			}
-		}
-		if (i < nv || b->S.n == 0) goto pop_reset;
-	} while (b->S.n > 1 || n_pending);
-	gfa_bub_backtrack(g, v0, b);
-	n_pop = 1 | (uint64_t)b->T.n<<32;
-pop_reset:
-	for (i = 0; i < b->b.n; ++i) { // clear the states of visited vertices
-		gfa_tinfo_t *t = &b->a[b->b.a[i]];
-		t->s = t->c = t->d = 0;
+	if (gfa_arc_n(g, v0) < 2) return 0; // no bubbles
+	if (protect_tip) stop_flag |= GFA_TES_SHORT_TIP;
+	gfa_topo_ext(g, 1, &v0, max_dist, stop_flag, b);
+	if (b->n_bb) {
+		gfa_bub_backtrack(g, v0, b);
+		ret = 1 | (uint64_t)b->n_tip << 32;
 	}
-	return n_pop;
+	gfa_tbuf_reset(b);
+	return ret;
 }
 
 // pop bubbles
@@ -520,19 +597,12 @@ int gfa_pop_bubble(gfa_t *g, int max_dist, int protect_tip)
 {
 	uint32_t v, n_vtx = gfa_n_vtx(g);
 	uint64_t n_pop = 0;
-	gfa_tbuf_t b;
-	memset(&b, 0, sizeof(gfa_tbuf_t));
-	b.a = (gfa_tinfo_t*)calloc(n_vtx, sizeof(gfa_tinfo_t));
-	for (v = 0; v < n_vtx; ++v) {
-		uint32_t i, n_arc = 0, nv = gfa_arc_n(g, v);
-		gfa_arc_t *av = gfa_arc_a(g, v);
-		if (nv < 2 || g->seg[v>>1].del) continue;
-		for (i = 0; i < nv; ++i) // gfa_bub_pop1() may delete some edges/arcs
-			if (!av[i].del) ++n_arc;
-		if (n_arc > 1)
-			n_pop += gfa_bub_pop1(g, v, max_dist, protect_tip, &b);
-	}
-	free(b.a); free(b.S.a); free(b.T.a); free(b.b.a); free(b.e.a);
+	gfa_tbuf_t *b;
+	b = gfa_tbuf_init(g);
+	for (v = 0; v < n_vtx; ++v)
+		if (!g->seg[v>>1].del && gfa_deg(g, v) >= 2)
+			n_pop += gfa_bub_pop1(g, v, max_dist, protect_tip, b);
+	gfa_tbuf_destroy(b);
 	if (n_pop) gfa_cleanup(g);
 	if (gfa_verbose >= 3) fprintf(stderr, "[M] popped %d bubbles and trimmed %d tips\n", (uint32_t)n_pop, (uint32_t)(n_pop>>32));
 	return n_pop;
