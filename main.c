@@ -399,7 +399,7 @@ int main_gt(int argc, char *argv[])
 
 int main_asm(int argc, char *argv[])
 {
-	const char *tr_opts = "v:ur:t:b:B:s:o:c:";
+	const char *tr_opts = "v:ur:t:b:B:o:c:";
 	ketopt_t o = KETOPT_INIT;
 	int c, oflag = 0;
 	gfa_t *g;
@@ -411,9 +411,8 @@ int main_asm(int argc, char *argv[])
 		fprintf(stderr, "Options:\n");
 		fprintf(stderr, "  -r INT          transitive reduction (fuzzy length)\n");
 		fprintf(stderr, "  -t INT1[,INT2]  cut tips (tip seg count, tip length [inf])\n");
-		fprintf(stderr, "  -b INT          pop bubbles along with small tips (max dist)\n");
-		fprintf(stderr, "  -B INT          pop bubbles but protect small tips (max dist)\n");
-		fprintf(stderr, "  -s INT          pop simple bubbles (max seg count)\n");
+		fprintf(stderr, "  -b INT1[,INT2]  pop bubbles along with small tips (max dist, max deletions [inf])\n");
+		fprintf(stderr, "  -B INT1[,INT2]  pop bubbles wihout small tips (max dist, max deletions [inf])\n");
 		fprintf(stderr, "  -o FLOAT[,INT]  cut short overlaps (ratio to the longest overlap, overlap length [0])\n");
 		fprintf(stderr, "  -c FLOAT[,INT1[,INT2]]\n");
 		fprintf(stderr, "                  cut overlaps, topology aware (ratio, tip seg count [3], tip length [inf])\n");
@@ -449,18 +448,15 @@ int main_asm(int argc, char *argv[])
 			if (*p == ',') max_len = gfa_str2num(p + 1, &p);
 			gfa_drop_tip(g, max_ext, max_len);
 		} else if (c == 'b') {
-			int32_t dist;
+			int32_t dist, max_del = INT32_MAX;
 			dist = gfa_str2num(o.arg, &p);
-			gfa_pop_bubble(g, dist, 0);
+			if (*p == ',') max_del = gfa_str2num(p + 1, &p);
+			gfa_pop_bubble(g, dist, max_del, 0);
 		} else if (c == 'B') {
-			int32_t dist;
+			int32_t dist, max_del = INT32_MAX;
 			dist = gfa_str2num(o.arg, &p);
-			gfa_pop_bubble(g, dist, 1);
-		} else if (c == 's') {
-			int32_t min_side, max_side = 20;
-			min_side = gfa_str2num(o.arg, &p);
-			if (*p == ',') max_side = gfa_str2num(p + 1, &p);
-			gfa_bub_simple(g, min_side, max_side);
+			if (*p == ',') max_del = gfa_str2num(p + 1, &p);
+			gfa_pop_bubble(g, dist, max_del, 1);
 		} else if (c == 'o') {
 			double ratio;
 			int32_t min_len = 0;
