@@ -294,7 +294,7 @@ static void gfa_tbuf_reset(gfa_tbuf_t *b)
 	}
 }
 
-static int32_t gfa_topo_ext(const gfa_t *g, uint32_t v0, int32_t max_dist, int32_t thru_flag, gfa_tbuf_t *b) // max_dist from the end of v0
+static int32_t gfa_topo_ext(const gfa_t *g, uint32_t v0, int32_t max_dist, int32_t thru_flag, gfa_tbuf_t *b)
 {
 	uint32_t i, n_pending = 0; // n_pending: number of visited vertices that are not sorted
 	int32_t max_d = INT32_MIN; // max_d: max gfa_tinfo_t::d of visited vertices
@@ -304,8 +304,7 @@ static int32_t gfa_topo_ext(const gfa_t *g, uint32_t v0, int32_t max_dist, int32
 	b->n_short_tip = b->n_sink = 0, b->dist = 0, b->self_cycle = 0, b->v_sink = (uint32_t)-1;
 	if (g->seg[v0>>1].del) return 0;
 	t = &b->a[v0];
-	t->p = (uint32_t)-1, t->r = 0, t->c = t->s = 0; // ->s has to be 0, as gfa_tbuf_reset() doesn't reset the initial vertex
-	t->d = -(int32_t)g->seg[v0>>1].len;
+	t->p = (uint32_t)-1, t->r = 0, t->c = t->d = t->s = 0; // ->s has to be 0, as gfa_tbuf_reset() doesn't reset the initial vertex
 	kv_push(uint32_t, b->S, v0);
 
 	while (b->S.n > 0 && max_d <= max_dist) {
@@ -405,9 +404,9 @@ int gfa_drop_internal(gfa_t *g, int max_ext)
 static inline int32_t gfa_is_extended(const gfa_t *g, uint32_t v, int32_t min_dist, int32_t max_dist, gfa_tbuf_t *b)
 {
 	if (g->seg[v>>1].len >= min_dist) return 1;
-	gfa_topo_ext(g, v, max_dist - g->seg[v>>1].len, GFA_TE_THRU_BUBBLE, b);
+	gfa_topo_ext(g, v, max_dist, GFA_TE_THRU_BUBBLE, b);
 	gfa_tbuf_reset(b);
-	return b->dist + g->seg[v>>1].len > min_dist? 1 : 0;
+	return b->dist > min_dist? 1 : 0;
 }
 
 int gfa_cut_z(gfa_t *g, int32_t min_dist, int32_t max_dist)
@@ -556,12 +555,12 @@ static void gfa_bub_backtrack(gfa_t *g, uint32_t v0, int max_del, gfa_tbuf_t *b)
 	} while (v != v0);
 }
 
-// pop bubbles from vertex v0; the graph MJUST BE symmetric: if u->v present, v'->u' must be present as well
-static int32_t gfa_bub_pop1(gfa_t *g, uint32_t v0, int max_dist, int max_del, int protect_tip, gfa_tbuf_t *b)
+// pop bubbles from vertex v0; the graph MUST BE symmetric: if u->v present, v'->u' must be present as well
+static int32_t gfa_bub_pop1(gfa_t *g, uint32_t v0, int radius, int max_del, int protect_tip, gfa_tbuf_t *b) // radius is calculated from the end of v0, not the start
 {
 	uint64_t ret = 0;
 	if (gfa_deg(g, v0) < 2) return 0; // no bubbles
-	gfa_topo_ext(g, v0, max_dist, protect_tip? 0 : GFA_TE_THRU_SHORT_TIP, b);
+	gfa_topo_ext(g, v0, g->seg[v0>>1].len + radius, protect_tip? 0 : GFA_TE_THRU_SHORT_TIP, b);
 	if (b->n_sink) {
 		gfa_bub_backtrack(g, v0, max_del, b);
 		ret = 1 | (uint64_t)b->n_short_tip << 32;
@@ -571,7 +570,7 @@ static int32_t gfa_bub_pop1(gfa_t *g, uint32_t v0, int max_dist, int max_del, in
 }
 
 // pop bubbles
-int gfa_pop_bubble(gfa_t *g, int max_dist, int max_del, int protect_tip)
+int gfa_pop_bubble(gfa_t *g, int radius, int max_del, int protect_tip)
 {
 	uint32_t v, n_vtx = gfa_n_vtx(g);
 	uint64_t n_pop = 0;
@@ -579,7 +578,7 @@ int gfa_pop_bubble(gfa_t *g, int max_dist, int max_del, int protect_tip)
 	b = gfa_tbuf_init(g);
 	for (v = 0; v < n_vtx; ++v)
 		if (!g->seg[v>>1].del && gfa_deg(g, v) >= 2)
-			n_pop += gfa_bub_pop1(g, v, max_dist, max_del, protect_tip, b);
+			n_pop += gfa_bub_pop1(g, v, radius, max_del, protect_tip, b);
 	gfa_tbuf_destroy(b);
 	if (n_pop) gfa_cleanup(g);
 	if (gfa_verbose >= 3) fprintf(stderr, "[M::%s] popped %d bubbles and trimmed short %d tips\n", __func__, (uint32_t)n_pop, (uint32_t)(n_pop>>32));

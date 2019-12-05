@@ -77,7 +77,7 @@ int gfa_drop_internal(gfa_t *g, int max_ext);
 int gfa_cut_z(gfa_t *g, int32_t min_dist, int32_t max_dist);
 int gfa_topocut(gfa_t *g, float drop_ratio, int32_t tip_cnt, int32_t tip_len);
 int gfa_bub_simple(gfa_t *g, int min_side, int max_side);
-int gfa_pop_bubble(gfa_t *g, int max_dist, int max_del, int protect_tip); // bubble popping
+int gfa_pop_bubble(gfa_t *g, int radius, int max_del, int protect_tip); // bubble popping
 gfa_t *gfa_ug_gen(const gfa_t *g);
 
 // subset, modifying the graph
