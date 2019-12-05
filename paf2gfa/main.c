@@ -7,7 +7,7 @@
 #include "miniasm.h"
 #include "gfa-priv.h"
 
-#define MA_VERSION "0.3-r145-dirty"
+#define MA_VERSION "0.3-r156-dirty"
 
 extern double gfa_realtime0;
 extern double gfa_realtime(void);
@@ -97,8 +97,6 @@ int main(int argc, char *argv[])
 	if (clean >= 2) {
 		gfa_topocut(sg, 0.3, 3, INT32_MAX);
 		gfa_drop_tip(sg, 2, INT32_MAX);
-	}
-	if (clean >= 3) {
 		gfa_topocut(sg, 0.5, 3, INT32_MAX);
 		gfa_drop_tip(sg, 3, INT32_MAX);
 		gfa_topocut(sg, 0.7, 3, INT32_MAX);
@@ -108,8 +106,11 @@ int main(int argc, char *argv[])
 		gfa_topocut(sg, 0.9, 3, INT32_MAX);
 		gfa_drop_tip(sg, 3, INT32_MAX);
 		gfa_pop_bubble(sg, 1000, 3, 1);
+	}
+	if (clean >= 3) {
 		gfa_drop_internal(sg, 1);
 		gfa_drop_tip(sg, 3, INT32_MAX);
+		gfa_cut_z(sg, 50000, 100000);
 	}
 
 	if (gen_ug) {

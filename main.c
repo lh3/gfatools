@@ -411,8 +411,8 @@ int main_asm(int argc, char *argv[])
 		fprintf(stderr, "Options:\n");
 		fprintf(stderr, "  -r INT          transitive reduction (fuzzy length)\n");
 		fprintf(stderr, "  -t INT1[,INT2]  cut tips (tip seg count, tip length [inf])\n");
-		fprintf(stderr, "  -b INT1[,INT2]  pop bubbles along with small tips (max dist, max deletions [inf])\n");
-		fprintf(stderr, "  -B INT1[,INT2]  pop bubbles wihout small tips (max dist, max deletions [inf])\n");
+		fprintf(stderr, "  -b INT1[,INT2]  pop bubbles (max radius, max deletions [inf])\n");
+		fprintf(stderr, "  -B INT1[,INT2]  pop bubbles along with small tips (max radius, max del [inf])\n");
 		fprintf(stderr, "  -o FLOAT[,INT]  cut short overlaps (ratio to the longest overlap, overlap length [0])\n");
 		fprintf(stderr, "  -c FLOAT[,INT1[,INT2]]\n");
 		fprintf(stderr, "                  cut overlaps, topology aware (ratio, tip seg count [3], tip length [inf])\n");
@@ -451,12 +451,12 @@ int main_asm(int argc, char *argv[])
 			int32_t dist, max_del = INT32_MAX;
 			dist = gfa_str2num(o.arg, &p);
 			if (*p == ',') max_del = gfa_str2num(p + 1, &p);
-			gfa_pop_bubble(g, dist, max_del, 0);
+			gfa_pop_bubble(g, dist, max_del, 1);
 		} else if (c == 'B') {
 			int32_t dist, max_del = INT32_MAX;
 			dist = gfa_str2num(o.arg, &p);
 			if (*p == ',') max_del = gfa_str2num(p + 1, &p);
-			gfa_pop_bubble(g, dist, max_del, 1);
+			gfa_pop_bubble(g, dist, max_del, 0);
 		} else if (c == 'o') {
 			double ratio;
 			int32_t min_len = 0;
