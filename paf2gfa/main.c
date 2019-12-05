@@ -7,7 +7,7 @@
 #include "miniasm.h"
 #include "gfa-priv.h"
 
-#define MA_VERSION "0.3-r156-dirty"
+#define MA_VERSION "0.3-r157-dirty"
 
 extern double gfa_realtime0;
 extern double gfa_realtime(void);

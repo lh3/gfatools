@@ -100,8 +100,8 @@ void ma_ug_print(const ma_ug_t *ug, const sdict_t *d, const ma_sub_t *sub, FILE 
 		fprintf(fp, "S\t%s\t%s\tLN:i:%d\n", name, p->s? p->s : "*", p->len);
 		for (j = l = 0; j < p->n; l += (uint32_t)p->a[j++]) {
 			uint32_t x = p->a[j]>>33;
-			if (sub) fprintf(fp, "a\t%s\t%d\t%s:%d-%d\t%c\t%d\n", name, l, d->seq[x].name, sub[x].s + 1, sub[x].e, "+-"[p->a[j]>>32&1], (uint32_t)p->a[j]);
-			else fprintf(fp, "a\t%s\t%d\t%s\t%c\t%d\n", name, l, d->seq[x].name, "+-"[p->a[j]>>32&1], (uint32_t)p->a[j]);
+			if (sub) fprintf(fp, "A\t%s\t%d\t%c\t%s\t%d\t%d\n", name, l, "+-"[p->a[j]>>32&1], d->seq[x].name, sub[x].s, sub[x].e);
+			else fprintf(fp, "A\t%s\t%d\t%c\t%s\t0\t%d\n", name, l, "+-"[p->a[j]>>32&1], d->seq[x].name, d->seq[x].len);
 		}
 	}
 	for (i = 0; i < ug->g->n_arc; ++i) { // the Link lines in GFA
