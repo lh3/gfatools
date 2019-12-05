@@ -399,7 +399,7 @@ int main_gt(int argc, char *argv[])
 
 int main_asm(int argc, char *argv[])
 {
-	const char *tr_opts = "v:ur:t:b:B:o:c:";
+	const char *tr_opts = "v:ur:t:b:B:o:c:z:";
 	ketopt_t o = KETOPT_INIT;
 	int c, oflag = 0;
 	gfa_t *g;
@@ -470,6 +470,12 @@ int main_asm(int argc, char *argv[])
 			if (*p == ',') tip_cnt = gfa_str2num(p + 1, &p);
 			if (*p == ',') tip_len = gfa_str2num(p + 1, &p);
 			gfa_topocut(g, ratio, tip_cnt, tip_len);
+		} else if (c == 'z') {
+			int32_t min_dist, max_dist = -1;
+			min_dist = gfa_str2num(o.arg, &p);
+			if (*p == ',') max_dist = gfa_str2num(p + 1, &p);
+			else max_dist = min_dist * 2;
+			gfa_cut_z(g, min_dist, max_dist);
 		}
 	}
 

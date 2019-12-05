@@ -319,10 +319,12 @@ static int32_t gfa_topo_ext(const gfa_t *g, uint32_t n_v0, const uint32_t *v0, i
 
 	while (b->S.n > 0 && max_d <= max_dist) {
 		uint32_t v = kv_pop(b->S), nv = gfa_arc_n(g, v);
-		int32_t d = b->a[v].d, c = b->a[v].c;
+		int32_t d = b->a[v].d, c = b->a[v].c, end_dist = d + (int32_t)g->seg[v>>1].len;
 		gfa_arc_t *av = gfa_arc_a(g, v);
+		if (n_pending == 0 && end_dist > b->dist)
+			b->dist = end_dist;
 		if (gfa_deg(g, v) == 0) { // a tip
-			if (d + (int32_t)g->seg[v>>1].len < max_dist) { // a tip shorter than max_dist
+			if (end_dist < max_dist) { // a tip shorter than max_dist
 				++b->n_short_tip;
 				if (stop_flag & GFA_TES_SHORT_TIP) break;
 				else continue;
@@ -409,9 +411,51 @@ int gfa_drop_internal(gfa_t *g, int max_ext)
 		++cnt;
 	}
 	free(a.a);
-	if (cnt > 0) gfa_cleanup(g);
 	fprintf(stderr, "[M::%s] cut %d internal sequences\n", __func__, cnt);
+	if (cnt > 0) gfa_cleanup(g);
 	return cnt;
+}
+
+static inline int32_t gfa_is_extended(const gfa_t *g, uint32_t v, int32_t min_dist, int32_t max_dist, gfa_tbuf_t *b)
+{
+	gfa_topo_ext(g, 1, &v, max_dist, GFA_TES_SHORT_TIP, b);
+	gfa_tbuf_reset(b);
+	return b->dist + g->seg[v>>1].len > min_dist? 1 : 0;
+}
+
+int gfa_cut_z(gfa_t *g, int32_t min_dist, int32_t max_dist)
+{
+	uint32_t n_cut = 0;
+	int64_t e;
+	gfa_tbuf_t *b;
+	b = gfa_tbuf_init(g);
+	for (e = 0; e < g->n_arc; ++e) {
+		gfa_arc_t *a = &g->arc[e], *av, *aw;
+		uint32_t v, w, u[2];
+		if (a->del) continue;
+		v = a->v_lv>>32, w = a->w^1;
+		if (gfa_arc_n(g, v) != 2 || gfa_arc_n(g, w) != 2) continue;
+		av = gfa_arc_a(g, v);
+		aw = gfa_arc_a(g, w);
+		if (av[0].del || av[1].del || aw[0].del || aw[1].del) continue;
+		assert(av[0].w == (w^1) || av[1].w == (w^1));
+		assert(aw[0].w == (v^1) || aw[1].w == (v^1));
+		u[0] = av[0].w != (w^1)? av[0].w : av[1].w;
+		u[1] = aw[0].w != (v^1)? aw[0].w : aw[1].w;
+		if (gfa_deg(g, u[0]^1) != 1) continue;
+		if (gfa_deg(g, u[1]^1) != 1) continue;
+		if (!gfa_is_extended(g, v^1, min_dist, max_dist, b)) continue;
+		if (!gfa_is_extended(g, w^1, min_dist, max_dist, b)) continue;
+		if (!gfa_is_extended(g, u[0], min_dist, max_dist, b)) continue;
+		if (!gfa_is_extended(g, u[1], min_dist, max_dist, b)) continue;
+		a->del = 1;
+		gfa_arc_del(g, w, v^1, 1);
+		++n_cut;
+	}
+	gfa_tbuf_destroy(b);
+	fprintf(stderr, "[M::%s] cut %d Z-junctions\n", __func__, n_cut);
+	if (n_cut > 0) gfa_cleanup(g);
+	return n_cut;
 }
 
 int gfa_topocut(gfa_t *g, float drop_ratio, int32_t tip_cnt, int32_t tip_len)
@@ -581,7 +625,7 @@ gfa_t *gfa_ug_gen(const gfa_t *g)
 		gfa_seg_t *u;
 		gfa_arc_t *a;
 
-		if (g->seg[v>>1].del || arc_cnt(g, v) == 0 || mark[v]) continue;
+		if (g->seg[v>>1].del || mark[v]) continue;
 		mark[v] = 1;
 		q->count = 0, start = v, end = v^1, len = len_r = 0;
 		// forward
