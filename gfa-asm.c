@@ -260,18 +260,12 @@ typedef struct {
 	kvec_t(uint32_t) S; // set of vertices without parents
 	kvec_t(uint32_t) b; // visited vertices
 	kvec_t(uint32_t) e; // visited edges/arcs
-	int32_t n_short_tip, n_bb, dist; // n_short_tip: number of short tips; n_bb: number of bubbles; dist: min distance from one of the input vertices
-	uint32_t v_end;     // end vertex; dist and v_end only set when n_bb>0
+	int32_t n_short_tip, n_sink, dist, self_cycle; // n_short_tip: number of branching short tips; n_sink: number of sinks; dist: min distance from the input vertex
+	uint32_t v_sink;    // end vertex; dist and v_sink only set when n_sink>0
 } gfa_tbuf_t;
 
 #define GFA_TE_THRU_SHORT_TIP  0x1
 #define GFA_TE_THRU_BUBBLE     0x2
-
-#define GFA_TE_TYPE_NONE       0x0
-#define GFA_TE_TYPE_BUBBLE     0x1
-#define GFA_TE_TYPE_SHORT_TIP  0x2
-#define GFA_TE_TYPE_SELF_CYC   0x4
-#define GFA_TE_TYPE_SELF_BICYC 0x8
 
 static gfa_tbuf_t *gfa_tbuf_init(const gfa_t *g)
 {
@@ -300,45 +294,45 @@ static void gfa_tbuf_reset(gfa_tbuf_t *b)
 	}
 }
 
-static int32_t gfa_topo_ext(const gfa_t *g, uint32_t n_v0, const uint32_t *v0, int32_t max_dist, int32_t thru_flag, gfa_tbuf_t *b)
+static int32_t gfa_topo_ext(const gfa_t *g, uint32_t v0, int32_t max_dist, int32_t thru_flag, gfa_tbuf_t *b) // max_dist from the end of v0
 {
-	uint32_t i, type = 0, n_pending = 0; // n_pending: number of visited vertices that are not sorted
+	uint32_t i, n_pending = 0; // n_pending: number of visited vertices that are not sorted
 	int32_t max_d = INT32_MIN; // max_d: max gfa_tinfo_t::d of visited vertices
+	gfa_tinfo_t *t;
 
 	b->S.n = b->b.n = b->e.n = 0;
-	b->n_short_tip = b->n_bb = 0, b->dist = -1, b->v_end = (uint32_t)-1;
-	if (n_v0 == 0) return 0;
-	for (i = 0; i < n_v0; ++i) {
-		uint32_t v = v0[i];
-		gfa_tinfo_t *t = &b->a[v];
-		if (g->seg[v>>1].del) continue;
-		t->p = (uint32_t)-1, t->r = 0, t->c = t->s = 0; // ->s has to be 0, as gfa_tbuf_reset() doesn't reset the initial vertices
-		t->d = -(int32_t)g->seg[v>>1].len;
-		kv_push(uint32_t, b->S, v);
-	}
+	b->n_short_tip = b->n_sink = 0, b->dist = 0, b->self_cycle = 0, b->v_sink = (uint32_t)-1;
+	if (g->seg[v0>>1].del) return 0;
+	t = &b->a[v0];
+	t->p = (uint32_t)-1, t->r = 0, t->c = t->s = 0; // ->s has to be 0, as gfa_tbuf_reset() doesn't reset the initial vertex
+	t->d = -(int32_t)g->seg[v0>>1].len;
+	kv_push(uint32_t, b->S, v0);
 
 	while (b->S.n > 0 && max_d <= max_dist) {
 		uint32_t v = kv_pop(b->S), nv = gfa_arc_n(g, v);
-		int32_t d = b->a[v].d, c = b->a[v].c, end_dist = d + (int32_t)g->seg[v>>1].len;
+		int32_t d = b->a[v].d, c = b->a[v].c;
 		gfa_arc_t *av = gfa_arc_a(g, v);
-		if (n_pending == 0 && end_dist > b->dist)
-			b->dist = end_dist, b->v_end = v;
+		if (b->S.n == 0 && n_pending == 0) { // a sink vertex
+			b->dist = d, b->v_sink = v;
+			if (v != v0) { // exclude the input vertex
+				++b->n_sink;
+				if (!(thru_flag & GFA_TE_THRU_BUBBLE)) break;
+			}
+		}
 		if (gfa_deg(g, v) == 0) { // a tip
-			if (end_dist < max_dist) { // a tip shorter than max_dist
-				++b->n_short_tip;
+			if (d + (int32_t)g->seg[v>>1].len < max_dist) { // a tip shorter than max_dist
+				if (b->S.n || n_pending) ++b->n_short_tip; // don't count a tip if it is the end of a bubble chain
 				if (thru_flag & GFA_TE_THRU_SHORT_TIP) continue;
 				else break;
 			} else break; // if we come here, we have a tip beyond max_dist; we stop
 		}
 		for (i = 0; i < nv; ++i) { // loop through v's neighbors
-			uint32_t j, w = av[i].w;
+			uint32_t w = av[i].w;
 			int32_t l = (int32_t)av[i].v_lv; // u->w with length l
 			gfa_tinfo_t *t = &b->a[w];
 			if (av[i].del) continue;
-			for (j = 0; j < n_v0; ++j) // test cycles or bidirected cycles involving the starting vertices
-				if (w>>1 == v0[j]>>1 && !g->seg[v0[j]>>1].del) break;
-			if (j < n_v0) {
-				type |= w == v0[j]? GFA_TE_TYPE_SELF_CYC : GFA_TE_TYPE_SELF_BICYC; // cycle or bidirected cycle
+			if (w>>1 == v0>>1) {
+				b->self_cycle |= w == v0? 1 : 2; // cycle or bidirected cycle involving the input vertex
 				break;
 			}
 			kv_push(uint32_t, b->e, (g->idx[v]>>32) + i); // save the edge
@@ -359,17 +353,9 @@ static int32_t gfa_topo_ext(const gfa_t *g, uint32_t n_v0, const uint32_t *v0, i
 				--n_pending;
 			}
 		}
-		if (i < nv || b->S.n == 0) break;
-		if (b->S.n == 1 && n_pending == 0) { // end of a bubble
-			uint32_t v = b->S.a[0];
-			b->dist = b->a[v].d, b->v_end = v;
-			++b->n_bb;
-			if (!(thru_flag & GFA_TE_THRU_BUBBLE)) break;
-		}
+		if (i < nv) break;
 	}
-	if (b->n_bb)  type |= GFA_TE_TYPE_BUBBLE;
-	if (b->n_short_tip) type |= GFA_TE_TYPE_SHORT_TIP;
-	return type;
+	return b->n_sink;
 }
 
 /************************
@@ -419,7 +405,7 @@ int gfa_drop_internal(gfa_t *g, int max_ext)
 static inline int32_t gfa_is_extended(const gfa_t *g, uint32_t v, int32_t min_dist, int32_t max_dist, gfa_tbuf_t *b)
 {
 	if (g->seg[v>>1].len >= min_dist) return 1;
-	gfa_topo_ext(g, 1, &v, max_dist - g->seg[v>>1].len, GFA_TE_THRU_BUBBLE, b);
+	gfa_topo_ext(g, v, max_dist - g->seg[v>>1].len, GFA_TE_THRU_BUBBLE, b);
 	gfa_tbuf_reset(b);
 	return b->dist + g->seg[v>>1].len > min_dist? 1 : 0;
 }
@@ -429,6 +415,7 @@ int gfa_cut_z(gfa_t *g, int32_t min_dist, int32_t max_dist)
 	uint32_t n_cut = 0;
 	int64_t e;
 	gfa_tbuf_t *b;
+	assert(min_dist < max_dist);
 	b = gfa_tbuf_init(g);
 	for (e = 0; e < g->n_arc; ++e) {
 		gfa_arc_t *a = &g->arc[e], *av, *aw;
@@ -545,10 +532,10 @@ int gfa_topocut(gfa_t *g, float drop_ratio, int32_t tip_cnt, int32_t tip_len)
 static void gfa_bub_backtrack(gfa_t *g, uint32_t v0, int max_del, gfa_tbuf_t *b)
 {
 	uint32_t i, v;
-	assert(b->S.n == 1);
+	assert(b->S.n == 0);
 	if (max_del > 0) {
 		int32_t n_kept = 0;
-		v = b->v_end;
+		v = b->v_sink;
 		do { ++n_kept, v = b->a[v].p; } while (v != v0);
 		if (b->b.n - n_kept > max_del) return;
 	}
@@ -559,7 +546,7 @@ static void gfa_bub_backtrack(gfa_t *g, uint32_t v0, int max_del, gfa_tbuf_t *b)
 		a->del = 1;
 		gfa_arc_del(g, a->w^1, a->v_lv>>32^1, 1);
 	}
-	v = b->v_end;
+	v = b->v_sink;
 	do {
 		uint32_t u = b->a[v].p; // u->v
 		g->seg[v>>1].del = 0;
@@ -574,8 +561,8 @@ static int32_t gfa_bub_pop1(gfa_t *g, uint32_t v0, int max_dist, int max_del, in
 {
 	uint64_t ret = 0;
 	if (gfa_deg(g, v0) < 2) return 0; // no bubbles
-	gfa_topo_ext(g, 1, &v0, max_dist, protect_tip? 0 : GFA_TE_THRU_SHORT_TIP, b);
-	if (b->n_bb) {
+	gfa_topo_ext(g, v0, max_dist, protect_tip? 0 : GFA_TE_THRU_SHORT_TIP, b);
+	if (b->n_sink) {
 		gfa_bub_backtrack(g, v0, max_del, b);
 		ret = 1 | (uint64_t)b->n_short_tip << 32;
 	}
