@@ -264,14 +264,14 @@ typedef struct {
 	uint32_t v_end;     // end vertex; dist and v_end only set when n_bb>0
 } gfa_tbuf_t;
 
-#define GFA_TES_SHORT_TIP  0x1
-#define GFA_TES_BB         0x2
+#define GFA_TE_THRU_SHORT_TIP  0x1
+#define GFA_TE_THRU_BUBBLE     0x2
 
-#define GFA_TET_NONE       0x0
-#define GFA_TET_BB         0x1
-#define GFA_TET_SHORT_TIP  0x2
-#define GFA_TET_SELF_CYC   0x4
-#define GFA_TET_SELF_BICYC 0x8
+#define GFA_TE_TYPE_NONE       0x0
+#define GFA_TE_TYPE_BUBBLE     0x1
+#define GFA_TE_TYPE_SHORT_TIP  0x2
+#define GFA_TE_TYPE_SELF_CYC   0x4
+#define GFA_TE_TYPE_SELF_BICYC 0x8
 
 static gfa_tbuf_t *gfa_tbuf_init(const gfa_t *g)
 {
@@ -300,7 +300,7 @@ static void gfa_tbuf_reset(gfa_tbuf_t *b)
 	}
 }
 
-static int32_t gfa_topo_ext(const gfa_t *g, uint32_t n_v0, const uint32_t *v0, int32_t max_dist, int32_t stop_flag, gfa_tbuf_t *b)
+static int32_t gfa_topo_ext(const gfa_t *g, uint32_t n_v0, const uint32_t *v0, int32_t max_dist, int32_t thru_flag, gfa_tbuf_t *b)
 {
 	uint32_t i, type = 0, n_pending = 0; // n_pending: number of visited vertices that are not sorted
 	int32_t max_d = INT32_MIN; // max_d: max gfa_tinfo_t::d of visited vertices
@@ -322,12 +322,12 @@ static int32_t gfa_topo_ext(const gfa_t *g, uint32_t n_v0, const uint32_t *v0, i
 		int32_t d = b->a[v].d, c = b->a[v].c, end_dist = d + (int32_t)g->seg[v>>1].len;
 		gfa_arc_t *av = gfa_arc_a(g, v);
 		if (n_pending == 0 && end_dist > b->dist)
-			b->dist = end_dist;
+			b->dist = end_dist, b->v_end = v;
 		if (gfa_deg(g, v) == 0) { // a tip
 			if (end_dist < max_dist) { // a tip shorter than max_dist
 				++b->n_short_tip;
-				if (stop_flag & GFA_TES_SHORT_TIP) break;
-				else continue;
+				if (thru_flag & GFA_TE_THRU_SHORT_TIP) continue;
+				else break;
 			} else break; // if we come here, we have a tip beyond max_dist; we stop
 		}
 		for (i = 0; i < nv; ++i) { // loop through v's neighbors
@@ -338,7 +338,7 @@ static int32_t gfa_topo_ext(const gfa_t *g, uint32_t n_v0, const uint32_t *v0, i
 			for (j = 0; j < n_v0; ++j) // test cycles or bidirected cycles involving the starting vertices
 				if (w>>1 == v0[j]>>1 && !g->seg[v0[j]>>1].del) break;
 			if (j < n_v0) {
-				type |= w == v0[j]? GFA_TET_SELF_CYC : GFA_TET_SELF_BICYC; // cycle or bidirected cycle
+				type |= w == v0[j]? GFA_TE_TYPE_SELF_CYC : GFA_TE_TYPE_SELF_BICYC; // cycle or bidirected cycle
 				break;
 			}
 			kv_push(uint32_t, b->e, (g->idx[v]>>32) + i); // save the edge
@@ -364,11 +364,11 @@ static int32_t gfa_topo_ext(const gfa_t *g, uint32_t n_v0, const uint32_t *v0, i
 			uint32_t v = b->S.a[0];
 			b->dist = b->a[v].d, b->v_end = v;
 			++b->n_bb;
-			if (stop_flag & GFA_TES_BB) break;
+			if (!(thru_flag & GFA_TE_THRU_BUBBLE)) break;
 		}
 	}
-	if (b->n_bb)  type |= GFA_TET_BB;
-	if (b->n_short_tip) type |= GFA_TET_SHORT_TIP;
+	if (b->n_bb)  type |= GFA_TE_TYPE_BUBBLE;
+	if (b->n_short_tip) type |= GFA_TE_TYPE_SHORT_TIP;
 	return type;
 }
 
@@ -418,7 +418,8 @@ int gfa_drop_internal(gfa_t *g, int max_ext)
 
 static inline int32_t gfa_is_extended(const gfa_t *g, uint32_t v, int32_t min_dist, int32_t max_dist, gfa_tbuf_t *b)
 {
-	gfa_topo_ext(g, 1, &v, max_dist, GFA_TES_SHORT_TIP, b);
+	if (g->seg[v>>1].len >= min_dist) return 1;
+	gfa_topo_ext(g, 1, &v, max_dist - g->seg[v>>1].len, GFA_TE_THRU_BUBBLE, b);
 	gfa_tbuf_reset(b);
 	return b->dist + g->seg[v>>1].len > min_dist? 1 : 0;
 }
@@ -573,7 +574,7 @@ static int32_t gfa_bub_pop1(gfa_t *g, uint32_t v0, int max_dist, int max_del, in
 {
 	uint64_t ret = 0;
 	if (gfa_deg(g, v0) < 2) return 0; // no bubbles
-	gfa_topo_ext(g, 1, &v0, max_dist, GFA_TES_BB | (protect_tip? GFA_TES_SHORT_TIP : 0), b);
+	gfa_topo_ext(g, 1, &v0, max_dist, protect_tip? 0 : GFA_TE_THRU_SHORT_TIP, b);
 	if (b->n_bb) {
 		gfa_bub_backtrack(g, v0, max_del, b);
 		ret = 1 | (uint64_t)b->n_short_tip << 32;
