@@ -107,7 +107,7 @@ int main(int argc, char *argv[])
 		gfa_drop_tip(sg, 3, INT32_MAX);
 		gfa_topocut(sg, 0.9, 3, INT32_MAX);
 		gfa_drop_tip(sg, 3, INT32_MAX);
-		gfa_bub_simple(sg, 3, 20);
+		gfa_pop_bubble(sg, 1000, 3, 1);
 	}
 
 	if (gen_ug) {

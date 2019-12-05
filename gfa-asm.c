@@ -260,7 +260,7 @@ typedef struct {
 	kvec_t(uint32_t) S; // set of vertices without parents
 	kvec_t(uint32_t) b; // visited vertices
 	kvec_t(uint32_t) e; // visited edges/arcs
-	int32_t n_tip, n_bb, dist; // n_tip: number of short tips; n_bb: number of bubbles; dist: min distance from one of the input vertices
+	int32_t n_short_tip, n_bb, dist; // n_short_tip: number of short tips; n_bb: number of bubbles; dist: min distance from one of the input vertices
 	uint32_t v_end;     // end vertex; dist and v_end only set when n_bb>0
 } gfa_tbuf_t;
 
@@ -279,7 +279,8 @@ static gfa_tbuf_t *gfa_tbuf_init(const gfa_t *g)
 	gfa_tbuf_t *b;
 	GFA_CALLOC(b, 1);
 	GFA_CALLOC(b->a, gfa_n_vtx(g));
-	for (v = 0; v < n_vtx; ++v) b->a[v].p = (uint32_t)-1;
+	for (v = 0; v < n_vtx; ++v)
+		b->a[v].p = (uint32_t)-1, b->a[v].d = INT32_MIN;
 	return b;
 }
 
@@ -295,39 +296,47 @@ static void gfa_tbuf_reset(gfa_tbuf_t *b)
 	uint32_t i;
 	for (i = 0; i < b->b.n; ++i) { // clear the states of visited vertices
 		gfa_tinfo_t *t = &b->a[b->b.a[i]];
-		t->s = t->c = t->d = t->r = 0, t->p = (uint32_t)-1;
+		t->s = t->c = t->r = 0, t->p = (uint32_t)-1, t->d = INT32_MIN;
 	}
 }
 
 static int32_t gfa_topo_ext(const gfa_t *g, uint32_t n_v0, const uint32_t *v0, int32_t max_dist, int32_t stop_flag, gfa_tbuf_t *b)
 {
-	uint32_t i, n_pending = 0; // n_pending: number of visited vertices that are not sorted
-	uint32_t type = 0, max_d = 0; // max_d: max gfa_tinfo_t::d of visited vertices
+	uint32_t i, type = 0, n_pending = 0; // n_pending: number of visited vertices that are not sorted
+	int32_t max_d = INT32_MIN; // max_d: max gfa_tinfo_t::d of visited vertices
 
 	b->S.n = b->b.n = b->e.n = 0;
-	b->n_tip = b->n_bb = 0, b->dist = -1, b->v_end = (uint32_t)-1;
+	b->n_short_tip = b->n_bb = 0, b->dist = -1, b->v_end = (uint32_t)-1;
 	if (n_v0 == 0) return 0;
 	for (i = 0; i < n_v0; ++i) {
 		uint32_t v = v0[i];
 		gfa_tinfo_t *t = &b->a[v];
 		if (g->seg[v>>1].del) continue;
-		t->p = (uint32_t)-1, t->r = 0, t->c = t->d = 0, t->s = 0; // ->s has to be 0, as gfa_tbuf_reset() doesn't reset the initial vertices
+		t->p = (uint32_t)-1, t->r = 0, t->c = t->s = 0; // ->s has to be 0, as gfa_tbuf_reset() doesn't reset the initial vertices
+		t->d = -(int32_t)g->seg[v>>1].len;
 		kv_push(uint32_t, b->S, v);
 	}
 
 	while (b->S.n > 0 && max_d <= max_dist) {
-		uint32_t v = kv_pop(b->S), d = b->a[v].d, c = b->a[v].c;
-		uint32_t nv = gfa_arc_n(g, v);
+		uint32_t v = kv_pop(b->S), nv = gfa_arc_n(g, v);
+		int32_t d = b->a[v].d, c = b->a[v].c;
 		gfa_arc_t *av = gfa_arc_a(g, v);
-		assert(nv > 0); // a tip should never be added to S
+		if (gfa_deg(g, v) == 0) { // a tip
+			if (d + (int32_t)g->seg[v>>1].len < max_dist) { // a tip shorter than max_dist
+				++b->n_short_tip;
+				if (stop_flag & GFA_TES_SHORT_TIP) break;
+				else continue;
+			} else break; // if we come here, we have a tip beyond max_dist; we stop
+		}
 		for (i = 0; i < nv; ++i) { // loop through v's neighbors
-			uint32_t j, w = av[i].w, l = (uint32_t)av[i].v_lv; // u->w with length l
+			uint32_t j, w = av[i].w;
+			int32_t l = (int32_t)av[i].v_lv; // u->w with length l
 			gfa_tinfo_t *t = &b->a[w];
 			if (av[i].del) continue;
-			for (j = 0; j < n_v0; ++j)
+			for (j = 0; j < n_v0; ++j) // test cycles or bidirected cycles involving the starting vertices
 				if (w>>1 == v0[j]>>1 && !g->seg[v0[j]>>1].del) break;
 			if (j < n_v0) {
-				type |= w == v0[j]? GFA_TET_SELF_CYC : GFA_TET_SELF_BICYC; // cycle or bi-cycle involving one of the starting vertex
+				type |= w == v0[j]? GFA_TET_SELF_CYC : GFA_TET_SELF_BICYC; // cycle or bidirected cycle
 				break;
 			}
 			kv_push(uint32_t, b->e, (g->idx[v]>>32) + i); // save the edge
@@ -344,18 +353,12 @@ static int32_t gfa_topo_ext(const gfa_t *g, uint32_t n_v0, const uint32_t *v0, i
 			max_d = max_d > t->d? max_d : t->d;
 			assert(t->r > 0);
 			if (--(t->r) == 0) {
-				uint32_t x;
-				x = gfa_deg(g, w);
-				if (x) kv_push(uint32_t, b->S, w);
-				else { // a tip shorter than max_dist
-					++b->n_tip;
-					if (stop_flag & GFA_TES_SHORT_TIP) break;
-				}
+				kv_push(uint32_t, b->S, w);
 				--n_pending;
 			}
 		}
 		if (i < nv || b->S.n == 0) break;
-		if (b->S.n == 1 && n_pending == 0) { // a bubble
+		if (b->S.n == 1 && n_pending == 0) { // end of a bubble
 			uint32_t v = b->S.a[0];
 			b->dist = b->a[v].d, b->v_end = v;
 			++b->n_bb;
@@ -363,7 +366,7 @@ static int32_t gfa_topo_ext(const gfa_t *g, uint32_t n_v0, const uint32_t *v0, i
 		}
 	}
 	if (b->n_bb)  type |= GFA_TET_BB;
-	if (b->n_tip) type |= GFA_TET_SHORT_TIP;
+	if (b->n_short_tip) type |= GFA_TET_SHORT_TIP;
 	return type;
 }
 
@@ -503,17 +506,14 @@ static void gfa_bub_backtrack(gfa_t *g, uint32_t v0, int max_del, gfa_tbuf_t *b)
 }
 
 // pop bubbles from vertex v0; the graph MJUST BE symmetric: if u->v present, v'->u' must be present as well
-static int32_t gfa_bub_pop1(gfa_t *g, uint32_t v0, int max_del, int max_dist, int protect_tip, gfa_tbuf_t *b)
+static int32_t gfa_bub_pop1(gfa_t *g, uint32_t v0, int max_dist, int max_del, int protect_tip, gfa_tbuf_t *b)
 {
-	uint32_t stop_flag = GFA_TES_BB;
 	uint64_t ret = 0;
-	if (g->seg[v0>>1].del) return 0; // already deleted
-	if (gfa_arc_n(g, v0) < 2) return 0; // no bubbles
-	if (protect_tip) stop_flag |= GFA_TES_SHORT_TIP;
-	gfa_topo_ext(g, 1, &v0, max_dist, stop_flag, b);
+	if (gfa_deg(g, v0) < 2) return 0; // no bubbles
+	gfa_topo_ext(g, 1, &v0, max_dist, GFA_TES_BB | (protect_tip? GFA_TES_SHORT_TIP : 0), b);
 	if (b->n_bb) {
 		gfa_bub_backtrack(g, v0, max_del, b);
-		ret = 1 | (uint64_t)b->n_tip << 32;
+		ret = 1 | (uint64_t)b->n_short_tip << 32;
 	}
 	gfa_tbuf_reset(b);
 	return ret;
@@ -531,7 +531,7 @@ int gfa_pop_bubble(gfa_t *g, int max_dist, int max_del, int protect_tip)
 			n_pop += gfa_bub_pop1(g, v, max_dist, max_del, protect_tip, b);
 	gfa_tbuf_destroy(b);
 	if (n_pop) gfa_cleanup(g);
-	if (gfa_verbose >= 3) fprintf(stderr, "[M] popped %d bubbles and trimmed %d tips\n", (uint32_t)n_pop, (uint32_t)(n_pop>>32));
+	if (gfa_verbose >= 3) fprintf(stderr, "[M] popped %d bubbles and trimmed short %d tips\n", (uint32_t)n_pop, (uint32_t)(n_pop>>32));
 	return n_pop;
 }
 
