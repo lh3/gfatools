@@ -108,6 +108,8 @@ int main(int argc, char *argv[])
 		gfa_topocut(sg, 0.9, 3, INT32_MAX);
 		gfa_drop_tip(sg, 3, INT32_MAX);
 		gfa_pop_bubble(sg, 1000, 3, 1);
+		gfa_drop_internal(sg, 1);
+		gfa_drop_tip(sg, 3, INT32_MAX);
 	}
 
 	if (gen_ug) {

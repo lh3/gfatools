@@ -395,6 +395,25 @@ int gfa_drop_tip(gfa_t *g, int tip_cnt, int tip_len)
 	return cnt;
 }
 
+int gfa_drop_internal(gfa_t *g, int max_ext)
+{
+	gfa32_v a = {0,0,0};
+	uint32_t n_vtx = gfa_n_vtx(g), v, i, cnt = 0;
+	for (v = 0; v < n_vtx; ++v) {
+		int32_t l_ext;
+		if (g->seg[v>>1].del) continue;
+		if (gfa_vtype(g, v^1, 0, 0) != GFA_VT_MULTI_IN) continue;
+		if (gfa_uext(g, v, max_ext, 0, &l_ext, 0, &a) != GFA_VT_MULTI_IN) continue;
+		for (i = 0; i < a.n; ++i)
+			gfa_seg_del(g, a.a[i]>>1);
+		++cnt;
+	}
+	free(a.a);
+	if (cnt > 0) gfa_cleanup(g);
+	fprintf(stderr, "[M::%s] cut %d internal sequences\n", __func__, cnt);
+	return cnt;
+}
+
 int gfa_topocut(gfa_t *g, float drop_ratio, int32_t tip_cnt, int32_t tip_len)
 {
 	uint32_t n_vtx = gfa_n_vtx(g), v, n_cut = 0;
