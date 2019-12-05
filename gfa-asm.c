@@ -531,7 +531,7 @@ int gfa_pop_bubble(gfa_t *g, int max_dist, int max_del, int protect_tip)
 			n_pop += gfa_bub_pop1(g, v, max_dist, max_del, protect_tip, b);
 	gfa_tbuf_destroy(b);
 	if (n_pop) gfa_cleanup(g);
-	if (gfa_verbose >= 3) fprintf(stderr, "[M] popped %d bubbles and trimmed short %d tips\n", (uint32_t)n_pop, (uint32_t)(n_pop>>32));
+	if (gfa_verbose >= 3) fprintf(stderr, "[M::%s] popped %d bubbles and trimmed short %d tips\n", __func__, (uint32_t)n_pop, (uint32_t)(n_pop>>32));
 	return n_pop;
 }
 
