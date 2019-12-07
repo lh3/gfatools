@@ -7,7 +7,7 @@
 #include "miniasm.h"
 #include "gfa-priv.h"
 
-#define MA_VERSION "0.3-r157-dirty"
+#define MA_VERSION "0.3-r158-dirty"
 
 extern double gfa_realtime0;
 extern double gfa_realtime(void);
@@ -37,13 +37,13 @@ int main(int argc, char *argv[])
 	char *fn_reads = 0;
 
 	double int_frac = 0.8, min_iden = 0.0;
-	int add_dual = 1, flt = 0, gen_ug = 0, clean = 0, keep_uni_edge = 0;
+	int add_dual = 1, flt = 0, gen_ug = 0, clean = 0, aggre = 0, keep_uni_edge = 0;
 	int min_dp = 2, min_ovlp = 500, min_match = 0, max_hang = 100;
 
 	gfa_t *sg = 0;
 	ma_ug_t *ug = 0;
 
-	while ((c = ketopt(&o, argc, argv, 1, "bfh:o:ucUi:", 0)) >= 0) {
+	while ((c = ketopt(&o, argc, argv, 1, "bfh:o:ucUi:a", 0)) >= 0) {
 		if (c == 'b') add_dual = 0;
 		else if (c == 'f') ++flt;
 		else if (c == 'h') max_hang = gfa_str2num(o.arg, 0);
@@ -51,6 +51,7 @@ int main(int argc, char *argv[])
 		else if (c == 'u') gen_ug = 1;
 		else if (c == 'U') keep_uni_edge = 1;
 		else if (c == 'c') ++clean;
+		else if (c == 'a') ++aggre;
 		else if (c == 'i') fn_reads = o.arg;
 		else if (c == 'V') {
 			printf("%s\n", MA_VERSION);
@@ -110,7 +111,11 @@ int main(int argc, char *argv[])
 	if (clean >= 3) {
 		gfa_drop_internal(sg, 1);
 		gfa_drop_tip(sg, 3, INT32_MAX);
-		gfa_cut_z(sg, 50000, 100000);
+		gfa_cut_z(sg, 50000, 100000); // this is not well tested
+	}
+	if (aggre >= 1) {
+		gfa_pop_bubble(sg, 100000, INT32_MAX, 1);
+		gfa_drop_tip(sg, 100, 100000);
 	}
 
 	if (gen_ug) {
