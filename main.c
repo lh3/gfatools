@@ -501,7 +501,8 @@ int main(int argc, char *argv[])
 		fprintf(stderr, "  gfa2fa      convert GFA to FASTA\n");
 		fprintf(stderr, "  gfa2bed     convert GFA to BED (requiring rGFA)\n");
 		fprintf(stderr, "  blacklist   blacklist regions\n");
-//		fprintf(stderr, "  gt          genotype from the \"dc\" tag (requring rGFA)\n");
+		fprintf(stderr, "  bubble      print bubble-like regions (EXPERIMENTAL)\n");
+//		fprintf(stderr, "  gt          genotype from the \"dc\" tag (requring rGFA; EXPERIMENTAL)\n");
 		fprintf(stderr, "  asm         miniasm-like graph transformation\n");
 		fprintf(stderr, "  version     print version number\n");
 		return 1;

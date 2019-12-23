@@ -15,7 +15,7 @@ KRADIX_SORT_INIT(gfa32, int32_t, generic_key, 4)
 
 typedef struct tnode_s {
 	uint64_t nd;
-	uint32_t v, in_tree;
+	uint32_t v, in_tree:31, forced:1;
 	KAVL_HEAD(struct tnode_s) head;
 } tnode_t;
 
@@ -31,7 +31,7 @@ static inline tnode_t *gen_tnode(void *km, const gfa_t *g, uint32_t v, int32_t d
 {
 	tnode_t *p;
 	KMALLOC(km, p, 1);
-	p->v = v, p->in_tree = 1;
+	p->v = v, p->in_tree = 1, p->forced = 0;
 	p->nd = (uint64_t)gfa_arc_n(g, v^1) << 32 | d;
 	return p;
 }
@@ -63,6 +63,7 @@ gfa_sub_t *gfa_sub_from(void *km0, const gfa_t *g, uint32_t v0, int32_t max_dist
 		gfa_arc_t *av;
 
 		q = kavl_erase_first(v, &root); // take out the "smallest" vertex
+		q->forced = (q->nd >> 32 > 0);
 		q->in_tree = 0;
 		if (n_L == m_L) KEXPAND(km, L, m_L);
 		L[n_L++] = q;
@@ -75,7 +76,7 @@ gfa_sub_t *gfa_sub_from(void *km0, const gfa_t *g, uint32_t v0, int32_t max_dist
 			int32_t dt = d + (uint32_t)avi->v_lv;
 			if (max_dist > 0 && dt > max_dist) continue;
 			k = kh_get(v, h, avi->w^1);
-			if (k != kh_end(h) && !kh_val(h, k)->in_tree) {
+			if (k != kh_end(h) && !kh_val(h, k)->in_tree && !kh_val(h, k)->forced) { // TODO: not sure how this reacts to more complex topologies
 				++n_bidir;
 				continue;
 			}
