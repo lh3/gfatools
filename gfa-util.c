@@ -298,7 +298,7 @@ gfa_bubble_t *gfa_bubble(const gfa_t *g, int32_t *n_bb_)
 					b->len_min = ba[j].sd - ba[jst].sd - sst->len;
 					b->len_max = ba[j].ld - ba[jst].ld - sst->len;
 					assert(b->len_min >= 0);
-					assert(b->len_max > 0 && b->len_max >= b->len_min);
+					assert(b->len_max >= 0 && b->len_max >= b->len_min);
 					b->n_seg = j - jst + 1;
 					l = (b->len_min + 1) + (b->len_max + 1);
 					l = (l + 3) / 4 + b->n_seg;

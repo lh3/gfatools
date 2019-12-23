@@ -46,7 +46,7 @@ gfa_sub_t *gfa_sub_from(void *km0, const gfa_t *g, uint32_t v0, int32_t max_dist
 	tnode_t *p, *root = 0, **L = 0;
 	khash_t(v) *h;
 	khint_t k;
-	int32_t j, n_L = 0, m_L = 0, n_arc = 0, off;
+	int32_t j, n_L = 0, m_L = 0, n_arc = 0, off, n_bidir = 0;
 	int absent;
 	gfa_sub_t *sub = 0;
 
@@ -74,6 +74,10 @@ gfa_sub_t *gfa_sub_from(void *km0, const gfa_t *g, uint32_t v0, int32_t max_dist
 			gfa_arc_t *avi = &av[i];
 			int32_t dt = d + (uint32_t)avi->v_lv;
 			if (max_dist > 0 && dt > max_dist) continue;
+			if (kh_get(v, h, avi->w^1) != kh_end(h)) {
+				++n_bidir;
+				continue;
+			}
 			++n_arc;
 			k = kh_put(v, h, avi->w, &absent);
 			if (absent) { // a vertex that hasn't been visited before

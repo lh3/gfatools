@@ -359,9 +359,11 @@ int main_bubble(int argc, char *argv[])
 			if (j) fputc(',', stdout);
 			printf("%s", g->seg[b->v[j]>>1].name);
 		}
-		if (b->len_min == 0) printf("\t*");
+		if (b->len_min == 0) fputs("\t*", stdout);
 		else printf("\t%s", b->seq_min);
-		printf("\t%s\n", b->seq_max);
+		if (b->len_max == 0) fputs("\t*", stdout);
+		else printf("\t%s", b->seq_max);
+		putchar('\n');
 		free(b->v);
 	}
 	free(bb);
