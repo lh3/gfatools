@@ -74,7 +74,8 @@ gfa_sub_t *gfa_sub_from(void *km0, const gfa_t *g, uint32_t v0, int32_t max_dist
 			gfa_arc_t *avi = &av[i];
 			int32_t dt = d + (uint32_t)avi->v_lv;
 			if (max_dist > 0 && dt > max_dist) continue;
-			if (kh_get(v, h, avi->w^1) != kh_end(h)) {
+			k = kh_get(v, h, avi->w^1);
+			if (k != kh_end(h) && !kh_val(h, k)->in_tree) {
 				++n_bidir;
 				continue;
 			}
