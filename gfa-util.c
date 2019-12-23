@@ -235,8 +235,9 @@ static float aux_get_f(const gfa_aux_t *aux, const char tag[2], float fallback)
 
 gfa_bubble_t *gfa_bubble(const gfa_t *g, int32_t *n_bb_)
 {
-	uint32_t i, *vs, *vmin;
-	int32_t n_bb = 0, m_bb = 0;
+	extern void radix_sort_gfa32(uint32_t*, uint32_t*);
+	uint32_t i, *vs, *vmin, *vtmp = 0;
+	int32_t n_bb = 0, m_bb = 0, m_vtmp = 0;
 	gfa_bubble_t *bb = 0;
 
 	GFA_MALLOC(vs, g->n_sseq);
@@ -288,6 +289,7 @@ gfa_bubble_t *gfa_bubble(const gfa_t *g, int32_t *n_bb_)
 					float f;
 					gfa_bubble_t *b;
 
+					// basic information
 					if (n_bb == m_bb) GFA_EXPAND(bb, m_bb);
 					b = &bb[n_bb++];
 					b->snid = i;
@@ -308,6 +310,19 @@ gfa_bubble_t *gfa_bubble(const gfa_t *g, int32_t *n_bb_)
 					for (k = jst; k <= j; ++k)
 						b->v[k - jst] = sub->v[k].v;
 
+					// test bubble involving both strands (mostly inversions)
+					if (b->n_seg > m_vtmp) {
+						m_vtmp = b->n_seg;
+						kroundup32(m_vtmp);
+						GFA_REALLOC(vtmp, m_vtmp);
+					}
+					for (k = 0; k < b->n_seg; ++k) vtmp[k] = b->v[k]>>1;
+					radix_sort_gfa32(vtmp, vtmp + b->n_seg);
+					for (k = 1; k < b->n_seg; ++k)
+						if (vtmp[k] == vtmp[k-1]) break;
+					b->is_bidir = (k < b->n_seg);
+
+					// generate sequences and cf_min/cf_max
 					GFA_MALLOC(v, j - jst);
 					k = j, n = 0, f = 0.0f;
 					while (k > jst) {

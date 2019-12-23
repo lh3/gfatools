@@ -290,17 +290,19 @@ int main_gfa2fa(int argc, char *argv[])
 int main_blacklist(int argc, char *argv[])
 {
 	ketopt_t o = KETOPT_INIT;
-	int32_t i, j, c, n_bb, min_len = 100;
+	int32_t i, j, c, n_bb, min_len = 100, with_bidir = 0;
 	gfa_t *g;
 	gfa_bubble_t *bb;
 
-	while ((c = ketopt(&o, argc, argv, 1, "l:", 0)) >= 0) {
+	while ((c = ketopt(&o, argc, argv, 1, "l:b", 0)) >= 0) {
 		if (c == 'l') min_len = atoi(o.arg);
+		else if (c == 'b') with_bidir = 1;
 	}
 	if (o.ind == argc) {
 		fprintf(stderr, "Usage: gfatools blacklist [options] <in.gfa>\n");
 		fprintf(stderr, "Options:\n");
 		fprintf(stderr, "  -l INT    min region length [%d]\n", min_len);
+		fprintf(stderr, "  -b        include regions involving both strands (mostly inversions)\n");
 		return 1;
 	}
 	g = gfa_read(argv[o.ind]);
@@ -312,6 +314,7 @@ int main_blacklist(int argc, char *argv[])
 	for (i = 0; i < n_bb; ++i) {
 		gfa_bubble_t *b = &bb[i];
 		int32_t rst = b->ss, ren = b->se;
+		if (!with_bidir && b->is_bidir) continue;
 		if (ren - rst < min_len) {
 			int32_t ext = (min_len - (ren - rst) + 1) / 2;
 			rst -= ext, ren += ext;
