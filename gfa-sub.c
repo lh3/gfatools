@@ -46,7 +46,8 @@ gfa_sub_t *gfa_sub_from(void *km0, const gfa_t *g, uint32_t v0, int32_t max_dist
 	tnode_t *p, *root = 0, **L = 0;
 	khash_t(v) *h;
 	khint_t k;
-	int32_t j, n_L = 0, m_L = 0, n_arc = 0, off, n_bidir = 0;
+	int32_t j, n_L = 0, m_L = 0, n_arc = 0, m_arc = 0, off, n_bidir = 0;
+	uint32_t v_inv = (uint32_t)-1;
 	int absent;
 	gfa_sub_t *sub = 0;
 
@@ -77,7 +78,7 @@ gfa_sub_t *gfa_sub_from(void *km0, const gfa_t *g, uint32_t v0, int32_t max_dist
 			if (max_dist > 0 && dt > max_dist) continue;
 			k = kh_get(v, h, avi->w^1);
 			if (k != kh_end(h) && !kh_val(h, k)->in_tree && !kh_val(h, k)->forced) { // TODO: not sure how this reacts to more complex topologies
-				++n_bidir;
+				++n_bidir, v_inv = q->v;
 				continue;
 			}
 			++n_arc;
@@ -104,6 +105,7 @@ gfa_sub_t *gfa_sub_from(void *km0, const gfa_t *g, uint32_t v0, int32_t max_dist
 	sub->n_a = n_arc;
 	KCALLOC(sub->km, sub->v, n_L);
 	KCALLOC(sub->km, sub->a, n_arc);
+	m_arc = n_arc;
 	sub->is_dag = 1;
 
 	for (j = 0; j < n_L; ++j) L[j]->in_tree = j; // reuse ->in_tree for a different purpose
@@ -116,6 +118,7 @@ gfa_sub_t *gfa_sub_from(void *km0, const gfa_t *g, uint32_t v0, int32_t max_dist
 			gfa_arc_t *avi = &av[i];
 			k = kh_get(v, h, avi->w);
 			if (k == kh_end(h)) continue;
+			if (off == m_arc) KEXPAND(sub->km, sub->a, m_arc);
 			sub->a[off++] = (uint64_t)kh_val(h, k)->in_tree << 32 | (avi - g->arc);
 		}
 		sub->v[j].v = L[j]->v;
@@ -127,7 +130,10 @@ gfa_sub_t *gfa_sub_from(void *km0, const gfa_t *g, uint32_t v0, int32_t max_dist
 			if (sub->a[o0]>>32 <= j) sub->is_dag = 0;
 		}
 	}
-	assert(off == n_arc);
+	if (off != n_arc) {
+		assert(n_bidir > 0); // off != n_arc should only happen when n_bidir>0
+		fprintf(stderr, "[W::%s] unusual bubble chain involving %s: off=%d, n_arc=%d, n_bidir=%d\n", __func__, g->seg[v_inv>>1].name, off, n_arc, n_bidir);
+	}
 
 	km_destroy(km);
 	return sub;
