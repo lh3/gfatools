@@ -7,7 +7,7 @@
 #include "miniasm.h"
 #include "gfa-priv.h"
 
-#define MA_VERSION "0.3-r158-dirty"
+#define MA_VERSION "0.3-r166-dirty"
 
 extern double gfa_realtime0;
 extern double gfa_realtime(void);
@@ -37,18 +37,19 @@ int main(int argc, char *argv[])
 	char *fn_reads = 0;
 
 	double int_frac = 0.8, min_iden = 0.0;
-	int add_dual = 1, flt = 0, gen_ug = 0, clean = 0, aggre = 0, keep_uni_edge = 0;
+	int add_dual = 1, flt = 0, gen_ug = 0, clean = 0, aggre = 0, keep_uni_edge = 0, small_n = 3;
 	int min_dp = 2, min_ovlp = 500, min_match = 0, max_hang = 100;
 
 	gfa_t *sg = 0;
 	ma_ug_t *ug = 0;
 
-	while ((c = ketopt(&o, argc, argv, 1, "bfh:o:ucUi:a", 0)) >= 0) {
+	while ((c = ketopt(&o, argc, argv, 1, "bfh:o:ucUi:an:", 0)) >= 0) {
 		if (c == 'b') add_dual = 0;
 		else if (c == 'f') ++flt;
 		else if (c == 'h') max_hang = gfa_str2num(o.arg, 0);
 		else if (c == 'o') min_ovlp = gfa_str2num(o.arg, 0);
 		else if (c == 'u') gen_ug = 1;
+		else if (c == 'n') small_n = atoi(o.arg);
 		else if (c == 'U') keep_uni_edge = 1;
 		else if (c == 'c') ++clean;
 		else if (c == 'a') ++aggre;
@@ -63,6 +64,7 @@ int main(int argc, char *argv[])
 	if (argc == o.ind) {
 		fprintf(stderr, "Usage: paf2gfa [options] <in.paf>\n");
 		fprintf(stderr, "Options:\n");
+		fprintf(stderr, "  -n INT      threshold for tips and small bubbles [%d]\n", small_n);
 		fprintf(stderr, "  -b          both directions of an arc are present in input\n");
 		fprintf(stderr, "  -U          keep unidirectional edges (effective with -b)\n");
 		fprintf(stderr, "  -f          cut and filter initial hits\n");
@@ -96,21 +98,21 @@ int main(int argc, char *argv[])
 		gfa_drop_tip(sg, 1, INT32_MAX);
 	}
 	if (clean >= 2) {
-		gfa_topocut(sg, 0.3, 3, INT32_MAX);
+		gfa_topocut(sg, 0.3, small_n < 3? small_n : 3, INT32_MAX);
 		gfa_drop_tip(sg, 2, INT32_MAX);
-		gfa_topocut(sg, 0.5, 3, INT32_MAX);
-		gfa_drop_tip(sg, 3, INT32_MAX);
-		gfa_topocut(sg, 0.7, 3, INT32_MAX);
-		gfa_drop_tip(sg, 3, INT32_MAX);
+		gfa_topocut(sg, 0.5, small_n, INT32_MAX);
+		gfa_drop_tip(sg, small_n, INT32_MAX);
+		gfa_topocut(sg, 0.7, small_n, INT32_MAX);
+		gfa_drop_tip(sg, small_n, INT32_MAX);
 		gfa_arc_del_short(sg, 2000, 0.5);
-		gfa_drop_tip(sg, 3, INT32_MAX);
-		gfa_topocut(sg, 0.9, 3, INT32_MAX);
-		gfa_drop_tip(sg, 3, INT32_MAX);
-		gfa_pop_bubble(sg, 1000, 3, 1);
+		gfa_drop_tip(sg, small_n, INT32_MAX);
+		gfa_topocut(sg, 0.9, small_n, INT32_MAX);
+		gfa_drop_tip(sg, small_n, INT32_MAX);
+		gfa_pop_bubble(sg, 1000, small_n, 1);
 	}
 	if (clean >= 3) {
 		gfa_drop_internal(sg, 1);
-		gfa_drop_tip(sg, 3, INT32_MAX);
+		gfa_drop_tip(sg, small_n, INT32_MAX);
 		gfa_cut_z(sg, 50000, 100000); // this is not well tested
 	}
 	if (aggre >= 1) {
