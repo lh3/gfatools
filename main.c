@@ -10,6 +10,8 @@
 #include "kseq.h"
 KSTREAM_INIT(gzFile, gzread, 65536)
 
+#define GFATOOLS_VERSION "0.4-r167-dirty"
+
 char **gv_read_list(const char *o, int *n_)
 {
 	int n = 0, m = 0;
@@ -356,8 +358,8 @@ int main_bubble(int argc, char *argv[])
 	bb = gfa_bubble(g, &n_bb);
 	for (i = 0; i < n_bb; ++i) {
 		gfa_bubble_t *b = &bb[i];
-		printf("%s\t%d\t%d\t%d\t%d\t%d\t%.3g\t%.3g\t", g->sseq[b->snid].name, b->ss, b->se, b->n_seg,
-			   b->len_min, b->len_max, b->cf_min, b->cf_max);
+		printf("%s\t%d\t%d\t%d\t%d\t%d\t%d\t%.3g\t%.3g\t", g->sseq[b->snid].name, b->ss, b->se, b->n_seg,
+			   b->is_bidir, b->len_min, b->len_max, b->cf_min, b->cf_max);
 		for (j = 0; j < b->n_seg; ++j) {
 			if (j) fputc(',', stdout);
 			printf("%s", g->seg[b->v[j]>>1].name);
@@ -521,14 +523,14 @@ int main(int argc, char *argv[])
 	else if (strcmp(argv[1], "gt") == 0) ret = main_gt(argc-1, argv+1);
 	else if (strcmp(argv[1], "asm") == 0) ret = main_asm(argc-1, argv+1);
 	else if (strcmp(argv[1], "version") == 0) {
-		puts(GFA_VERSION);
+		printf("gfa.h: %s\ngfatools: %s\n", GFA_VERSION, GFATOOLS_VERSION);
 		return 0;
 	} else {
 		fprintf(stderr, "[E::%s] unknown command\n", __func__);
 		return 1;
 	}
 	if (ret == 0) {
-		fprintf(stderr, "[M::%s] Version: %s\n", __func__, GFA_VERSION);
+		fprintf(stderr, "[M::%s] Version: %s\n", __func__, GFATOOLS_VERSION);
 		fprintf(stderr, "[M::%s] CMD:", __func__);
 		for (i = 0; i < argc; ++i)
 			fprintf(stderr, " %s", argv[i]);
