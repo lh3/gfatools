@@ -162,7 +162,7 @@ gfa_sub_t *gfa_sub_from(void *km0, const gfa_t *g, uint32_t v0, int32_t max_dist
 	}
 
 	km_destroy(km);
-	gfa_sub_print(stderr, g, sub);
+	//gfa_sub_print(stderr, g, sub);
 	return sub;
 }
 
