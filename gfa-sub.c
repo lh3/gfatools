@@ -69,6 +69,32 @@ gfa_sub_t *gfa_sub_from(void *km0, const gfa_t *g, uint32_t v0, int32_t max_dist
 		if (n_L == m_L) KEXPAND(km, L, m_L);
 		L[n_L++] = q;
 
+		//fprintf(stderr, "XX q=%c%s\n", "><"[q->v&1], g->seg[q->v>>1].name);
+		if (!q->forced && kavl_size(head, root) > 0) {
+			const tnode_t *r;
+			int stop_early = 0;
+			kavl_itr_t(v) itr;
+			kavl_itr_first(v, root, &itr);
+			while ((r = kavl_at(&itr)) != 0) {
+				k = kh_get(v, h, r->v^1);
+				if (k == kh_end(h) || kh_val(h, k)->in_tree) {
+					stop_early = 1;
+					break;
+				}
+				if (kavl_itr_next(v, &itr) == 0) break;
+			}
+			if (!stop_early) {
+				while (kavl_size(head, root) > 0) {
+					p = kavl_erase_first(v, &root);
+					p->forced = 1;
+					p->in_tree = 0;
+					if (n_L == m_L) KEXPAND(km, L, m_L);
+					L[n_L++] = p;
+					//fprintf(stderr, "YY q=%c%s, p=%c%s\n", "><"[q->v&1], g->seg[q->v>>1].name, "><"[p->v&1], g->seg[p->v>>1].name);
+				}
+			}
+		}
+
 		d = (uint32_t)q->nd;
 		nv = gfa_arc_n(g, q->v);
 		av = gfa_arc_a(g, q->v);
@@ -136,6 +162,7 @@ gfa_sub_t *gfa_sub_from(void *km0, const gfa_t *g, uint32_t v0, int32_t max_dist
 	}
 
 	km_destroy(km);
+	gfa_sub_print(stderr, g, sub);
 	return sub;
 }
 
@@ -152,7 +179,7 @@ void gfa_sub_print(FILE *fp, const gfa_t *g, const gfa_sub_t *sub)
 	int32_t i, j;
 	for (i = 0; i < sub->n_v; ++i) {
 		gfa_subv_t *p = &sub->v[i];
-		fprintf(fp, "[%d]\t%d\t%s\t%d\t%d", i, p->v, g->seg[p->v>>1].name, p->d, p->n);
+		fprintf(fp, "[%d]\t%d\t%c%s\t%d\t%d", i, p->v, "><"[p->v&1], g->seg[p->v>>1].name, p->d, p->n);
 		if (p->n > 0) {
 			fputc('\t', fp);
 			for (j = 0; j < p->n; ++j) {
