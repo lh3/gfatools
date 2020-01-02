@@ -70,8 +70,16 @@ gfa_sub_t *gfa_sub_from(void *km0, const gfa_t *g, uint32_t v0, int32_t max_dist
 		if (!q->forced && kavl_size(head, root) > 0) {
 			const tnode_t *r;
 			kavl_itr_t(v) itr;
+			nv = gfa_arc_n(g, q->v);
+			av = gfa_arc_a(g, q->v);
+			for (i = 0; i < nv; ++i) {
+				k = kh_get(v, h, av[i].w);
+				if (k != kh_end(h) && kh_val(h, k)->nd>>32 == 1)
+					goto no_empty_staging;
+			}
 			kavl_itr_first(v, root, &itr);
 			while ((r = kavl_at(&itr)) != 0) {
+				if (r->nd>>32 == 0) goto no_empty_staging;
 				av = gfa_arc_a(g, r->v);
 				nv = gfa_arc_n(g, r->v);
 				//fprintf(stderr, "  ZZ r=%c%s[%u]\n", "><"[r->v&1], g->seg[r->v>>1].name, r->v);
