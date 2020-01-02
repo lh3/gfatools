@@ -66,34 +66,35 @@ gfa_sub_t *gfa_sub_from(void *km0, const gfa_t *g, uint32_t v0, int32_t max_dist
 		q = kavl_erase_first(v, &root); // take out the "smallest" vertex
 		q->forced = (q->nd >> 32 > 0);
 		q->in_tree = 0;
-		if (n_L == m_L) KEXPAND(km, L, m_L);
-		L[n_L++] = q;
-
 		//fprintf(stderr, "XX q=%c%s\n", "><"[q->v&1], g->seg[q->v>>1].name);
 		if (!q->forced && kavl_size(head, root) > 0) {
 			const tnode_t *r;
-			int stop_early = 0;
 			kavl_itr_t(v) itr;
 			kavl_itr_first(v, root, &itr);
 			while ((r = kavl_at(&itr)) != 0) {
-				k = kh_get(v, h, r->v^1);
-				if (k == kh_end(h) || kh_val(h, k)->in_tree) {
-					stop_early = 1;
-					break;
+				av = gfa_arc_a(g, r->v);
+				nv = gfa_arc_n(g, r->v);
+				//fprintf(stderr, "  ZZ r=%c%s[%u]\n", "><"[r->v&1], g->seg[r->v>>1].name, r->v);
+				for (i = 0; i < nv; ++i) {
+					int k[2];
+					k[0] = kh_get(v, h, av[i].w);
+					k[1] = kh_get(v, h, av[i].w^1);
+					//fprintf(stderr, "    YY %c%s[%u]\n", "><"[av[i].w&1], g->seg[av[i].w>>1].name, av[i].w);
+					if (k[0] == kh_end(h) && k[1] == kh_end(h)) goto no_empty_staging;
 				}
 				if (kavl_itr_next(v, &itr) == 0) break;
 			}
-			if (!stop_early) {
-				while (kavl_size(head, root) > 0) {
-					p = kavl_erase_first(v, &root);
-					p->forced = 1;
-					p->in_tree = 0;
-					if (n_L == m_L) KEXPAND(km, L, m_L);
-					L[n_L++] = p;
-					//fprintf(stderr, "YY q=%c%s, p=%c%s\n", "><"[q->v&1], g->seg[q->v>>1].name, "><"[p->v&1], g->seg[p->v>>1].name);
-				}
+			while (kavl_size(head, root) > 0) { // empty the staging vertices if neighbors or their complements have been visited
+				p = kavl_erase_first(v, &root);
+				p->forced = 1, p->in_tree = 0;
+				if (n_L == m_L) KEXPAND(km, L, m_L);
+				L[n_L++] = p;
+				//fprintf(stderr, "  AA p=%c%s\n", "><"[p->v&1], g->seg[p->v>>1].name);
 			}
 		}
+no_empty_staging:
+		if (n_L == m_L) KEXPAND(km, L, m_L);
+		L[n_L++] = q;
 
 		d = (uint32_t)q->nd;
 		nv = gfa_arc_n(g, q->v);
