@@ -47,7 +47,6 @@ gfa_sub_t *gfa_sub_from(void *km0, const gfa_t *g, uint32_t v0, int32_t max_dist
 	khash_t(v) *h;
 	khint_t k;
 	int32_t j, n_L = 0, m_L = 0, n_arc = 0, m_arc = 0, off, n_bidir = 0, orphan_inv = 0;
-	uint32_t v_inv = (uint32_t)-1;
 	int absent;
 	gfa_sub_t *sub = 0;
 
@@ -69,8 +68,7 @@ gfa_sub_t *gfa_sub_from(void *km0, const gfa_t *g, uint32_t v0, int32_t max_dist
 		r = kavl_at(&itr);
 		if (r->nd>>32 > 0 || orphan_inv) {
 			while ((r = kavl_at(&itr)) != 0) {
-				k = kh_get(v, h, r->v^1);
-				if (k != kh_end(h) && !kh_val(h, k)->in_tree) {
+				if (kh_get(v, h, r->v^1) != kh_end(h)) {
 					q = kavl_erase(v, &root, r, 0);
 					break;
 				}
@@ -79,6 +77,7 @@ gfa_sub_t *gfa_sub_from(void *km0, const gfa_t *g, uint32_t v0, int32_t max_dist
 			orphan_inv = 0;
 		}
 		if (q == 0) q = kavl_erase_first(v, &root); // take out the "smallest" vertex
+		fprintf(stderr, "OUT vertex:%c%s[%u], remained:%d, orphan_inv:%d\n", "><"[q->v&1], g->seg[q->v>>1].name, q->v, kavl_size(head, root), orphan_inv);
 		q->forced = (q->nd >> 32 > 0);
 		q->in_tree = 0;
 		if (n_L == m_L) KEXPAND(km, L, m_L);
@@ -96,8 +95,8 @@ gfa_sub_t *gfa_sub_from(void *km0, const gfa_t *g, uint32_t v0, int32_t max_dist
 			int32_t dt = d + (uint32_t)avi->v_lv;
 			if (max_dist > 0 && dt > max_dist) continue;
 			k = kh_get(v, h, avi->w^1);
-			if (k != kh_end(h) && !kh_val(h, k)->in_tree && !kh_val(h, k)->forced) { // TODO: not sure how this reacts to more complex topologies
-				++n_bidir, v_inv = q->v;
+			if (k != kh_end(h) && !kh_val(h, k)->in_tree && !kh_val(h, k)->forced) {
+				++n_bidir;
 				continue;
 			}
 			++n_arc;
@@ -151,7 +150,7 @@ gfa_sub_t *gfa_sub_from(void *km0, const gfa_t *g, uint32_t v0, int32_t max_dist
 	}
 	if (off != n_arc) {
 		assert(n_bidir > 0); // off != n_arc should only happen when n_bidir>0
-		fprintf(stderr, "[W::%s] unusual bubble chain involving %s: off=%d, n_arc=%d, n_bidir=%d\n", __func__, g->seg[v_inv>>1].name, off, n_arc, n_bidir);
+		fprintf(stderr, "[W::%s] unusual bubble chain starting at %c%s: off=%d, n_arc=%d, n_bidir=%d\n", __func__, "><"[v0&1], g->seg[v0>>1].name, off, n_arc, n_bidir);
 	}
 
 	km_destroy(km);
