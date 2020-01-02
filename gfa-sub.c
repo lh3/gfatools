@@ -77,7 +77,7 @@ gfa_sub_t *gfa_sub_from(void *km0, const gfa_t *g, uint32_t v0, int32_t max_dist
 			orphan_inv = 0;
 		}
 		if (q == 0) q = kavl_erase_first(v, &root); // take out the "smallest" vertex
-		fprintf(stderr, "OUT vertex:%c%s[%u], remained:%d, orphan_inv:%d\n", "><"[q->v&1], g->seg[q->v>>1].name, q->v, kavl_size(head, root), orphan_inv);
+		//fprintf(stderr, "OUT vertex:%c%s[%u], remained:%d, orphan_inv:%d\n", "><"[q->v&1], g->seg[q->v>>1].name, q->v, kavl_size(head, root), orphan_inv);
 		q->forced = (q->nd >> 32 > 0);
 		q->in_tree = 0;
 		if (n_L == m_L) KEXPAND(km, L, m_L);
