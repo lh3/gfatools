@@ -66,18 +66,27 @@ gfa_sub_t *gfa_sub_from(void *km0, const gfa_t *g, uint32_t v0, int32_t max_dist
 
 		kavl_itr_first(v, root, &itr);
 		r = kavl_at(&itr);
-		if (r->nd>>32 > 0 || orphan_inv) {
+		if (orphan_inv) { // then prioritize on vertices whose complements have been moved out of the tree
 			while ((r = kavl_at(&itr)) != 0) {
-				if (kh_get(v, h, r->v^1) != kh_end(h)) {
+				k = kh_get(v, h, r->v^1);
+				if (k != kh_end(h) && !kh_val(h, k)->in_tree) {
+					--orphan_inv;
 					q = kavl_erase(v, &root, r, 0);
 					break;
 				}
 				if (kavl_itr_next(v, &itr) == 0) break;
 			}
-			orphan_inv = 0;
+		} else if (r->nd>>32 > 0) { // then prioritize on vertices whose complements are also in the tree
+			while ((r = kavl_at(&itr)) != 0) {
+				k = kh_get(v, h, r->v^1);
+				if (k != kh_end(h)) {
+					q = kavl_erase(v, &root, r, 0);
+					break;
+				}
+				if (kavl_itr_next(v, &itr) == 0) break;
+			}
 		}
 		if (q == 0) q = kavl_erase_first(v, &root); // take out the "smallest" vertex
-		//fprintf(stderr, "OUT vertex:%c%s[%u], remained:%d, orphan_inv:%d\n", "><"[q->v&1], g->seg[q->v>>1].name, q->v, kavl_size(head, root), orphan_inv);
 		q->forced = (q->nd >> 32 > 0);
 		q->in_tree = 0;
 		if (n_L == m_L) KEXPAND(km, L, m_L);
@@ -85,7 +94,8 @@ gfa_sub_t *gfa_sub_from(void *km0, const gfa_t *g, uint32_t v0, int32_t max_dist
 
 		k = kh_get(v, h, q->v^1);
 		if (k != kh_end(h) && kh_val(h, k)->in_tree)
-			orphan_inv = 1;
+			++orphan_inv;
+		//fprintf(stderr, "OUT vertex:%c%s[%u], remained:%d, orphan_inv:%d\n", "><"[q->v&1], g->seg[q->v>>1].name, q->v, kavl_size(head, root), orphan_inv);
 
 		d = (uint32_t)q->nd;
 		nv = gfa_arc_n(g, q->v);
