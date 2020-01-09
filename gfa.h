@@ -4,7 +4,7 @@
 #include <stdio.h>
 #include <stdint.h>
 
-#define GFA_VERSION "0.4-r175-dirty"
+#define GFA_VERSION "0.4-r176-dirty"
 
 #define GFA_O_OV_EXT   0x1
 #define GFA_O_NO_SEQ   0x2
@@ -53,9 +53,10 @@ typedef struct {
 
 typedef struct {
 	uint32_t start, end; // start: starting vertex in the string graph; end: ending vertex
-	uint32_t len2, dummy; // len_r: the other length of the unitig
+	uint32_t len_comp, dummy; // len_comp: the length of the complement unitig
 	uint32_t m, n; // number of reads
 	uint64_t *a; // list of reads
+	uint64_t *r; // start and end on each read
 	char **name;
 } gfa_utg_t;
 

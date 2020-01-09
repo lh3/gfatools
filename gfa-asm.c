@@ -607,8 +607,8 @@ gfa_t *gfa_ug_gen(const gfa_t *g)
 
 	q = kdq_init(uint64_t);
 	for (v = 0; v < n_vtx; ++v) {
-		uint32_t w, x, l, start, end, len, tmp, len_r;
-		char utg_name[11];
+		uint32_t w, x, l, start, end, len, tmp, len_r, gen_seq = 0;
+		char utg_name[12];
 		gfa_seg_t *u;
 		gfa_arc_t *a;
 
@@ -653,7 +653,7 @@ gfa_t *gfa_ug_gen(const gfa_t *g)
 		len_r += g->seg[start>>1].len;
 add_unitig:
 		if (start != UINT32_MAX) mark[start] = mark[end] = 1;
-		sprintf(utg_name, "utg%.7d", ug->n_seg + 1);
+		sprintf(utg_name, "utg%.7d%c", ug->n_seg + 1, start == UINT32_MAX? 'c' : 'l');
 		tmp = gfa_add_seg(ug, utg_name);
 		u = &ug->seg[tmp];
 		u->seq = 0, u->len = len;
@@ -661,12 +661,31 @@ add_unitig:
 		u->utg->start = start, u->utg->end = end, u->utg->n = kdq_size(q), u->circ = (start == UINT32_MAX);
 		u->utg->m = u->utg->n;
 		kroundup32(u->utg->m);
-		u->utg->a = (uint64_t*)malloc(8 * u->utg->m);
-		u->utg->name = (char**)malloc(sizeof(char*) * u->utg->m);
-		u->utg->len2 = len_r;
-		for (i = 0; i < kdq_size(q); ++i) {
+		GFA_MALLOC(u->utg->a, u->utg->m);
+		GFA_MALLOC(u->utg->r, u->utg->m);
+		GFA_MALLOC(u->utg->name, u->utg->m);
+		u->utg->len_comp = len_r;
+		for (i = 0, gen_seq = 1; i < kdq_size(q); ++i) {
 			u->utg->a[i] = kdq_at(q, i);
-			u->utg->name[i] = gfa_strdup(g->seg[u->utg->a[i]>>33].name);
+			w = u->utg->a[i] >> 32;
+			u->utg->name[i] = gfa_strdup(g->seg[w>>1].name);
+			u->utg->r[i] = g->seg[w>>1].len; // the start position is always 0
+			if (g->seg[w>>1].seq == 0) gen_seq = 0;
+		}
+		if (gen_seq) {
+			GFA_MALLOC(u->seq, u->len + 1);
+			for (i = l = 0; i < u->utg->n; ++i) {
+				uint32_t j, w = u->utg->a[i]>>32, x = (uint32_t)u->utg->a[i];
+				const gfa_seg_t *s = &g->seg[w>>1];
+				if ((w&1) == 0) { // forward strand
+					memcpy(&u->seq[l], s->seq, x);
+				} else { // reverse strand
+					for (j = 0; j < x; ++j)
+						u->seq[l + j] = gfa_comp_table[(uint8_t)s->seq[s->len - 1 - j]];
+				}
+				l += x;
+			}
+			u->seq[u->len] = 0;
 		}
 	}
 	kdq_destroy(uint64_t, q);
