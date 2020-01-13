@@ -558,7 +558,7 @@ void gfa_scc1(gfa_t *g, gfa_cbuf_t *b, uint32_t v0)
 					b->a[w].stack = 0;
 				}
 				b->a[b->s.a[j]].stack = 0;
-				fprintf(stderr, "ST\t%c%s\t%u\n", "><"[v&1], g->seg[v>>1].name, j); for (i = j; i < b->s.n; ++i) { uint32_t w = b->s.a[i]; fprintf(stderr, "VT\t%c%s\n", "><"[w&1], g->seg[w>>1].name); } fprintf(stderr, "//\n");
+				fprintf(stderr, "ST\t%c%s\t%lu\n", "><"[v&1], g->seg[v>>1].name, b->s.n - j); for (i = j; i < b->s.n; ++i) { uint32_t w = b->s.a[i]; fprintf(stderr, "VT\t%c%s\n", "><"[w&1], g->seg[w>>1].name); } fprintf(stderr, "//\n");
 				b->s.n = j;
 			}
 			if (b->cs.n > 0) { // if call stack is not empty, update the top element
@@ -570,7 +570,7 @@ void gfa_scc1(gfa_t *g, gfa_cbuf_t *b, uint32_t v0)
 			gfa_arc_t *av = gfa_arc_a(g, v);
 			uint32_t w = av[i].w;
 			kv_push(uint64_t, b->cs, (uint64_t)v<<32 | (i+1));
-			if (b->a[w].index == (uint32_t)-1)
+			if (b->a[w].index == (uint32_t)-1 && b->a[w^1].stack == 0)
 				kv_push(uint64_t, b->cs, (uint64_t)w<<32);
 			else if (b->a[w].stack)
 				b->a[v].low = b->a[v].low < b->a[w].index? b->a[v].low : b->a[w].index;
@@ -587,7 +587,7 @@ void gfa_scc_find(gfa_t *g)
 	for (v = 0; v < n_vtx; ++v)
 		b.a[v].index = (uint32_t)-1;
 	for (v = 0; v < n_vtx; ++v)
-		if (b.a[v].index == (uint32_t)-1)
+		if (b.a[v].index == (uint32_t)-1 && b.a[v^1].index == (uint32_t)-1)
 			gfa_scc1(g, &b, v);
 }
 
