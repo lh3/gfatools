@@ -406,7 +406,7 @@ int main_gt(int argc, char *argv[])
 
 int main_asm(int argc, char *argv[])
 {
-	const char *tr_opts = "v:ur:t:b:B:o:c:z:";
+	const char *tr_opts = "v:ur:t:b:B:o:c:z:y";
 	ketopt_t o = KETOPT_INIT;
 	int c, oflag = 0;
 	gfa_t *g;
@@ -483,6 +483,8 @@ int main_asm(int argc, char *argv[])
 			if (*p == ',') max_dist = gfa_str2num(p + 1, &p);
 			else max_dist = min_dist * 2;
 			gfa_cut_z(g, min_dist, max_dist);
+		} else if (c == 'y') {
+			gfa_scc_find(g);
 		}
 	}
 
