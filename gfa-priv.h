@@ -33,8 +33,8 @@ typedef struct {
 	int32_t snid, ss, se;
 	uint32_t vs, ve;
 	int32_t is_bidir, n_seg, len_max, len_min;
-	float cf_max, cf_min;
-	uint32_t *v;
+	float cf_max, cf_min, cf_ref;
+	uint32_t *v, n_paths;
 	char *seq_max, *seq_min; // seq_max and seq_min point to v[]
 } gfa_bubble_t;
 

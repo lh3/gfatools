@@ -203,9 +203,9 @@ end_check:
 }
 
 typedef struct {
-	int32_t ld, sd;
+	int32_t ld, sd, rd;
 	int32_t lp, sp;
-	float lf, sf;
+	float lf, sf, rf;
 } bb_aux_t;
 
 static void bb_write_seq(const gfa_t *g, int32_t n, const uint32_t *v, int32_t l_seq, char *seq)
@@ -231,6 +231,49 @@ static float aux_get_f(const gfa_aux_t *aux, const char tag[2], float fallback)
 	const uint8_t *s;
 	s = gfa_aux_get(aux->l_aux, aux->aux, tag);
 	return s && *s == 'f'? *(float*)(s+1) : fallback;
+}
+
+static float bb_ref_freq(const gfa_t *g, const gfa_sub_t *sub, int32_t js, int32_t je)
+{
+	const gfa_subv_t *ts = &sub->v[js];
+	const gfa_subv_t *te = &sub->v[je];
+	int32_t j, k;
+	float f = 1.0f;
+	if (g->seg[ts->v>>1].snid != g->seg[te->v>>1].snid) return -1.0f;
+	if (g->seg[ts->v>>1].rank != 0) return -1.0f;
+	for (j = js; j < je; ++j) {
+		const gfa_subv_t *t = &sub->v[j];
+		if (g->seg[t->v>>1].rank != 0) continue;
+		for (k = 0; k < t->n; ++k) {
+			uint64_t a = sub->a[t->off + k];
+			const gfa_arc_t *arc = &g->arc[(uint32_t)a];
+			float h;
+			if (arc->rank != 0) continue;
+			h = aux_get_f(&g->link_aux[arc->link_id], "cf", -1.0f);
+			f = f < h? f : h;
+		}
+	}
+	return f;
+}
+
+static int32_t bb_n_paths(const gfa_t *g, const gfa_sub_t *sub, int32_t js, int32_t je)
+{
+	int32_t j, k;
+	int64_t *cnt, c;
+	GFA_CALLOC(cnt, je - js + 1);
+	cnt[0] = 1;
+	for (j = js; j < je; ++j) {
+		const gfa_subv_t *t = &sub->v[j];
+		for (k = 0; k < t->n; ++k) {
+			uint64_t a = sub->a[t->off + k];
+			int32_t jv = (int32_t)(a>>32);
+			if (jv <= j || jv > je) continue;
+			cnt[jv - js] += cnt[j - js];
+		}
+	}
+	c = cnt[je - js];
+	free(cnt);
+	return c < INT32_MAX? c : INT32_MAX;
 }
 
 gfa_bubble_t *gfa_bubble(const gfa_t *g, int32_t *n_bb_)
@@ -290,6 +333,7 @@ gfa_bubble_t *gfa_bubble(const gfa_t *g, int32_t *n_bb_)
 					gfa_bubble_t *b;
 
 					// basic information
+					if (j - jst <= 1) continue;
 					if (n_bb == m_bb) GFA_EXPAND(bb, m_bb);
 					b = &bb[n_bb++];
 					b->snid = i;
@@ -299,6 +343,8 @@ gfa_bubble_t *gfa_bubble(const gfa_t *g, int32_t *n_bb_)
 					b->se = sen->soff;
 					b->len_min = ba[j].sd - ba[jst].sd - sst->len;
 					b->len_max = ba[j].ld - ba[jst].ld - sst->len;
+					b->cf_ref = bb_ref_freq(g, sub, jst, j);
+					b->n_paths = bb_n_paths(g, sub, jst, j);
 					assert(b->len_min >= 0);
 					assert(b->len_max >= 0 && b->len_max >= b->len_min);
 					b->n_seg = j - jst + 1;
@@ -324,18 +370,18 @@ gfa_bubble_t *gfa_bubble(const gfa_t *g, int32_t *n_bb_)
 
 					// generate sequences and cf_min/cf_max
 					GFA_MALLOC(v, j - jst);
-					k = j, n = 0, f = 0.0f;
+					k = j, n = 0, f = 1.0f;
 					while (k > jst) {
 						if (k < j) v[n++] = sub->v[k].v;
-						if (f < ba[k].sf) f = ba[k].sf;
+						if (f > ba[k].sf) f = ba[k].sf;
 						k = ba[k].sp;
 					}
 					b->cf_min = f;
 					bb_write_seq(g, n, v, b->len_min, b->seq_min);
-					k = j, n = 0, f = 0.0f;
+					k = j, n = 0, f = 1.0f;
 					while (k > jst) {
 						if (k < j) v[n++] = sub->v[k].v;
-						if (f < ba[k].lf) f = ba[k].lf;
+						if (f > ba[k].lf) f = ba[k].lf;
 						k = ba[k].lp;
 					}
 					b->cf_max = f;
