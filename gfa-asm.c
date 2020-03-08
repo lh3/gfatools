@@ -740,8 +740,13 @@ add_unitig:
 			if (g->seg[w>>1].utg && g->seg[w>>1].utg > 0) ++n_seg_utg;
 			p->rev = w&1;
 			p->name = gfa_strdup(g->seg[w>>1].name);
-			p->read_st = 0; // the start position is always 0
-			p->read_en = g->seg[w>>1].len;
+			if (!p->rev) {
+				p->read_st = 0;
+				p->read_en = (uint32_t)x;
+			} else {
+				p->read_en = g->seg[w>>1].len;
+				p->read_st = p->read_en - (uint32_t)x;
+			}
 			if (g->seg[w>>1].seq == 0) gen_seq = 0;
 			l += (uint32_t)x;
 		}
