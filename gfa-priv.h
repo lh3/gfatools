@@ -9,7 +9,7 @@
 #define GFA_REALLOC(ptr, len) ((ptr) = (__typeof__(ptr))realloc((ptr), (len) * sizeof(*(ptr))))
 #define GFA_BZERO(ptr, len) memset((ptr), 0, (len) * sizeof(*(ptr)))
 #define GFA_EXPAND(a, m) do { \
-		(m) = (m)? (m) + ((m)>>1) : 16; \
+		(m) = (m) < 16? 16 : (m) + ((m)>>1); \
 		GFA_REALLOC((a), (m)); \
 	} while (0)
 

@@ -675,7 +675,7 @@ gfa_t *gfa_ug_gen(const gfa_t *g)
 
 	q = kdq_init(uint64_t);
 	for (v = 0; v < n_vtx; ++v) {
-		uint32_t w, x, l, start, end, len, tmp, len_r, gen_seq = 0;
+		uint32_t w, x, l, start, end, len, tmp, len_r, gen_seq = 0, n_seg_utg;
 		char utg_name[12];
 		gfa_seg_t *u;
 		gfa_arc_t *a;
@@ -731,11 +731,13 @@ add_unitig:
 		kroundup32(u->utg->m);
 		GFA_CALLOC(u->utg->a, u->utg->m);
 		u->utg->len_comp = len_r;
+		n_seg_utg = 0;
 		for (i = 0, l = 0, gen_seq = 1; i < kdq_size(q); ++i) {
 			uint64_t x = kdq_at(q, i);
 			gfa_utg1_t *p = &u->utg->a[i];
 			p->seg_off = l;
 			w = x >> 32;
+			if (g->seg[w>>1].utg && g->seg[w>>1].utg > 0) ++n_seg_utg;
 			p->rev = w&1;
 			p->name = gfa_strdup(g->seg[w>>1].name);
 			p->read_st = 0; // the start position is always 0
@@ -757,6 +759,8 @@ add_unitig:
 				l += x;
 			}
 			u->seq[u->len] = 0;
+		}
+		if (n_seg_utg > 0) {
 		}
 	}
 	kdq_destroy(uint64_t, q);
