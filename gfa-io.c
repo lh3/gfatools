@@ -358,11 +358,10 @@ void gfa_print(const gfa_t *g, FILE *fp, int flag)
 		}
 		fputc('\n', fp);
 		if (s->utg && s->utg->n) {
-			uint32_t j, l;
-			for (j = l = 0; j < s->utg->n; ++j) {
-				const gfa_utg_t *u = s->utg;
-				fprintf(fp, "A\t%s\t%d\t%c\t%s\t%d\t%d\n", s->name, l, "+-"[u->a[j]>>32&1], u->name[j], (int32_t)(u->r[j]>>32), (int32_t)u->r[j]);
-				l += (uint32_t)u->a[j];
+			uint32_t j;
+			for (j = 0; j < s->utg->n; ++j) {
+				const gfa_utg1_t *u = &s->utg->a[j];
+				fprintf(fp, "A\t%s\t%d\t%c\t%s\t%u\t%u\n", s->name, u->seg_off, "+-"[u->rev], u->name, u->read_st, u->read_en);
 			}
 		}
 	}
