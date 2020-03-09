@@ -663,6 +663,15 @@ KDQ_INIT(uint64_t)
 #define arc_cnt(g, v) ((uint32_t)(g)->idx[(v)])
 #define arc_first(g, v) ((g)->arc[(g)->idx[(v)]>>32])
 
+static inline void gfa_utg1_cpy(gfa_utg1_t *t, const gfa_utg1_t *s)
+{
+	*t = *s;
+	t->name = gfa_strdup(s->name);
+	t->aux.l_aux = t->aux.m_aux = s->aux.l_aux;
+	GFA_MALLOC(t->aux.aux, t->aux.l_aux);
+	memcpy(t->aux.aux, s->aux.aux, t->aux.l_aux);
+}
+
 gfa_t *gfa_ug_gen(const gfa_t *g)
 {
 	int32_t *mark;
@@ -675,7 +684,7 @@ gfa_t *gfa_ug_gen(const gfa_t *g)
 
 	q = kdq_init(uint64_t);
 	for (v = 0; v < n_vtx; ++v) {
-		uint32_t w, x, l, start, end, len, tmp, len_r, gen_seq = 0, n_seg_utg;
+		uint32_t w, x, l, start, end, len, tmp, len_r, gen_seq = 0, n_utg_seg, n_read;
 		char utg_name[12];
 		gfa_seg_t *u;
 		gfa_arc_t *a;
@@ -726,18 +735,20 @@ add_unitig:
 		u = &ug->seg[tmp];
 		u->seq = 0, u->len = len;
 		GFA_MALLOC(u->utg, 1);
-		u->utg->start = start, u->utg->end = end, u->utg->n = kdq_size(q), u->circ = (start == UINT32_MAX);
+		u->utg->start = start, u->utg->end = end;
+		u->utg->n = kdq_size(q), u->circ = (start == UINT32_MAX);
 		u->utg->m = u->utg->n;
 		kroundup32(u->utg->m);
 		GFA_CALLOC(u->utg->a, u->utg->m);
 		u->utg->len_comp = len_r;
-		n_seg_utg = 0;
+		n_utg_seg = n_read = 0;
 		for (i = 0, l = 0, gen_seq = 1; i < kdq_size(q); ++i) {
 			uint64_t x = kdq_at(q, i);
 			gfa_utg1_t *p = &u->utg->a[i];
 			p->seg_off = l;
 			w = x >> 32;
-			if (g->seg[w>>1].utg && g->seg[w>>1].utg > 0) ++n_seg_utg;
+			if (g->seg[w>>1].utg && g->seg[w>>1].utg->n > 0)
+				++n_utg_seg, n_read += g->seg[w>>1].utg->n;
 			p->rev = w&1;
 			p->name = gfa_strdup(g->seg[w>>1].name);
 			if (!p->rev) {
@@ -765,7 +776,38 @@ add_unitig:
 			}
 			u->seq[u->len] = 0;
 		}
-		if (n_seg_utg > 0) {
+		if (0 && n_utg_seg == kdq_size(q)) {
+			int32_t j, k, off;
+			for (i = 0; i < kdq_size(q); ++i)
+				free(u->utg->a[i].name);
+			free(u->utg->a);
+			u->utg->n = u->utg->m = n_read;
+			GFA_CALLOC(u->utg->a, n_read);
+			for (i = k = off = 0; i < kdq_size(q); ++i) {
+				uint64_t x = kdq_at(q, i);
+				uint32_t w = x >> 32;
+				gfa_utg_t *su = g->seg[w>>1].utg;
+				fprintf(stderr, "X\t%d\n", off);
+				if ((w&1) == 0) {
+					for (j = 0; j < su->n; ++j) {
+						gfa_utg1_cpy(&u->utg->a[k], &su->a[j]);
+						u->utg->a[k++].seg_off = off;
+						if (j < su->n - 1)
+							off += su->a[j].read_en - su->a[j].read_st;
+					}
+				} else {
+					for (j = su->n - 1; j >= 0; --j) {
+						gfa_utg1_cpy(&u->utg->a[k], &su->a[j]);
+						u->utg->a[k++].seg_off = off;
+						if (j < su->n - 1)
+							off += su->a[j].read_en - su->a[j].read_st;
+					}
+				}
+				if (i < kdq_size(q))
+					off += (uint32_t)x;
+			}
+			assert(k == u->utg->n);
+			fprintf(stderr, "Y\t%d\t%d\t%d\n", u->len, off, u->utg->a[u->utg->n-1].read_en - u->utg->a[u->utg->n-1].read_st);
 		}
 	}
 	kdq_destroy(uint64_t, q);
