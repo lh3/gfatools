@@ -226,6 +226,7 @@ int gfa_parse_A(gfa_t *g, char *s)
 		if (s->utg->n == s->utg->m)
 			GFA_EXPAND(s->utg->a, s->utg->m);
 		u = &s->utg->a[s->utg->n++];
+		memset(u, 0, sizeof(*u));
 		u->name = gfa_strdup(read_name);
 		u->rev = rev, u->read_st = read_st, u->read_en = read_en, u->seg_off = seg_off;
 		l_aux = gfa_aux_parse(rest, &aux, &m_aux); // parse optional tags
