@@ -15,9 +15,6 @@ KRADIX_SORT_INIT(arc, gfa_arc_t, gfa_arc_key, 8)
 #define generic_key(x) (x)
 KRADIX_SORT_INIT(gfa64, uint64_t, generic_key, 8)
 
-#define gfa_utg1_key(a) ((a).seg_off)
-KRADIX_SORT_INIT(gfa_utg, gfa_utg1_t, gfa_utg1_key, 4)
-
 int gfa_verbose = 2;
 
 gfa_t *gfa_init(void)
@@ -41,10 +38,9 @@ void gfa_destroy(gfa_t *g)
 		free(s->seq);
 		free(s->aux.aux);
 		if (s->utg) {
-			for (j = 0; j < s->utg->n; ++j) {
-				free(s->utg->a[j].name);
-				free(s->utg->a[j].aux.aux);
-			}
+			for (j = 0; j < s->utg->n; ++j)
+				free(s->utg->name[j]);
+			free(s->utg->name);
 			free(s->utg->a);
 			free(s->utg);
 		}
@@ -423,62 +419,6 @@ uint32_t gfa_fix_multi(gfa_t *g)
 	return n_rm;
 }
 
-int gfa_fix_utg1(gfa_seg_t *s)
-{
-	int err = 0;
-	uint32_t i, len;
-	gfa_utg1_t *u;
-	if (s->utg == 0 || s->utg->n == 0) return 0;
-	for (i = 0; i < s->utg->n - 1; ++i)
-		if (s->utg->a[i].seg_off > s->utg->a[i + 1].seg_off)
-			break;
-	if (i < s->utg->n - 1) // then the A-list is not sorted; sort!
-		radix_sort_gfa_utg(s->utg->a, s->utg->a + s->utg->n);
-	if (s->utg->a[s->utg->n - 1].seg_off >= s->len) { // seg_off >= segment length; discard some
-		int32_t j;
-		for (j = s->utg->n - 1; j >= 0; ++j)
-			if (s->utg->a[j].seg_off < s->len)
-				break;
-		for (i = j; i < s->utg->n; ++i) {
-			free(s->utg->a[i].name);
-			free(s->utg->a[i].aux.aux);
-		}
-		s->utg->n = j;
-	}
-	if (s->utg->n == 0) {
-		err |= 1;
-		return err;
-	}
-	if (s->utg->a[0].seg_off != 0) err |= 1;
-	u = &s->utg->a[s->utg->n - 1];
-	len = u->seg_off + (u->read_en - u->read_st);
-	if (len < s->len) err |= 1;
-	for (i = 0; i < s->utg->n; ++i) { // adjust read_en
-		gfa_utg1_t *u = &s->utg->a[i];
-		uint32_t next_off = i == s->utg->n - 1? s->len : s->utg->a[i + 1].seg_off;
-		if (u->read_st >= u->read_en) err |= 2;
-		else if (next_off - u->seg_off > u->read_en - u->read_st) err |= 1;
-		else if (next_off - u->seg_off < u->read_en - u->read_st) {
-			if (!u->rev) u->read_en = u->read_st + (next_off - u->seg_off);
-			else u->read_st = u->read_en - (next_off - u->seg_off);
-		}
-	}
-	return err;
-}
-
-int gfa_fix_utg(gfa_t *g)
-{
-	uint32_t i;
-	int err1, err = 0;
-	for (i = 0; i < g->n_seg; ++i) {
-		err1 = gfa_fix_utg1(&g->seg[i]);
-		if (err1 != 0 && gfa_verbose >= 2)
-			fprintf(stderr, "[W::%s] one or multiple A-lines on '%s' are incorrect\n", __func__, g->seg[i].name);
-		err |= err1;
-	}
-	return err;
-}
-
 void gfa_finalize(gfa_t *g)
 {
 	gfa_fix_no_seg(g);
@@ -487,7 +427,6 @@ void gfa_finalize(gfa_t *g)
 	gfa_fix_semi_arc(g);
 	gfa_fix_symm_add(g);
 	gfa_fix_arc_len(g);
-	gfa_fix_utg(g);
 	gfa_cleanup(g);
 }
 

@@ -175,68 +175,6 @@ int gfa_parse_S(gfa_t *g, char *s)
 	return 0;
 }
 
-int gfa_parse_A(gfa_t *g, char *s)
-{
-	int i, is_ok = 0;
-	char *p, *q, *seg = 0, *read_name = 0, *rest = 0;
-	long x;
-	uint32_t seg_off, read_st, read_en, rev;
-	for (i = 0, p = q = s + 2;; ++p) {
-		if (*p == 0 || *p == '\t') {
-			int c = *p;
-			*p = 0;
-			if (i == 0) {
-				seg = q;
-			} else if (i == 1) {
-				x = atol(q);
-				if (x < 0 || x > UINT32_MAX) break;
-				seg_off = x;
-			} else if (i == 2) {
-				if (*q != '+' && *q != '-') break;
-				rev = *q == '+'? 0 : 1;
-			} else if (i == 3) {
-				read_name = q;
-			} else if (i == 4) {
-				x = atol(q);
-				if (x < 0 || x > UINT32_MAX) break;
-				read_st = x;
-			} else if (i == 5) {
-				x = atol(q);
-				if (x < 0 || x > UINT32_MAX) break;
-				read_en = x;
-				is_ok = 1, rest = c? p + 1 : 0;
-				break;
-			}
-			++i, q = p + 1;
-			if (c == 0) break;
-		}
-	}
-	if (is_ok) {
-		int l_aux, m_aux = 0;
-		int32_t sid;
-		uint8_t *aux = 0;
-		gfa_utg1_t *u;
-		gfa_seg_t *s;
-		sid = gfa_add_seg(g, seg);
-		s = &g->seg[sid];
-		if (s->utg == 0) {
-			GFA_CALLOC(s->utg, 1);
-			s->utg->start = s->utg->end = s->utg->len_comp = s->utg->dummy = (uint32_t)-1;
-		}
-		if (s->utg->n == s->utg->m)
-			GFA_EXPAND(s->utg->a, s->utg->m);
-		u = &s->utg->a[s->utg->n++];
-		memset(u, 0, sizeof(*u));
-		u->name = gfa_strdup(read_name);
-		u->rev = rev, u->read_st = read_st, u->read_en = read_en, u->seg_off = seg_off;
-		l_aux = gfa_aux_parse(rest, &aux, &m_aux); // parse optional tags
-		if (l_aux > 0)
-			u->aux.l_aux = l_aux, u->aux.m_aux = m_aux, u->aux.aux = aux;
-		else free(aux);
-	} else return -1;
-	return 0;
-}
-
 int gfa_parse_L(gfa_t *g, char *s)
 {
 	int i, oriv = -1, oriw = -1, is_ok = 0;
@@ -383,7 +321,6 @@ gfa_t *gfa_read(const char *fn)
 		if (s.l < 3 || s.s[1] != '\t') continue; // empty line
 		if (s.s[0] == 'S') ret = gfa_parse_S(g, s.s);
 		else if (s.s[0] == 'L') ret = gfa_parse_L(g, s.s);
-		else if (s.s[0] == 'A') ret = gfa_parse_A(g, s.s);
 		if (ret < 0 && gfa_verbose >= 1)
 			fprintf(stderr, "[E] invalid %c-line at line %ld (error code %d)\n", s.s[0], (long)lineno, ret);
 	}
@@ -400,8 +337,6 @@ void gfa_print(const gfa_t *g, FILE *fp, int flag)
 {
 	uint32_t i;
 	uint64_t k;
-	int aux_max = 0;
-	char *aux_buf = 0;
 	for (i = 0; i < g->n_seg; ++i) {
 		const gfa_seg_t *s = &g->seg[i];
 		if (s->del) continue;
@@ -413,26 +348,21 @@ void gfa_print(const gfa_t *g, FILE *fp, int flag)
 			fprintf(fp, "\tSN:Z:%s\tSO:i:%d", g->sseq[s->snid].name, s->soff);
 		if (s->rank >= 0)
 			fprintf(fp, "\tSR:i:%d", s->rank);
-		if (s->utg && s->utg->n) {
-			fprintf(fp, "\tRC:i:%d", s->utg->n);
-			if (s->utg->len_comp != (uint32_t)-1)
-				fprintf(fp, "\tlc:i:%u", s->utg->len_comp);
-		}
+		if (s->utg && s->utg->n) fprintf(fp, "\tRC:i:%d\tlc:i:%d", s->utg->n, s->utg->len_comp);
 		if (s->aux.l_aux > 0) {
-			if (gfa_aux_format(s->aux.l_aux, s->aux.aux, &aux_buf, &aux_max) > 0)
-				fputs(aux_buf, fp);
+			char *t = 0;
+			int max = 0;
+			gfa_aux_format(s->aux.l_aux, s->aux.aux, &t, &max);
+			fputs(t, fp);
+			free(t);
 		}
 		fputc('\n', fp);
 		if (s->utg && s->utg->n) {
-			uint32_t j;
-			for (j = 0; j < s->utg->n; ++j) {
-				const gfa_utg1_t *u = &s->utg->a[j];
-				fprintf(fp, "A\t%s\t%d\t%c\t%s\t%u\t%u", s->name, u->seg_off, "+-"[u->rev], u->name, u->read_st, u->read_en);
-				if (u->aux.l_aux) {
-					if (gfa_aux_format(u->aux.l_aux, u->aux.aux, &aux_buf, &aux_max) > 0)
-						fputs(aux_buf, fp);
-				}
-				fputc('\n', fp);
+			uint32_t j, l;
+			for (j = l = 0; j < s->utg->n; ++j) {
+				const gfa_utg_t *u = s->utg;
+				fprintf(fp, "A\t%s\t%d\t%c\t%s\t%d\t%d\n", s->name, l, "+-"[u->a[j]>>32&1], u->name[j], (int32_t)(u->r[j]>>32), (int32_t)u->r[j]);
+				l += (uint32_t)u->a[j];
 			}
 		}
 	}
@@ -451,10 +381,12 @@ void gfa_print(const gfa_t *g, FILE *fp, int flag)
 		fprintf(fp, "\tL1:i:%d", gfa_arc_len(*a));
 		fprintf(fp, "\tL2:i:%d", gfa_arc_lw(g, *a));
 		if (aux && aux->l_aux) {
-			if (gfa_aux_format(aux->l_aux, aux->aux, &aux_buf, &aux_max) > 0)
-				fputs(aux_buf, fp);
+			char *t = 0;
+			int max = 0;
+			gfa_aux_format(aux->l_aux, aux->aux, &t, &max);
+			if (t) fputs(t, fp);
+			free(t);
 		}
 		fputc('\n', fp);
 	}
-	free(aux_buf);
 }

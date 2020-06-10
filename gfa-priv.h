@@ -9,7 +9,7 @@
 #define GFA_REALLOC(ptr, len) ((ptr) = (__typeof__(ptr))realloc((ptr), (len) * sizeof(*(ptr))))
 #define GFA_BZERO(ptr, len) memset((ptr), 0, (len) * sizeof(*(ptr)))
 #define GFA_EXPAND(a, m) do { \
-		(m) = (m) < 16? 16 : (m) + ((m)>>1); \
+		(m) = (m)? (m) + ((m)>>1) : 16; \
 		GFA_REALLOC((a), (m)); \
 	} while (0)
 
@@ -63,7 +63,6 @@ void gfa_cleanup(gfa_t *g); // permanently delete arcs marked as deleted, sort a
 void gfa_finalize(gfa_t *g);
 int32_t gfa_check_multi(const gfa_t *g);
 uint32_t gfa_fix_multi(gfa_t *g);
-int gfa_fix_utg(gfa_t *g);
 
 int gfa_arc_del_multi_risky(gfa_t *g);
 int gfa_arc_del_asymm_risky(gfa_t *g);
