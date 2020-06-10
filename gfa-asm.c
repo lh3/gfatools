@@ -75,13 +75,14 @@ void gfa_fix_symm_del(gfa_t *g)
 	gfa_arc_del_asymm_risky(g);
 }
 
-// transitive reduction; see Myers, 2005
+// transitive reduction; see Myers, 2005; with Sergey Nurk's modification
 int gfa_arc_del_trans(gfa_t *g, int fuzz)
 {
 	uint8_t *mark;
-	uint32_t v, n_vtx = gfa_n_vtx(g), n_reduced = 0;
+	uint32_t v, n_vtx = gfa_n_vtx(g), n_reduced = 0, *len;
 
-	mark = (uint8_t*)calloc(n_vtx, 1);
+	GFA_CALLOC(mark, n_vtx);
+	GFA_CALLOC(len, n_vtx);
 	for (v = 0; v < n_vtx; ++v) {
 		uint32_t L, i, nv = gfa_arc_n(g, v);
 		gfa_arc_t *av = gfa_arc_a(g, v);
@@ -90,17 +91,25 @@ int gfa_arc_del_trans(gfa_t *g, int fuzz)
 			for (i = 0; i < nv; ++i) av[i].del = 1, ++n_reduced;
 			continue;
 		}
-		for (i = 0; i < nv; ++i)
+		for (i = 0; i < nv; ++i) {
 			mark[av[i].w] = g->seg[av[i].w>>1].del? 2 : 1;
+			len[av[i].w] = gfa_arc_len(av[i]);
+		}
 		L = gfa_arc_len(av[nv-1]) + fuzz;
 		for (i = 0; i < nv; ++i) {
 			uint32_t w = av[i].w;
 			uint32_t j, nw = gfa_arc_n(g, w);
 			gfa_arc_t *aw = gfa_arc_a(g, w);
 			if (mark[av[i].w] != 1) continue;
-			for (j = 0; j < nw && gfa_arc_len(aw[j]) + gfa_arc_len(av[i]) <= L; ++j)
-				if (mark[aw[j].w]) mark[aw[j].w] = 2;
+			for (j = 0; j < nw; ++j) {
+				uint32_t x, sum = gfa_arc_len(aw[j]) + gfa_arc_len(av[i]);
+				if (sum > L) break;
+				x = aw[j].w;
+				if (mark[x] == 1 && sum < len[x] + fuzz && sum + fuzz > len[x])
+					mark[x] = 2;
+			}
 		}
+		#if 0
 		for (i = 0; i < nv; ++i) {
 			uint32_t w = av[i].w;
 			uint32_t j, nw = gfa_arc_n(g, w);
@@ -108,11 +117,13 @@ int gfa_arc_del_trans(gfa_t *g, int fuzz)
 			for (j = 0; j < nw && (j == 0 || gfa_arc_len(aw[j]) < fuzz); ++j)
 				if (mark[aw[j].w]) mark[aw[j].w] = 2;
 		}
+		#endif
 		for (i = 0; i < nv; ++i) {
 			if (mark[av[i].w] == 2) av[i].del = 1, ++n_reduced;
 			mark[av[i].w] = 0;
 		}
 	}
+	free(len);
 	free(mark);
 	if (gfa_verbose >= 3) fprintf(stderr, "[M::%s] transitively reduced %d arcs\n", __func__, n_reduced);
 	if (n_reduced) {
