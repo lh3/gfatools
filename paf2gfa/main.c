@@ -34,6 +34,7 @@ int main(int argc, char *argv[])
 	ma_sub_t *sub = 0;
 	size_t n_hits;
 	float cov = 40.0;
+	double max_cut_ratio = 0.9;
 	char *fn_reads = 0;
 
 	double int_frac = 0.8, min_iden = 0.0;
@@ -43,7 +44,7 @@ int main(int argc, char *argv[])
 	gfa_t *sg = 0;
 	ma_ug_t *ug = 0;
 
-	while ((c = ketopt(&o, argc, argv, 1, "bfh:o:ucUi:an:", 0)) >= 0) {
+	while ((c = ketopt(&o, argc, argv, 1, "bfh:o:ucUi:an:r:", 0)) >= 0) {
 		if (c == 'b') add_dual = 0;
 		else if (c == 'f') ++flt;
 		else if (c == 'h') max_hang = gfa_str2num(o.arg, 0);
@@ -54,6 +55,7 @@ int main(int argc, char *argv[])
 		else if (c == 'c') ++clean;
 		else if (c == 'a') ++aggre;
 		else if (c == 'i') fn_reads = o.arg;
+		else if (c == 'r') max_cut_ratio = atof(o.arg);
 		else if (c == 'V') {
 			printf("%s\n", MA_VERSION);
 			return 0;
@@ -71,6 +73,7 @@ int main(int argc, char *argv[])
 		fprintf(stderr, "  -h NUM      max overhang length [%d]\n", max_hang);
 		fprintf(stderr, "  -o NUM      min overlap length [%d]\n", min_ovlp);
 		fprintf(stderr, "  -c          apply graph cleaning (up to 3)\n");
+		fprintf(stderr, "  -r FLOAT    max edge cut ratio (between 0.5 and 1) [%g]\n", max_cut_ratio);
 		fprintf(stderr, "  -u          generate unitigs\n");
 		fprintf(stderr, "  -i FILE     input reads []\n");
 		return 1;
@@ -102,12 +105,16 @@ int main(int argc, char *argv[])
 		gfa_drop_tip(sg, 2, INT32_MAX);
 		gfa_topocut(sg, 0.5, small_n, INT32_MAX);
 		gfa_drop_tip(sg, small_n, INT32_MAX);
-		gfa_topocut(sg, 0.7, small_n, INT32_MAX);
-		gfa_drop_tip(sg, small_n, INT32_MAX);
-		gfa_arc_del_short(sg, 2000, 0.5);
-		gfa_drop_tip(sg, small_n, INT32_MAX);
-		gfa_topocut(sg, 0.9, small_n, INT32_MAX);
-		gfa_drop_tip(sg, small_n, INT32_MAX);
+		if (max_cut_ratio > 0.5) {
+			gfa_topocut(sg, 0.7 < max_cut_ratio? 0.7 : max_cut_ratio, small_n, INT32_MAX);
+			gfa_drop_tip(sg, small_n, INT32_MAX);
+			gfa_arc_del_short(sg, 2000, 0.5);
+			gfa_drop_tip(sg, small_n, INT32_MAX);
+			if (max_cut_ratio > 0.7) {
+				gfa_topocut(sg, max_cut_ratio, small_n, INT32_MAX);
+				gfa_drop_tip(sg, small_n, INT32_MAX);
+			}
+		}
 		gfa_pop_bubble(sg, 1000, small_n, 1);
 	}
 	if (clean >= 3) {

@@ -66,6 +66,7 @@ gfa_sub_t *gfa_sub_from(void *km0, const gfa_t *g, uint32_t v0, int32_t max_dist
 
 		kavl_itr_first(v, root, &itr);
 		r = kavl_at(&itr);
+		//fprintf(stderr, "PEEK vertex:%c%s[%u], orphan_inv:%d\n", "><"[r->v&1], g->seg[r->v>>1].name, r->v, orphan_inv);
 		if (orphan_inv) { // then prioritize on vertices whose complements have been moved out of the tree
 			while ((r = kavl_at(&itr)) != 0) {
 				k = kh_get(v, h, r->v^1);
@@ -112,6 +113,7 @@ gfa_sub_t *gfa_sub_from(void *km0, const gfa_t *g, uint32_t v0, int32_t max_dist
 			++n_arc;
 			k = kh_put(v, h, avi->w, &absent);
 			if (absent) { // a vertex that hasn't been visited before
+				//fprintf(stderr, "IN vertex:%c%s[%u]\n", "><"[avi->w&1], g->seg[avi->w>>1].name, avi->w);
 				p = kh_val(h, k) = gen_tnode(km, g, avi->w, dt);
 			} else { // visited before; then update the info
 				p = kh_val(h, k);
