@@ -85,18 +85,32 @@ gfa_sub_t *gfa_sub_from(void *km0, const gfa_t *g, uint32_t v0, int32_t max_dist
 				if (kavl_itr_next(v, &itr) == 0) break;
 			}
 		} else if (tn_n(r) > 0) { // FIXME: be careful of the worst-case time complexity!
-			tnode_p *a;
 			int n = 0;
-			KMALLOC(km, a, kavl_size(head, root));
-			while ((r = kavl_at(&itr)) != 0) {
-				a[n++] = p = (tnode_t*)r;
-				p->xnd &= ~(1ULL<<63);
-				if (kavl_itr_next(v, &itr) == 0) break;
+			nv = gfa_arc_n(g, r->v^1);
+			av = gfa_arc_a(g, r->v^1);
+			for (i = 0; i < nv; ++i) {
+				gfa_arc_t *avi = &av[i];
+				khint_t k1, k2;
+				k1 = kh_get(v, h, avi->w^1);
+				k2 = kh_get(v, h, avi->w);
+				if ((k1 == kh_end(h) && k2 != kh_end(h) && !kh_val(h, k2)->in_tree) || (k2 == kh_end(h) && k1 != kh_end(h) && !kh_val(h, k1)->in_tree))
+					++n;
+				else break;
 			}
-			root = 0;
-			for (i = 0; i < n; ++i)
-				kavl_insert(v, &root, a[i], 0);
-			kfree(km, a);
+			if (i < nv) {
+				tnode_p *a;
+				KMALLOC(km, a, kavl_size(head, root));
+				n = 0;
+				while ((r = kavl_at(&itr)) != 0) {
+					a[n++] = p = (tnode_t*)r;
+					p->xnd &= ~(1ULL<<63);
+					if (kavl_itr_next(v, &itr) == 0) break;
+				}
+				root = 0;
+				for (i = 0; i < n; ++i)
+					kavl_insert(v, &root, a[i], 0);
+				kfree(km, a);
+			}
 		}
 		if (q == 0) q = kavl_erase_first(v, &root); // take out the "smallest" vertex
 		q->forced = (tn_n(q) > 0 || q->xnd>>63 == 0);
