@@ -14,14 +14,13 @@
 KRADIX_SORT_INIT(gfa32, int32_t, generic_key, 4)
 
 typedef struct tnode_s {
-	uint64_t nd;
+	uint64_t xnd;
 	uint32_t v, in_tree:31, forced:1;
 	KAVL_HEAD(struct tnode_s) head;
-} tnode_t;
+} tnode_t, *tnode_p;
 
-typedef tnode_t *tnode_p;
-
-#define tn_lt(a, b) ((a)->nd < (b)->nd || ((a)->nd == (b)->nd && (a)->v < (b)->v))
+#define tn_n(p) ((uint32_t)((p)->xnd<<1>>33))
+#define tn_lt(a, b) ((a)->xnd < (b)->xnd || ((a)->xnd == (b)->xnd && (a)->v < (b)->v))
 #define tn_cmp(a, b) (tn_lt(b, a) - tn_lt(a, b))
 
 KAVL_INIT(v, tnode_t, head, tn_cmp)
@@ -32,7 +31,7 @@ static inline tnode_t *gen_tnode(void *km, const gfa_t *g, uint32_t v, int32_t d
 	tnode_t *p;
 	KMALLOC(km, p, 1);
 	p->v = v, p->in_tree = 1, p->forced = 0;
-	p->nd = (uint64_t)gfa_arc_n(g, v^1) << 32 | d;
+	p->xnd = 1ULL<<63 | (uint64_t)gfa_arc_n(g, v^1) << 32 | d;
 	return p;
 }
 
@@ -64,9 +63,17 @@ gfa_sub_t *gfa_sub_from(void *km0, const gfa_t *g, uint32_t v0, int32_t max_dist
 		const tnode_t *r;
 		kavl_itr_t(v) itr;
 
+		#if 0
+		kavl_itr_first(v, root, &itr);
+		fprintf(stderr, "PEEK");
+		while ((r = kavl_at(&itr)) != 0) {
+			fprintf(stderr, " %c%s:x=%d:n=%d:d=%d", "><"[r->v&1], g->seg[r->v>>1].name, (int)(r->xnd>>63), tn_n(r), (uint32_t)r->xnd);
+			if (kavl_itr_next(v, &itr) == 0) break;
+		}
+		fputc('\n', stderr);
+		#endif
 		kavl_itr_first(v, root, &itr);
 		r = kavl_at(&itr);
-		//fprintf(stderr, "PEEK vertex:%c%s[%u], orphan_inv:%d\n", "><"[r->v&1], g->seg[r->v>>1].name, r->v, orphan_inv);
 		if (orphan_inv) { // then prioritize on vertices whose complements have been moved out of the tree
 			while ((r = kavl_at(&itr)) != 0) {
 				k = kh_get(v, h, r->v^1);
@@ -77,18 +84,22 @@ gfa_sub_t *gfa_sub_from(void *km0, const gfa_t *g, uint32_t v0, int32_t max_dist
 				}
 				if (kavl_itr_next(v, &itr) == 0) break;
 			}
-		} else if (r->nd>>32 > 0) { // then prioritize on vertices whose complements are also in the tree
+		} else if (tn_n(r) > 0) { // FIXME: be careful of the worst-case time complexity!
+			tnode_p *a;
+			int n = 0;
+			KMALLOC(km, a, kavl_size(head, root));
 			while ((r = kavl_at(&itr)) != 0) {
-				k = kh_get(v, h, r->v^1);
-				if (k != kh_end(h)) {
-					q = kavl_erase(v, &root, r, 0);
-					break;
-				}
+				a[n++] = p = (tnode_t*)r;
+				p->xnd &= ~(1ULL<<63);
 				if (kavl_itr_next(v, &itr) == 0) break;
 			}
+			root = 0;
+			for (i = 0; i < n; ++i)
+				kavl_insert(v, &root, a[i], 0);
+			kfree(km, a);
 		}
 		if (q == 0) q = kavl_erase_first(v, &root); // take out the "smallest" vertex
-		q->forced = (q->nd >> 32 > 0);
+		q->forced = (tn_n(q) > 0 || q->xnd>>63 == 0);
 		q->in_tree = 0;
 		if (n_L == m_L) KEXPAND(km, L, m_L);
 		L[n_L++] = q;
@@ -98,12 +109,12 @@ gfa_sub_t *gfa_sub_from(void *km0, const gfa_t *g, uint32_t v0, int32_t max_dist
 			++orphan_inv;
 		//fprintf(stderr, "OUT vertex:%c%s[%u], remained:%d, orphan_inv:%d\n", "><"[q->v&1], g->seg[q->v>>1].name, q->v, kavl_size(head, root), orphan_inv);
 
-		d = (uint32_t)q->nd;
+		d = (uint32_t)q->xnd;
 		nv = gfa_arc_n(g, q->v);
 		av = gfa_arc_a(g, q->v);
 		for (i = 0; i < nv; ++i) {
 			gfa_arc_t *avi = &av[i];
-			int32_t dt = d + (uint32_t)avi->v_lv;
+			int32_t dt = d + g->seg[avi->w>>1].len;
 			if (max_dist > 0 && dt > max_dist) continue;
 			k = kh_get(v, h, avi->w^1);
 			if (k != kh_end(h) && !kh_val(h, k)->in_tree && !kh_val(h, k)->forced) {
@@ -113,17 +124,16 @@ gfa_sub_t *gfa_sub_from(void *km0, const gfa_t *g, uint32_t v0, int32_t max_dist
 			++n_arc;
 			k = kh_put(v, h, avi->w, &absent);
 			if (absent) { // a vertex that hasn't been visited before
-				//fprintf(stderr, "IN vertex:%c%s[%u]\n", "><"[avi->w&1], g->seg[avi->w>>1].name, avi->w);
 				p = kh_val(h, k) = gen_tnode(km, g, avi->w, dt);
 			} else { // visited before; then update the info
 				p = kh_val(h, k);
 				if (!p->in_tree) continue; // when there is a cycle, a vertex may be added to L[] already
 				kavl_erase(v, &root, p, 0);
-				if (dt < (uint32_t)p->nd)
-					p->nd = p->nd>>32<<32 | dt;
+				if (dt < (uint32_t)p->xnd)
+					p->xnd = p->xnd>>32<<32 | dt;
 			}
-			assert(p->nd>>32 > 0);
-			p->nd -= 1ULL<<32;
+			assert(tn_n(p) > 0);
+			p->xnd -= 1ULL<<32;
 			kavl_insert(v, &root, p, 0); // insert/re-insert to the tree
 		}
 	}
@@ -152,7 +162,7 @@ gfa_sub_t *gfa_sub_from(void *km0, const gfa_t *g, uint32_t v0, int32_t max_dist
 			sub->a[off++] = (uint64_t)kh_val(h, k)->in_tree << 32 | (avi - g->arc);
 		}
 		sub->v[j].v = L[j]->v;
-		sub->v[j].d = (uint32_t)L[j]->nd;
+		sub->v[j].d = (uint32_t)L[j]->xnd;
 		sub->v[j].off = o0;
 		sub->v[j].n = off - o0;
 		if (o0 < off) {
