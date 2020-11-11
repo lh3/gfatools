@@ -5,6 +5,7 @@
 #include "kavl.h"
 #include "khash.h"
 #include "ksort.h"
+#include "kvec.h"
 
 /*********************************************
  * Extract a subgraph starting from a vertex *
@@ -217,4 +218,73 @@ void gfa_sub_print(FILE *fp, const gfa_t *g, const gfa_sub_t *sub)
 		}
 		fputc('\n', fp);
 	}
+}
+
+/****************
+ * Tarjan's SCC *
+ ****************/
+
+typedef struct {
+	uint32_t index, low:31, stack:1;
+} gfa_cinfo_t;
+
+typedef struct {
+	uint32_t index;
+	gfa_cinfo_t *a;      // node information
+	kvec_t(uint32_t) s;  // Tarjan's stack
+	kvec_t(uint64_t) cs; // stack for emulating recursions
+} gfa_cbuf_t;
+
+void gfa_scc1(gfa_t *g, gfa_cbuf_t *b, uint32_t v0)
+{
+	kv_push(uint64_t, b->cs, (uint64_t)v0<<32);
+	while (b->cs.n > 0) {
+		uint64_t x = kv_pop(b->cs);
+		uint32_t i = (uint32_t)x, v = x>>32, nv;
+		if (i == 0) { // i is the number of outgoing edges already visited
+			b->a[v].low = b->a[v].index = b->index++;
+			b->a[v].stack = 1;
+			kv_push(uint32_t, b->s, v);
+		}
+		nv = gfa_arc_n(g, v);
+		if (i == nv) { // done with v
+			if (b->a[v].low == b->a[v].index) {
+				uint32_t j = b->s.n - 1;
+				while (b->s.a[j] != v) {
+					uint32_t w = b->s.a[j--];
+					b->a[w].stack = 0;
+				}
+				b->a[b->s.a[j]].stack = 0;
+				fprintf(stderr, "ST\t%c%s\t%lu\t%d\n", "><"[v&1], g->seg[v>>1].name, b->s.n - j, b->a[v^1].stack); for (i = b->s.n - 1; i >= j && i != (uint32_t)-1; --i) { uint32_t w = b->s.a[i]; fprintf(stderr, "VT\t%c%s\t%d\n", "><"[w&1], g->seg[w>>1].name, j); } fprintf(stderr, "//\n");
+				b->s.n = j;
+			}
+			if (b->cs.n > 0) { // if call stack is not empty, update the top element
+				uint32_t w = v;
+				v = b->cs.a[b->cs.n - 1] >> 32;
+				b->a[v].low = b->a[v].low < b->a[w].low? b->a[v].low : b->a[w].low;
+			}
+		} else { // process v's neighbor av[i].w
+			gfa_arc_t *av = gfa_arc_a(g, v);
+			uint32_t w = av[i].w;
+			kv_push(uint64_t, b->cs, (uint64_t)v<<32 | (i+1)); // update the old top of the stack
+			//if (b->a[w].index == (uint32_t)-1 && b->a[w^1].stack == 0)
+			if (b->a[w].index == (uint32_t)-1)
+				kv_push(uint64_t, b->cs, (uint64_t)w<<32);
+			else if (b->a[w].stack)
+				b->a[v].low = b->a[v].low < b->a[w].index? b->a[v].low : b->a[w].index;
+		}
+	}
+}
+
+void gfa_scc_all(gfa_t *g)
+{
+	uint32_t v, n_vtx = gfa_n_vtx(g);
+	gfa_cbuf_t b;
+	memset(&b, 0, sizeof(b));
+	GFA_CALLOC(b.a, n_vtx);
+	for (v = 0; v < n_vtx; ++v)
+		b.a[v].index = (uint32_t)-1;
+	for (v = 0; v < n_vtx; ++v)
+		if (b.a[v].index == (uint32_t)-1 && b.a[v^1].index == (uint32_t)-1)
+			gfa_scc1(g, &b, v);
 }

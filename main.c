@@ -484,7 +484,7 @@ int main_asm(int argc, char *argv[])
 			else max_dist = min_dist * 2;
 			gfa_cut_z(g, min_dist, max_dist);
 		} else if (c == 'y') {
-			gfa_scc_find(g);
+			gfa_scc_all(g);
 		}
 	}
 
