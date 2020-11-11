@@ -544,9 +544,9 @@ typedef struct {
 
 typedef struct {
 	uint32_t index;
-	gfa_cinfo_t *a;
-	kvec_t(uint32_t) s;
-	kvec_t(uint64_t) cs;
+	gfa_cinfo_t *a;      // node information
+	kvec_t(uint32_t) s;  // Tarjan's stack
+	kvec_t(uint64_t) cs; // stack for emulating recursions
 } gfa_cbuf_t;
 
 void gfa_scc1(gfa_t *g, gfa_cbuf_t *b, uint32_t v0)
@@ -555,7 +555,7 @@ void gfa_scc1(gfa_t *g, gfa_cbuf_t *b, uint32_t v0)
 	while (b->cs.n > 0) {
 		uint64_t x = kv_pop(b->cs);
 		uint32_t i = (uint32_t)x, v = x>>32, nv;
-		if (i == 0) {
+		if (i == 0) { // i is the number of outgoing edges already visited
 			b->a[v].low = b->a[v].index = b->index++;
 			b->a[v].stack = 1;
 			kv_push(uint32_t, b->s, v);
@@ -569,7 +569,7 @@ void gfa_scc1(gfa_t *g, gfa_cbuf_t *b, uint32_t v0)
 					b->a[w].stack = 0;
 				}
 				b->a[b->s.a[j]].stack = 0;
-				fprintf(stderr, "ST\t%c%s\t%lu\n", "><"[v&1], g->seg[v>>1].name, b->s.n - j); for (i = j; i < b->s.n; ++i) { uint32_t w = b->s.a[i]; fprintf(stderr, "VT\t%c%s\n", "><"[w&1], g->seg[w>>1].name); } fprintf(stderr, "//\n");
+				fprintf(stderr, "ST\t%c%s\t%lu\t%d\n", "><"[v&1], g->seg[v>>1].name, b->s.n - j, b->a[v^1].stack); for (i = b->s.n - 1; i >= j && i != (uint32_t)-1; --i) { uint32_t w = b->s.a[i]; fprintf(stderr, "VT\t%c%s\t%d\n", "><"[w&1], g->seg[w>>1].name, j); } fprintf(stderr, "//\n");
 				b->s.n = j;
 			}
 			if (b->cs.n > 0) { // if call stack is not empty, update the top element
@@ -580,8 +580,9 @@ void gfa_scc1(gfa_t *g, gfa_cbuf_t *b, uint32_t v0)
 		} else { // process v's neighbor av[i].w
 			gfa_arc_t *av = gfa_arc_a(g, v);
 			uint32_t w = av[i].w;
-			kv_push(uint64_t, b->cs, (uint64_t)v<<32 | (i+1));
-			if (b->a[w].index == (uint32_t)-1 && b->a[w^1].stack == 0)
+			kv_push(uint64_t, b->cs, (uint64_t)v<<32 | (i+1)); // update the old top of the stack
+			//if (b->a[w].index == (uint32_t)-1 && b->a[w^1].stack == 0)
+			if (b->a[w].index == (uint32_t)-1)
 				kv_push(uint64_t, b->cs, (uint64_t)w<<32);
 			else if (b->a[w].stack)
 				b->a[v].low = b->a[v].low < b->a[w].index? b->a[v].low : b->a[w].index;
