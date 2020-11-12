@@ -225,18 +225,45 @@ void gfa_sub_print(FILE *fp, const gfa_t *g, const gfa_sub_t *sub)
  ****************/
 
 typedef struct {
-	uint32_t index, low:31, stack:1;
-} gfa_cinfo_t;
+	uint32_t index, low;
+	uint32_t i;     // index in gfa_sub_t::v[]; a temporary field
+	uint32_t start; // starting vertex
+	uint16_t stack, done;
+} gfa_scinfo_t;
 
-typedef struct {
+typedef struct gfa_scbuf_t {
 	uint32_t index;
-	gfa_cinfo_t *a;      // node information
+	gfa_scinfo_t *a;     // node information
 	kvec_t(uint32_t) s;  // Tarjan's stack
 	kvec_t(uint64_t) cs; // stack for emulating recursions
-} gfa_cbuf_t;
+} gfa_scbuf_t;
 
-void gfa_scc1(gfa_t *g, gfa_cbuf_t *b, uint32_t v0)
+gfa_scbuf_t *gfa_scbuf_init(const gfa_t *g)
 {
+	uint32_t v, n_vtx = gfa_n_vtx(g);
+	gfa_scbuf_t *b;
+	GFA_CALLOC(b, 1);
+	GFA_CALLOC(b->a, n_vtx);
+	for (v = 0; v < n_vtx; ++v)
+		b->a[v].index = b->a[v].start = (uint32_t)-1;
+	return b;
+}
+
+void gfa_scbuf_destroy(gfa_scbuf_t *b)
+{
+	free(b->a); free(b->s.a); free(b->cs.a); free(b);
+}
+
+gfa_sub_t *gfa_scc1(void *km0, const gfa_t *g, gfa_scbuf_t *b, uint32_t v0)
+{
+	gfa_sub_t *sub;
+	uint32_t k, off, m_v = 0;
+	void *km;
+
+	km = km_init2(km0, 0x10000);
+	KCALLOC(km0, sub, 1);
+	sub->km = km0;
+
 	kv_push(uint64_t, b->cs, (uint64_t)v0<<32);
 	while (b->cs.n > 0) {
 		uint64_t x = kv_pop(b->cs);
@@ -249,13 +276,19 @@ void gfa_scc1(gfa_t *g, gfa_cbuf_t *b, uint32_t v0)
 		nv = gfa_arc_n(g, v);
 		if (i == nv) { // done with v
 			if (b->a[v].low == b->a[v].index) {
-				uint32_t j = b->s.n - 1;
-				while (b->s.a[j] != v) {
-					uint32_t w = b->s.a[j--];
+				int32_t i, j = b->s.n - 1;
+				while (b->s.a[j] != v) --j;
+				for (i = b->s.n - 1; i >= j; --i) {
+					uint32_t w = b->s.a[i];
+					if (b->a[w^1].stack == 0) {
+						gfa_subv_t *p;
+						if (sub->n_v == m_v) KEXPAND(sub->km, sub->v, m_v);
+						p = &sub->v[sub->n_v++];
+						p->v = w;
+					}
 					b->a[w].stack = 0;
+					b->a[w].done = 1;
 				}
-				b->a[b->s.a[j]].stack = 0;
-				fprintf(stderr, "ST\t%c%s\t%lu\t%d\n", "><"[v&1], g->seg[v>>1].name, b->s.n - j, b->a[v^1].stack); for (i = b->s.n - 1; i >= j && i != (uint32_t)-1; --i) { uint32_t w = b->s.a[i]; fprintf(stderr, "VT\t%c%s\t%d\n", "><"[w&1], g->seg[w>>1].name, j); } fprintf(stderr, "//\n");
 				b->s.n = j;
 			}
 			if (b->cs.n > 0) { // if call stack is not empty, update the top element
@@ -267,24 +300,61 @@ void gfa_scc1(gfa_t *g, gfa_cbuf_t *b, uint32_t v0)
 			gfa_arc_t *av = gfa_arc_a(g, v);
 			uint32_t w = av[i].w;
 			kv_push(uint64_t, b->cs, (uint64_t)v<<32 | (i+1)); // update the old top of the stack
-			//if (b->a[w].index == (uint32_t)-1 && b->a[w^1].stack == 0)
 			if (b->a[w].index == (uint32_t)-1)
 				kv_push(uint64_t, b->cs, (uint64_t)w<<32);
 			else if (b->a[w].stack)
 				b->a[v].low = b->a[v].low < b->a[w].index? b->a[v].low : b->a[w].index;
 		}
 	}
+
+	// reverse the vertex array
+	for (k = 0; k < sub->n_v>>1; ++k) {
+		gfa_subv_t x;
+		x = sub->v[k], sub->v[k] = sub->v[sub->n_v - k - 1], sub->v[sub->n_v - k - 1] = x;
+	}
+
+	// fill other fields in sub
+	for (k = 0; k < sub->n_v; ++k)
+		b->a[sub->v[k].v].i = k, b->a[sub->v[k].v].start = v0;
+	for (k = 0, off = 0; k < sub->n_v; ++k) { // precompute the length of gfa_sub_t::a[]
+		uint32_t v = sub->v[k].v;
+		int32_t i, nv = gfa_arc_n(g, v);
+		gfa_arc_t *av = gfa_arc_a(g, v);
+		for (i = 0; i < nv; ++i)
+			if (b->a[av[i].w].start == v0)
+				++off;
+	}
+	sub->n_a = off;
+	KCALLOC(sub->km, sub->a, sub->n_a);
+	for (k = 0, off = 0; k < sub->n_v; ++k) {
+		uint32_t o0, v = sub->v[k].v;
+		int32_t i, nv = gfa_arc_n(g, v);
+		gfa_arc_t *av = gfa_arc_a(g, v);
+		for (i = 0, o0 = off; i < nv; ++i)
+			if (b->a[av[i].w].start == v0)
+				sub->a[off++] = (uint64_t)b->a[av[i].w].i << 32 | (&av[i] - g->arc);
+		sub->v[k].d = 0;
+		sub->v[k].off = o0;
+		sub->v[k].n = off - o0;
+		if (o0 < off) {
+			radix_sort_gfa64(&sub->a[o0], &sub->a[off]);
+			if (sub->a[o0]>>32 <= k) sub->is_dag = 0;
+		}
+	}
+	return sub;
 }
 
-void gfa_scc_all(gfa_t *g)
+void gfa_scc_all(const gfa_t *g)
 {
 	uint32_t v, n_vtx = gfa_n_vtx(g);
-	gfa_cbuf_t b;
-	memset(&b, 0, sizeof(b));
-	GFA_CALLOC(b.a, n_vtx);
+	gfa_scbuf_t *b;
+	b = gfa_scbuf_init(g);
 	for (v = 0; v < n_vtx; ++v)
-		b.a[v].index = (uint32_t)-1;
-	for (v = 0; v < n_vtx; ++v)
-		if (b.a[v].index == (uint32_t)-1 && b.a[v^1].index == (uint32_t)-1)
-			gfa_scc1(g, &b, v);
+		if (b->a[v].index == (uint32_t)-1 && b->a[v^1].index == (uint32_t)-1) {
+			gfa_sub_t *sub;
+			sub = gfa_scc1(0, g, b, v);
+			gfa_sub_print(stderr, g, sub);
+			gfa_sub_destroy(sub);
+		}
+	gfa_scbuf_destroy(b);
 }
