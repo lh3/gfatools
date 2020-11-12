@@ -38,6 +38,9 @@ typedef struct {
 	char *seq_max, *seq_min; // seq_max and seq_min point to v[]
 } gfa_bubble_t;
 
+struct gfa_scbuf_s;
+typedef struct gfa_scbuf_s gfa_scbuf_t;
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -88,6 +91,10 @@ void gfa_sub(gfa_t *g, int n, char *const* seg, int step);
 gfa_sub_t *gfa_sub_from(void *km0, const gfa_t *g, uint32_t v0, int32_t max_dist);
 void gfa_sub_destroy(gfa_sub_t *sub);
 void gfa_sub_print(FILE *fp, const gfa_t *g, const gfa_sub_t *sub);
+
+gfa_scbuf_t *gfa_scbuf_init(const gfa_t *g);
+gfa_sub_t *gfa_scc1(void *km0, const gfa_t *g, gfa_scbuf_t *b, uint32_t v0);
+void gfa_scbuf_destroy(gfa_scbuf_t *b);
 
 // graph augmentation
 int gfa_ins_adj(const gfa_t *g, int min_len, gfa_ins_t *ins, const char *seq);

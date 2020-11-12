@@ -282,6 +282,7 @@ gfa_bubble_t *gfa_bubble(const gfa_t *g, int32_t *n_bb_)
 	uint32_t i, *vs, *vmin, *vtmp = 0;
 	int32_t n_bb = 0, m_bb = 0, m_vtmp = 0;
 	gfa_bubble_t *bb = 0;
+	gfa_scbuf_t *scbuf;
 
 	GFA_MALLOC(vs, g->n_sseq);
 	GFA_MALLOC(vmin, g->n_sseq);
@@ -295,13 +296,19 @@ gfa_bubble_t *gfa_bubble(const gfa_t *g, int32_t *n_bb_)
 	}
 	free(vmin);
 
+	scbuf = gfa_scbuf_init(g);
 	for (i = 0; i < g->n_sseq; ++i) {
 		gfa_sub_t *sub;
 		int32_t j, jst, max_a;
 		bb_aux_t *ba;
 
 		if (vs[i] == (uint32_t)-1) continue;
+		#if 0
 		sub = gfa_sub_from(0, g, vs[i], 0);
+		#else
+		sub = gfa_scc1(0, g, scbuf, vs[i]);
+		#endif
+		gfa_sub_print(stderr, g, sub);
 		GFA_CALLOC(ba, sub->n_v);
 		for (j = 0; j < sub->n_v; ++j)
 			ba[j].sd = INT32_MAX, ba[j].lp = ba[j].sp = -1;
@@ -345,6 +352,7 @@ gfa_bubble_t *gfa_bubble(const gfa_t *g, int32_t *n_bb_)
 					b->len_max = ba[j].ld - ba[jst].ld - sst->len;
 					b->cf_ref = bb_ref_freq(g, sub, jst, j);
 					b->n_paths = bb_n_paths(g, sub, jst, j);
+					fprintf(stderr, "min=%d, max=%d, %d,%d\n", b->len_min, b->len_max, ba[j].sd, ba[jst].sd);
 					assert(b->len_min >= 0);
 					assert(b->len_max >= 0 && b->len_max >= b->len_min);
 					b->n_seg = j - jst + 1;
@@ -397,6 +405,7 @@ gfa_bubble_t *gfa_bubble(const gfa_t *g, int32_t *n_bb_)
 		free(ba);
 		gfa_sub_destroy(sub);
 	}
+	gfa_scbuf_destroy(scbuf);
 	free(vs);
 	*n_bb_ = n_bb;
 	return bb;

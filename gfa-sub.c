@@ -225,18 +225,17 @@ void gfa_sub_print(FILE *fp, const gfa_t *g, const gfa_sub_t *sub)
  ****************/
 
 typedef struct {
-	uint32_t index, low;
+	uint32_t index, low:31, stack:1;
 	uint32_t i;     // index in gfa_sub_t::v[]; a temporary field
 	uint32_t start; // starting vertex
-	uint16_t stack, out;
 } gfa_scinfo_t;
 
-typedef struct gfa_scbuf_t {
+struct gfa_scbuf_s {
 	uint32_t index;
 	gfa_scinfo_t *a;     // node information
 	kvec_t(uint32_t) ts; // Tarjan's stack
 	kvec_t(uint64_t) ds; // DFS stack
-} gfa_scbuf_t;
+};
 
 gfa_scbuf_t *gfa_scbuf_init(const gfa_t *g)
 {
@@ -280,18 +279,16 @@ gfa_sub_t *gfa_scc1(void *km0, const gfa_t *g, gfa_scbuf_t *b, uint32_t v0)
 				while (b->ts.a[j] != v) --j;
 				for (i = b->ts.n - 1; i >= j; --i) {
 					uint32_t w = b->ts.a[i];
-					if (b->a[w^1].stack == 0 && !b->a[w^1].out) {
-						gfa_subv_t *p;
-						if (sub->n_v == m_v) KEXPAND(sub->km, sub->v, m_v);
-						p = &sub->v[sub->n_v++];
-						p->v = w;
-						b->a[w].out = 1;
-					}
+					gfa_subv_t *p;
+					fprintf(stderr, "V\t%c%s\t%d\t%c%s\t%d\n", "><"[v&1], g->seg[v>>1].name, i, "><"[w&1], g->seg[w>>1].name, b->a[w^1].stack);
+					if (sub->n_v == m_v) KEXPAND(sub->km, sub->v, m_v);
+					p = &sub->v[sub->n_v++];
+					p->v = w;
 					b->a[w].stack = 0;
 				}
 				b->ts.n = j;
 			}
-			if (b->ds.n > 0) { // if call stack is not empty, update the top element
+			if (b->ds.n > 0) { // if the DFS stack is not empty, update the top element
 				uint32_t w = v;
 				v = b->ds.a[b->ds.n - 1] >> 32;
 				b->a[v].low = b->a[v].low < b->a[w].low? b->a[v].low : b->a[w].low;
@@ -313,9 +310,20 @@ gfa_sub_t *gfa_scc1(void *km0, const gfa_t *g, gfa_scbuf_t *b, uint32_t v0)
 		x = sub->v[k], sub->v[k] = sub->v[sub->n_v - k - 1], sub->v[sub->n_v - k - 1] = x;
 	}
 
+	// remove strand-duplicates
+	for (k = off = 0; k < sub->n_v; ++k) {
+		uint32_t w = sub->v[k].v;
+		if (b->a[w^1].start != v0) {
+			sub->v[off] = sub->v[k];
+			b->a[w].start = v0;
+			b->a[w].i = off++;
+		} else {
+			b->a[w].start = (uint32_t)-1;
+		}
+	}
+	sub->n_v = off;
+
 	// fill other fields in sub
-	for (k = 0; k < sub->n_v; ++k)
-		b->a[sub->v[k].v].i = k, b->a[sub->v[k].v].start = v0;
 	for (k = 0, off = 0; k < sub->n_v; ++k) { // precompute the length of gfa_sub_t::a[]
 		uint32_t v = sub->v[k].v;
 		int32_t i, nv = gfa_arc_n(g, v);
