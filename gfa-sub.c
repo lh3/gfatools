@@ -228,14 +228,14 @@ typedef struct {
 	uint32_t index, low;
 	uint32_t i;     // index in gfa_sub_t::v[]; a temporary field
 	uint32_t start; // starting vertex
-	uint16_t stack, done;
+	uint16_t stack, out;
 } gfa_scinfo_t;
 
 typedef struct gfa_scbuf_t {
 	uint32_t index;
 	gfa_scinfo_t *a;     // node information
-	kvec_t(uint32_t) s;  // Tarjan's stack
-	kvec_t(uint64_t) cs; // stack for emulating recursions
+	kvec_t(uint32_t) ts; // Tarjan's stack
+	kvec_t(uint64_t) ds; // DFS stack
 } gfa_scbuf_t;
 
 gfa_scbuf_t *gfa_scbuf_init(const gfa_t *g)
@@ -251,7 +251,7 @@ gfa_scbuf_t *gfa_scbuf_init(const gfa_t *g)
 
 void gfa_scbuf_destroy(gfa_scbuf_t *b)
 {
-	free(b->a); free(b->s.a); free(b->cs.a); free(b);
+	free(b->a); free(b->ts.a); free(b->ds.a); free(b);
 }
 
 gfa_sub_t *gfa_scc1(void *km0, const gfa_t *g, gfa_scbuf_t *b, uint32_t v0)
@@ -264,44 +264,44 @@ gfa_sub_t *gfa_scc1(void *km0, const gfa_t *g, gfa_scbuf_t *b, uint32_t v0)
 	KCALLOC(km0, sub, 1);
 	sub->km = km0;
 
-	kv_push(uint64_t, b->cs, (uint64_t)v0<<32);
-	while (b->cs.n > 0) {
-		uint64_t x = kv_pop(b->cs);
+	kv_push(uint64_t, b->ds, (uint64_t)v0<<32);
+	while (b->ds.n > 0) {
+		uint64_t x = kv_pop(b->ds);
 		uint32_t i = (uint32_t)x, v = x>>32, nv;
 		if (i == 0) { // i is the number of outgoing edges already visited
 			b->a[v].low = b->a[v].index = b->index++;
 			b->a[v].stack = 1;
-			kv_push(uint32_t, b->s, v);
+			kv_push(uint32_t, b->ts, v);
 		}
 		nv = gfa_arc_n(g, v);
 		if (i == nv) { // done with v
 			if (b->a[v].low == b->a[v].index) {
-				int32_t i, j = b->s.n - 1;
-				while (b->s.a[j] != v) --j;
-				for (i = b->s.n - 1; i >= j; --i) {
-					uint32_t w = b->s.a[i];
-					if (b->a[w^1].stack == 0) {
+				int32_t i, j = b->ts.n - 1;
+				while (b->ts.a[j] != v) --j;
+				for (i = b->ts.n - 1; i >= j; --i) {
+					uint32_t w = b->ts.a[i];
+					if (b->a[w^1].stack == 0 && !b->a[w^1].out) {
 						gfa_subv_t *p;
 						if (sub->n_v == m_v) KEXPAND(sub->km, sub->v, m_v);
 						p = &sub->v[sub->n_v++];
 						p->v = w;
+						b->a[w].out = 1;
 					}
 					b->a[w].stack = 0;
-					b->a[w].done = 1;
 				}
-				b->s.n = j;
+				b->ts.n = j;
 			}
-			if (b->cs.n > 0) { // if call stack is not empty, update the top element
+			if (b->ds.n > 0) { // if call stack is not empty, update the top element
 				uint32_t w = v;
-				v = b->cs.a[b->cs.n - 1] >> 32;
+				v = b->ds.a[b->ds.n - 1] >> 32;
 				b->a[v].low = b->a[v].low < b->a[w].low? b->a[v].low : b->a[w].low;
 			}
 		} else { // process v's neighbor av[i].w
 			gfa_arc_t *av = gfa_arc_a(g, v);
 			uint32_t w = av[i].w;
-			kv_push(uint64_t, b->cs, (uint64_t)v<<32 | (i+1)); // update the old top of the stack
+			kv_push(uint64_t, b->ds, (uint64_t)v<<32 | (i+1)); // update the old top of the stack
 			if (b->a[w].index == (uint32_t)-1)
-				kv_push(uint64_t, b->cs, (uint64_t)w<<32);
+				kv_push(uint64_t, b->ds, (uint64_t)w<<32);
 			else if (b->a[w].stack)
 				b->a[v].low = b->a[v].low < b->a[w].index? b->a[v].low : b->a[w].index;
 		}
