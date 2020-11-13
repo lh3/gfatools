@@ -312,6 +312,7 @@ int main_blacklist(int argc, char *argv[])
 		fprintf(stderr, "ERROR: failed to read the graph\n");
 		return 2;
 	}
+	gfa_sort_ref_arc(g);
 	bb = gfa_bubble(g, &n_bb);
 	for (i = 0; i < n_bb; ++i) {
 		gfa_bubble_t *b = &bb[i];
@@ -355,6 +356,7 @@ int main_bubble(int argc, char *argv[])
 		fprintf(stderr, "ERROR: failed to read the graph\n");
 		return 2;
 	}
+	gfa_sort_ref_arc(g);
 	bb = gfa_bubble(g, &n_bb);
 	for (i = 0; i < n_bb; ++i) {
 		gfa_bubble_t *b = &bb[i];

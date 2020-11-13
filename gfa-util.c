@@ -202,6 +202,42 @@ end_check:
 	return sfa;
 }
 
+void gfa_sort_ref_arc(gfa_t *g)
+{
+	int32_t k;
+	for (k = 0; k < g->n_seg; ++k) {
+		gfa_seg_t *s = &g->seg[k];
+		uint32_t v;
+		int32_t i, nv;
+		gfa_arc_t *av, b;
+		if (s->rank != 0) continue;
+		// forward strand
+		v = (uint32_t)k<<1 | 0;
+		nv = gfa_arc_n(g, v);
+		av = gfa_arc_a(g, v);
+		for (i = 0; i < nv; ++i) {
+			uint32_t w = av[i].w;
+			gfa_seg_t *t = &g->seg[w>>1];
+			if ((w&1) == 0 && t->rank == 0 && t->snid == s->snid && s->soff + s->len == t->soff)
+				break;
+		}
+		assert(nv == 0 || i < nv);
+		if (i > 0) b = av[i], av[i] = av[0], av[0] = b;
+		// reverse strand
+		v = (uint32_t)k<<1 | 1;
+		nv = gfa_arc_n(g, v);
+		av = gfa_arc_a(g, v);
+		for (i = 0; i < nv; ++i) {
+			uint32_t w = av[i].w;
+			gfa_seg_t *t = &g->seg[w>>1];
+			if ((w&1) == 1 && t->rank == 0 && t->snid == s->snid && t->soff + t->len == s->soff)
+				break;
+		}
+		assert(nv == 0 || i < nv);
+		if (i > 0) b = av[i], av[i] = av[0], av[0] = b;
+	}
+}
+
 typedef struct {
 	int32_t ld, sd, rd;
 	int32_t lp, sp;
@@ -308,7 +344,7 @@ gfa_bubble_t *gfa_bubble(const gfa_t *g, int32_t *n_bb_)
 		#else
 		sub = gfa_scc1(0, g, scbuf, vs[i]);
 		#endif
-		gfa_sub_print(stderr, g, sub);
+		//gfa_sub_print(stderr, g, sub);
 		GFA_CALLOC(ba, sub->n_v);
 		for (j = 0; j < sub->n_v; ++j)
 			ba[j].sd = INT32_MAX, ba[j].lp = ba[j].sp = -1;
@@ -352,7 +388,6 @@ gfa_bubble_t *gfa_bubble(const gfa_t *g, int32_t *n_bb_)
 					b->len_max = ba[j].ld - ba[jst].ld - sst->len;
 					b->cf_ref = bb_ref_freq(g, sub, jst, j);
 					b->n_paths = bb_n_paths(g, sub, jst, j);
-					fprintf(stderr, "min=%d, max=%d, %d,%d\n", b->len_min, b->len_max, ba[j].sd, ba[jst].sd);
 					assert(b->len_min >= 0);
 					assert(b->len_max >= 0 && b->len_max >= b->len_min);
 					b->n_seg = j - jst + 1;
