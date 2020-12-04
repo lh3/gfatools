@@ -304,7 +304,9 @@ static int32_t bb_n_paths(const gfa_t *g, const gfa_sub_t *sub, int32_t js, int3
 			uint64_t a = sub->a[t->off + k];
 			int32_t jv = (int32_t)(a>>32);
 			if (jv <= j || jv > je) continue;
-			cnt[jv - js] += cnt[j - js];
+			if (cnt[jv - js] + cnt[j - js] > INT32_MAX)
+				cnt[jv - js] = INT32_MAX;
+			else cnt[jv - js] += cnt[j - js];
 		}
 	}
 	c = cnt[je - js];
