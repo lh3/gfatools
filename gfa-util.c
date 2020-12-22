@@ -1,4 +1,5 @@
 #include <assert.h>
+#include <ctype.h>
 #include "gfa-priv.h"
 #include "kvec.h"
 #include "ksort.h"
@@ -446,4 +447,104 @@ gfa_bubble_t *gfa_bubble(const gfa_t *g, int32_t *n_bb_)
 	free(vs);
 	*n_bb_ = n_bb;
 	return bb;
+}
+
+const char *gfa_parse_reg(const char *s, int32_t *beg, int32_t *end)
+{
+	int32_t i, k, l, name_end;
+	*beg = *end = -1;
+	name_end = l = strlen(s);
+	// determine the sequence name
+	for (i = l - 1; i >= 0; --i) if (s[i] == ':') break; // look for colon from the end
+	if (i >= 0) name_end = i;
+	if (name_end < l) { // check if this is really the end
+		int n_hyphen = 0;
+		for (i = name_end + 1; i < l; ++i) {
+			if (s[i] == '-') ++n_hyphen;
+			else if (!isdigit(s[i]) && s[i] != ',') break;
+		}
+		if (i < l || n_hyphen > 1) name_end = l; // malformated region string; then take str as the name
+	}
+	// parse the interval
+	if (name_end < l) {
+		char *tmp;
+		tmp = (char*)alloca(l - name_end + 1);
+		for (i = name_end + 1, k = 0; i < l; ++i)
+			if (s[i] != ',') tmp[k++] = s[i];
+		tmp[k] = 0;
+		if ((*beg = strtol(tmp, &tmp, 10) - 1) < 0) *beg = 0;
+		*end = *tmp? strtol(tmp + 1, &tmp, 10) : 1<<29;
+		if (*beg > *end) name_end = l;
+	}
+	if (name_end == l) *beg = 0, *end = 1<<29;
+	return s + name_end;
+}
+
+static char **gfa_append_list(char **a, uint32_t *n, uint32_t *m, const char *p)
+{
+	if (*n == *m) GFA_EXPAND(a, *m);
+	a[(*n)++] = gfa_strdup(p);
+	return a;
+}
+
+char **gfa_query_by_id(const gfa_t *g, int32_t n_bb, const gfa_bubble_t *bb, int32_t snid, int32_t start, int32_t end, int *n_seg_)
+{ // TODO: This is an inefficient implementationg. Faster query requires to index the bubble intervals first.
+	int32_t i, j, last = 0, bb_st = -1, bb_st_on = -1, bb_en = -1, bb_en_on = -1, bb_last = -1;
+	uint32_t n_seg = 0, m_seg = 0;
+	char **seg = 0;
+	assert(start <= end && start >= 0);
+	*n_seg_ = 0;
+	for (i = 0; i < n_bb; ++i) {
+		const gfa_bubble_t *b = &bb[i];
+		if (i == 0 || bb[i].snid != bb[i-1].snid) last = 0;
+		if (b->snid != snid) continue;
+		assert(b->n_seg > 0);
+		bb_last = i;
+		if (last <= start && start < b->ss) {
+			assert(bb_st < 0);
+			bb_st = i, bb_st_on = 1;
+		} else if (b->ss <= start && start < b->se) {
+			bb_st = i, bb_st_on = 0;
+		}
+		if (last < end && end <= b->ss) {
+			assert(bb_st >= 0);
+			bb_en = i, bb_en_on = 1;
+		} else if (b->ss < end && end <= b->se) {
+			bb_en = i, bb_en_on = 0;
+		}
+		last = b->se;
+	}
+	if (bb_last < 0) return 0; // snid not found
+	if (bb_st < 0) { // on the last stem
+		const gfa_seg_t *s = &g->seg[bb[bb_last].v[bb[bb_last].n_seg - 1]>>1];
+		assert(s->snid == snid && start >= s->soff);
+		if (start < s->soff + s->len)
+			seg = gfa_append_list(seg, &n_seg, &m_seg, s->name);
+	} else if (bb_st_on && bb_st == bb_en && bb_en_on) { // on one stem
+		seg = gfa_append_list(seg, &n_seg, &m_seg, g->seg[bb[bb_st].v[0]>>1].name);
+	} else { // extract bubbles
+		if (bb_en < 0) bb_en = bb_last;
+		for (i = bb_st; i <= bb_en; ++i) {
+			int32_t s = i == bb_st? 0 : 1;
+			for (j = s; j < bb[i].n_seg; ++j)
+				seg = gfa_append_list(seg, &n_seg, &m_seg, g->seg[bb[i].v[j]>>1].name);
+		}
+	}
+	*n_seg_ = n_seg;
+	return seg;
+}
+
+char **gfa_query_by_reg(const gfa_t *g, int32_t n_bb, const gfa_bubble_t *bb, const char *reg, int *n_seg)
+{
+	int32_t snid, start, end;
+	const char *p;
+	char *tmp;
+	*n_seg = 0;
+	p = gfa_parse_reg(reg, &start, &end);
+	if (p == 0) return 0;
+	tmp = gfa_strndup(reg, p - reg);
+	snid = gfa_sseq_get(g, tmp);
+	free(tmp);
+	if (snid < 0) return 0;
+	return gfa_query_by_id(g, n_bb, bb, snid, start, end, n_seg);
 }

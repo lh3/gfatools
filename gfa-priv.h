@@ -86,6 +86,7 @@ void gfa_scc_all(const gfa_t *g);
 
 // subset, modifying the graph
 void gfa_sub(gfa_t *g, int n, char *const* seg, int step);
+char **gfa_query_by_reg(const gfa_t *g, int32_t n_bb, const gfa_bubble_t *bb, const char *reg, int *n_seg);
 
 // subset, without modifying the graph
 gfa_sub_t *gfa_sub_from(void *km0, const gfa_t *g, uint32_t v0, int32_t max_dist);

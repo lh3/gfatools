@@ -72,15 +72,16 @@ int main_view(int argc, char *argv[])
 {
 	ketopt_t o = KETOPT_INIT;
 	int c, out_flag = 0, step = 0, is_del = 0, fix_multi = 0;
-	char *list_arg = 0;
+	char *list_arg = 0, *reg_arg = 0;
 	gfa_t *g;
 
-	while ((c = ketopt(&o, argc, argv, 1, "v:dr:l:SM", 0)) >= 0) {
+	while ((c = ketopt(&o, argc, argv, 1, "v:dr:l:SMR:", 0)) >= 0) {
 		if (c == 'v') gfa_verbose = atoi(o.arg);
 		else if (c == 'd') is_del = 1;
 		else if (c == 'r') step = atoi(o.arg);
 		else if (c == 'l') list_arg = o.arg;
 		else if (c == 'S') out_flag |= GFA_O_NO_SEQ;
+		else if (c == 'R') reg_arg = o.arg;
 		else if (c == 'M') fix_multi = 1;
 	}
 	if (o.ind == argc) {
@@ -88,11 +89,16 @@ int main_view(int argc, char *argv[])
 		fprintf(stderr, "Options:\n");
 		fprintf(stderr, "  -v INT        verbose level [%d]\n", gfa_verbose);
 		fprintf(stderr, "  -l STR/@FILE  segment list to subset []\n");
+		fprintf(stderr, "  -R STR        a region like chr1:101-200 (a 1-based closed region) []\n");
 		fprintf(stderr, "  -r INT        subset radius (effective with -l) [%d]\n", step);
 		fprintf(stderr, "  -d            delete the list of segments (requiring -l; ignoring -r)\n");
 		fprintf(stderr, "  -M            remove multiple edges\n");
 		fprintf(stderr, "  -S            don't print sequences\n");
 		return 1;
+	}
+	if (list_arg && reg_arg) {
+		fprintf(stderr, "ERROR: -R and -l can't be used at the same time\n");
+		return 3;
 	}
 	g = gfa_read(argv[o.ind]);
 	if (g == 0) {
@@ -100,10 +106,23 @@ int main_view(int argc, char *argv[])
 		return 2;
 	}
 	if (fix_multi) gfa_fix_multi(g);
-	if (list_arg) {
+	if (list_arg || reg_arg) {
 		int i, n;
 		char **list;
-		list = gv_read_list(list_arg, &n);
+		if (list_arg) {
+			list = gv_read_list(list_arg, &n);
+		} else {
+			gfa_bubble_t *bb;
+			int32_t n_bb;
+			bb = gfa_bubble(g, &n_bb);
+			list = gfa_query_by_reg(g, n_bb, bb, reg_arg, &n);
+			for (i = 0; i < n_bb; ++i) free(bb[i].v);
+			free(bb);
+		}
+		if (n == 0) { // nothing to extract
+			gfa_destroy(g);
+			return 0;
+		}
 		if (!is_del) {
 			gfa_sub(g, n, list, step);
 		} else {
