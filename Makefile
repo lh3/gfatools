@@ -42,7 +42,7 @@ gfa-aug.o: gfa-priv.h gfa.h ksort.h
 gfa-base.o: gfa-priv.h gfa.h kstring.h khash.h kalloc.h ksort.h
 gfa-gt.o: gfa-priv.h gfa.h khash.h kalloc.h
 gfa-io.o: kstring.h gfa-priv.h gfa.h kseq.h
-gfa-sub.o: gfa-priv.h gfa.h kalloc.h kavl.h khash.h ksort.h
-gfa-util.o: gfa-priv.h gfa.h kvec.h ksort.h
+gfa-sub.o: gfa-priv.h gfa.h kalloc.h kavl.h khash.h ksort.h kvec.h
+gfa-util.o: gfa-priv.h gfa.h kvec.h ksort.h kdq.h
 kalloc.o: kalloc.h
 main.o: ketopt.h gfa-priv.h gfa.h kseq.h
