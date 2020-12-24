@@ -115,8 +115,7 @@ function gfa_plot_cal_pos(conf, g)
 			// look for an existing level
 			var l;
 			for (l = 0; l < level_max.length; ++l) {
-				if (pl[l].cnt > 1) continue;
-				if (level_max[l] + conf.xskip > pos[i].start) continue;
+				if (pl[l].cnt > 1 || level_max[l] + conf.xskip > pos[i].start) continue;
 				if (pl[l].cnt == 0) break;
 				if (pl[l].end == level_max[l]) break;
 			}
