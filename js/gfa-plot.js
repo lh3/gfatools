@@ -108,14 +108,18 @@ function gfa_plot_cal_pos(conf, g)
 				var end = pos_ij.start + pos_ij.len;
 				if (end > max_end) max_end = end;
 				pl[pos_ij.level].i = pred[i][j];
+				pl[pos_ij.level].end = pos[pred[i][j]].start + pos[pred[i][j]].len;
 				++pl[pos_ij.level].cnt;
 			}
 			pos[i].start = max_end + conf.xskip;
 			// look for an existing level
 			var l;
-			for (l = 0; l < level_max.length; ++l)
-				if (pl[l].cnt < 2 && level_max[l] + conf.xskip <= pos[i].start)
-					break;
+			for (l = 0; l < level_max.length; ++l) {
+				if (pl[l].cnt > 1) continue;
+				if (level_max[l] + conf.xskip > pos[i].start) continue;
+				if (pl[l].cnt == 0) break;
+				if (pl[l].end == level_max[l]) break;
+			}
 			pos[i].level = l;
 		}
 		level_max[pos[i].level] = pos[i].start + pos[i].len;
