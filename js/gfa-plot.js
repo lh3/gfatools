@@ -49,7 +49,7 @@ function gfa_plot_find_v0(g) // FIXME: not general
 			if (v0_ref < 0 || g.seg[v>>1].soff < g.seg[v0_ref>>1].soff)
 				v0_ref = v;
 		}
-		if (g.idx[v^1][1] == 0 && v0_src < 0)
+		if (g.idx[v^1].n == 0 && v0_src < 0)
 			v0_src = v;
 	}
 	return v0_ref >= 0? v0_ref : v0_src >= 0? v0_src : 0;
@@ -68,7 +68,7 @@ function gfa_plot_cal_pos(conf, g)
 	for (var i = 0; i < sub.v.length; ++i) pred[i] = [];
 	for (var i = 0; i < sub.v.length; ++i)
 		for (var j = 0; j < sub.v[i].n; ++j)
-			pred[sub.a[sub.v[i].off + j][0]].push(i);
+			pred[sub.a[sub.v[i].off + j].i].push(i);
 
 	var l = 0, level_max = [], pos = [];
 	for (var i = 0; i < sub.v.length; ++i) {
@@ -135,10 +135,11 @@ function gfa_plot_draw(canvas, conf, g)
 
 	for (var i = 0; i < pos.length; ++i) {
 		for (var j = 0; j < sub.v[i].n; ++j) {
+			ctx.beginPath();
 			ctx.moveTo(pos[i].cx_en, pos[i].cy);
-			var k = sub.a[sub.v[i].off + j][0];
+			var k = sub.a[sub.v[i].off + j].i;
 			ctx.lineTo(pos[k].cx_st, pos[k].cy);
-			ctx.strokeStyle = "#A0A0A0";
+			ctx.strokeStyle = sub.a[sub.v[i].off + j].rank == 0? "#FF0000" : "#A0A0A0";
 			ctx.stroke();
 		}
 	}

@@ -14,15 +14,15 @@ function gfa_index(g)
 {
 	var n_vtx = g.seg.length * 2;
 	for (var v = 0; v < n_vtx; ++v)
-		g.idx[v] = [0, 0];
+		g.idx[v] = { o:0, n:0 };
 	g.arc = g.arc.sort(function(a,b) { return a.v - b.v });
 	var st = 0;
 	for (var i = 1; i <= g.arc.length; ++i)
 		if (i == g.arc.length || g.arc[i].v != g.arc[st].v)
-			g.idx[g.arc[st].v] = [st, i - st], st = i;
+			g.idx[g.arc[st].v] = { o:st, n:i-st }, st = i;
 	for (var v = 0; v < n_vtx; ++v) {
-		var ov = g.idx[v][0];
-		var nv = g.idx[v][1];
+		var ov = g.idx[v].o;
+		var nv = g.idx[v].n;
 		var i0 = -1, n0 = 0;
 		for (var i = 0; i < nv; ++i)
 			if (g.arc[ov + i].rank == 0)
@@ -107,7 +107,7 @@ function gfa_scc1(g, aux, v0)
 			aux.a[v].stack = true;
 			ts.push(v);
 		}
-		var nv = g.idx[v][1];
+		var nv = g.idx[v].n;
 		if (i == nv) { // done with v
 			if (aux.a[v].low == aux.a[v].index) {
 				while (ts.length > 0) {
@@ -123,7 +123,7 @@ function gfa_scc1(g, aux, v0)
 				aux.a[v].low = aux.a[v].low < aux.a[w].low? aux.a[v].low : aux.a[w].low;
 			}
 		} else { // process v's neighbor av[i].w
-			var w = g.arc[g.idx[v][0] + i].w;
+			var w = g.arc[g.idx[v].o + i].w;
 			ds.push([v, i + 1]);
 			if (aux.a[w].index == -1 && aux.a[w^1].stack == false)
 				ds.push([w, 0]);
@@ -141,11 +141,11 @@ function gfa_scc1(g, aux, v0)
 	for (var k = 0; k < sub.v.length; ++k)
 		aux.a[sub.v[k].v].start = v0, aux.a[sub.v[k].v].i = k;
 	for (var k = 0; k < sub.v.length; ++k) {
-		var o0 = sub.a.length, v = sub.v[k].v, nv = g.idx[v][1], ov = g.idx[v][0];
+		var o0 = sub.a.length, v = sub.v[k].v, nv = g.idx[v].n, ov = g.idx[v].o;
 		for (var i = 0; i < nv; ++i) {
 			var a = g.arc[ov + i];
 			if (aux.a[a.w].start == v0)
-				sub.a.push([aux.a[a.w].i, ov + i, a.rank]);
+				sub.a.push({ i:aux.a[a.w].i, arc_off:ov+i, rank:a.rank });
 		}
 		sub.v[k].off = o0;
 		sub.v[k].n = sub.a.length - o0;
@@ -168,7 +168,7 @@ function gfa_scc1_string(g, sub)
 		if (sub.v[i].n > 0) {
 			var s = [];
 			for (var j = 0; j < sub.v[i].n; ++j)
-				s.push(sub.a[sub.v[i].off + j][0]);
+				s.push(sub.a[sub.v[i].off + j].i);
 			t.push(s.join(","));
 		}
 		lines.push(t.join("\t"));
