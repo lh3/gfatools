@@ -145,7 +145,7 @@ function gfa_scc1(g, aux, v0)
 		for (var i = 0; i < nv; ++i) {
 			var a = g.arc[ov + i];
 			if (aux.a[a.w].start == v0)
-				sub.a.push([aux.a[a.w].i, ov + i]);
+				sub.a.push([aux.a[a.w].i, ov + i, a.rank]);
 		}
 		sub.v[k].off = o0;
 		sub.v[k].n = sub.a.length - o0;

@@ -1,0 +1,161 @@
+<html>
+<head>
+<script language="JavaScript" src="gfa.js"></script>
+<script language="JavaScript" src="gfa-plot.js"></script>
+<style type="text/css">
+<!--
+	#container { position: relative; }
+	#canvas { border: 1px solid #000; }
+	body, input, select, option, p { font-size: 12px; font-family: "Lucida Grande", "Lucida Sans Unicode", Arial, sans-serif; }
+	textarea { font: 100% "consolas", "Andale Mono", Monaco, Courier; overflow: auto }
+-->
+</style>
+</head>
+
+<body>
+<p>
+rGFA input:
+<select id="examples" onChange="load_example()" title="Example subgraphs">
+	<option value="none"></option>
+	<option value="gfa-ex-cr1">CR1</option>
+	<option value="gfa-ex-c4">C4</option>
+	<option value="gfa-ex-rhd">RHD</option>
+</select>
+<input type="button" value="Clear" onClick="document.getElementById('gfa-text').value='';document.getElementById('examples').value='none'">
+<input type="button" value="Draw" onClick="gfa_plot(document.getElementById('canvas'),document.getElementById('gfa-text').value,document.getElementById('info'));">
+<span id="info" style="color: gray;"></span>
+</p>
+<textarea id="gfa-text" rows="15" cols="110"></textarea>
+<p>
+<canvas id="canvas" width="800" height="100"></canvas>
+</p>
+
+<script language="JavaScript">
+function load_example() {
+	var sel = document.getElementById('examples').value;
+	if (sel == "none") document.getElementById('gfa-text').value = '';
+	else document.getElementById('gfa-text').value = document.getElementById(sel).value;
+}
+</script>
+
+<textarea id="gfa-ex-cr1" style="display: none">
+S	s6241	*	LN:i:87389	SN:Z:chr1	SO:i:207450700	SR:i:0
+S	s6242	*	LN:i:34	SN:Z:chr1	SO:i:207538089	SR:i:0
+S	s6243	*	LN:i:9995	SN:Z:chr1	SO:i:207538123	SR:i:0
+S	s6244	*	LN:i:1520	SN:Z:chr1	SO:i:207548118	SR:i:0
+S	s6245	*	LN:i:7038	SN:Z:chr1	SO:i:207549638	SR:i:0
+S	s6246	*	LN:i:10014	SN:Z:chr1	SO:i:207556676	SR:i:0
+S	s6247	*	LN:i:13	SN:Z:chr1	SO:i:207566690	SR:i:0
+S	s6248	*	LN:i:7037	SN:Z:chr1	SO:i:207566703	SR:i:0
+S	s6249	*	LN:i:93977	SN:Z:chr1	SO:i:207573740	SR:i:0
+S	s161654	*	LN:i:24	SN:Z:HG00735#2#h2tg000022l	SO:i:38999341	SR:i:8
+S	s192603	*	LN:i:18563	SN:Z:HG01891#2#h2tg000013l	SO:i:46179767	SR:i:30
+S	s215577	*	LN:i:1508	SN:Z:HG02622#2#h2tg000017l	SO:i:140425	SR:i:54
+L	s6241	+	s6249	+	0M	SR:i:16	L1:i:87389	L2:i:93977
+L	s6241	+	s6242	+	0M	SR:i:0	L1:i:87389	L2:i:34
+L	s6242	+	s6246	+	0M	SR:i:1	L1:i:34	L2:i:10014
+L	s6242	+	s6243	+	0M	SR:i:0	L1:i:34	L2:i:9995
+L	s6243	+	s161654	+	0M	SR:i:8	L1:i:9995	L2:i:24
+L	s6243	+	s6244	+	0M	SR:i:0	L1:i:9995	L2:i:1520
+L	s6244	+	s6245	+	0M	SR:i:0	L1:i:1520	L2:i:7038
+L	s6245	+	s6246	+	0M	SR:i:0	L1:i:7038	L2:i:10014
+L	s6246	+	s215577	+	0M	SR:i:54	L1:i:10014	L2:i:1508
+L	s6246	+	s6247	+	0M	SR:i:0	L1:i:10014	L2:i:13
+L	s6247	+	s6248	+	0M	SR:i:0	L1:i:13	L2:i:7037
+L	s6248	+	s192603	+	0M	SR:i:30	L1:i:7037	L2:i:18563
+L	s6248	+	s6249	+	0M	SR:i:0	L1:i:7037	L2:i:93977
+L	s161654	+	s6245	+	0M	SR:i:8	L1:i:24	L2:i:7038
+L	s192603	+	s6249	+	0M	SR:i:30	L1:i:18563	L2:i:93977
+L	s215577	+	s6248	+	0M	SR:i:54	L1:i:1508	L2:i:7037
+</textarea>
+
+<textarea id="gfa-ex-c4" style="display: none">
+S	s37768	*	LN:i:52004	SN:Z:chr6	SO:i:31932660	SR:i:0
+S	s37769	*	LN:i:6387	SN:Z:chr6	SO:i:31984664	SR:i:0
+S	s37770	*	LN:i:5567	SN:Z:chr6	SO:i:31991051	SR:i:0
+S	s37771	*	LN:i:14359	SN:Z:chr6	SO:i:31996618	SR:i:0
+S	s37772	*	LN:i:7	SN:Z:chr6	SO:i:32010977	SR:i:0
+S	s37773	*	LN:i:6418	SN:Z:chr6	SO:i:32010984	SR:i:0
+S	s37774	*	LN:i:6387	SN:Z:chr6	SO:i:32017402	SR:i:0
+S	s37775	*	LN:i:5566	SN:Z:chr6	SO:i:32023789	SR:i:0
+S	s37776	*	LN:i:28800	SN:Z:chr6	SO:i:32029355	SR:i:0
+S	s154151	*	LN:i:20	SN:Z:HG00621#1#h1tg000021l	SO:i:24406111	SR:i:5
+S	s170874	*	LN:i:20	SN:Z:HG01071#2#h2tg000078l	SO:i:7826035	SR:i:12
+S	s170875	*	LN:i:26348	SN:Z:HG01071#2#h2tg000078l	SO:i:7826055	SR:i:12
+S	s170876	*	LN:i:20	SN:Z:HG01071#2#h2tg000078l	SO:i:7852403	SR:i:12
+S	s196118	*	LN:i:127	SN:Z:HG01928#2#h2tg000018l	SO:i:31946467	SR:i:32
+S	s197971	*	LN:i:20	SN:Z:HG01952#1#h1tg000046l	SO:i:28438839	SR:i:35
+S	s198535	*	LN:i:6387	SN:Z:HG01978#2#h2tg000049l	SO:i:2502657	SR:i:36
+S	s198536	*	LN:i:6387	SN:Z:HG01978#2#h2tg000049l	SO:i:2535395	SR:i:36
+L	s37768	+	s37769	+	0M	SR:i:0	L1:i:52004	L2:i:6387
+L	s37769	+	s37770	+	0M	SR:i:0	L1:i:6387	L2:i:5567
+L	s37770	+	s37771	+	0M	SR:i:0	L1:i:5567	L2:i:14359
+L	s37770	-	s197971	+	0M	SR:i:35	L1:i:5567	L2:i:20
+L	s37771	+	s37772	+	0M	SR:i:0	L1:i:14359	L2:i:7
+L	s37771	+	s196118	+	0M	SR:i:32	L1:i:14359	L2:i:127
+L	s37772	+	s37773	+	0M	SR:i:0	L1:i:7	L2:i:6418
+L	s37773	+	s37774	+	0M	SR:i:0	L1:i:6418	L2:i:6387
+L	s37774	+	s37775	+	0M	SR:i:0	L1:i:6387	L2:i:5566
+L	s37775	+	s37776	+	0M	SR:i:0	L1:i:5566	L2:i:28800
+L	s37775	-	s154151	+	0M	SR:i:5	L1:i:5566	L2:i:20
+L	s37775	-	s170874	+	0M	SR:i:12	L1:i:5566	L2:i:20
+L	s37775	-	s198535	+	0M	SR:i:36	L1:i:5566	L2:i:6387
+L	s37776	-	s37770	-	0M	SR:i:2	L1:i:28800	L2:i:5567
+L	s154151	+	s37773	-	0M	SR:i:5	L1:i:20	L2:i:6418
+L	s170874	+	s170875	+	0M	SR:i:12	L1:i:20	L2:i:26348
+L	s170875	+	s198536	+	0M	SR:i:36	L1:i:26348	L2:i:6387
+L	s170875	+	s170876	+	0M	SR:i:12	L1:i:26348	L2:i:20
+L	s170876	+	s37773	-	0M	SR:i:12	L1:i:20	L2:i:6418
+L	s196118	+	s37773	+	0M	SR:i:32	L1:i:127	L2:i:6418
+L	s197971	+	s37768	-	0M	SR:i:35	L1:i:20	L2:i:52004
+L	s198535	+	s170875	+	0M	SR:i:36	L1:i:6387	L2:i:26348
+L	s198536	+	s37773	-	0M	SR:i:36	L1:i:6387	L2:i:6418
+</textarea>
+
+<textarea id="gfa-ex-rhd" style="display: none">
+S	s1772	*	LN:i:15126	SN:Z:chr1	SO:i:25236802	SR:i:0
+S	s1773	*	LN:i:173	SN:Z:chr1	SO:i:25251928	SR:i:0
+S	s1774	*	LN:i:15924	SN:Z:chr1	SO:i:25252101	SR:i:0
+S	s1775	*	LN:i:31993	SN:Z:chr1	SO:i:25268025	SR:i:0
+S	s1776	*	LN:i:9	SN:Z:chr1	SO:i:25300018	SR:i:0
+S	s1777	*	LN:i:1244	SN:Z:chr1	SO:i:25300027	SR:i:0
+S	s1778	*	LN:i:21295	SN:Z:chr1	SO:i:25301271	SR:i:0
+S	s1779	*	LN:i:6462	SN:Z:chr1	SO:i:25322566	SR:i:0
+S	s1780	*	LN:i:9326	SN:Z:chr1	SO:i:25329028	SR:i:0
+S	s1781	*	LN:i:24068	SN:Z:chr1	SO:i:25338354	SR:i:0
+S	s1782	*	LN:i:6462	SN:Z:chr1	SO:i:25362422	SR:i:0
+S	s1783	*	LN:i:978	SN:Z:chr1	SO:i:25368884	SR:i:0
+S	s1784	*	LN:i:35755	SN:Z:chr1	SO:i:25369862	SR:i:0
+S	s174804	*	LN:i:70372	SN:Z:HG01106#1#h1tg000028l	SO:i:15303414	SR:i:15
+S	s203669	*	LN:i:980	SN:Z:HG02145#2#h2tg000043l	SO:i:50663981	SR:i:42
+S	s203670	*	LN:i:653	SN:Z:HG02145#2#h2tg000043l	SO:i:50686238	SR:i:42
+S	s203671	*	LN:i:297	SN:Z:HG02145#2#h2tg000043l	SO:i:50688147	SR:i:42
+L	s1772	+	s1773	+	0M	SR:i:0	L1:i:15126	L2:i:173
+L	s1772	+	s1774	+	0M	SR:i:24	L1:i:15126	L2:i:15924
+L	s1773	+	s1774	+	0M	SR:i:0	L1:i:173	L2:i:15924
+L	s1774	+	s1775	+	0M	SR:i:0	L1:i:15924	L2:i:31993
+L	s1774	+	s1781	+	0M	SR:i:10	L1:i:15924	L2:i:24068
+L	s1775	+	s1776	+	0M	SR:i:0	L1:i:31993	L2:i:9
+L	s1776	+	s1777	+	0M	SR:i:0	L1:i:9	L2:i:1244
+L	s1777	+	s1778	+	0M	SR:i:0	L1:i:1244	L2:i:21295
+L	s1777	-	s203671	+	0M	SR:i:42	L1:i:1244	L2:i:297
+L	s1778	+	s1779	+	0M	SR:i:0	L1:i:21295	L2:i:6462
+L	s1778	-	s203670	+	0M	SR:i:42	L1:i:21295	L2:i:653
+L	s1779	+	s1780	+	0M	SR:i:0	L1:i:6462	L2:i:9326
+L	s1779	+	s1781	-	0M	SR:i:72	L1:i:6462	L2:i:24068
+L	s1779	-	s203669	+	0M	SR:i:42	L1:i:6462	L2:i:980
+L	s1780	+	s1781	+	0M	SR:i:0	L1:i:9326	L2:i:24068
+L	s1780	+	s174804	+	0M	SR:i:15	L1:i:9326	L2:i:70372
+L	s1780	-	s1782	+	0M	SR:i:72	L1:i:9326	L2:i:6462
+L	s1781	+	s1782	+	0M	SR:i:0	L1:i:24068	L2:i:6462
+L	s1782	+	s1783	+	0M	SR:i:0	L1:i:6462	L2:i:978
+L	s1782	+	s1784	+	0M	SR:i:15	L1:i:6462	L2:i:35755
+L	s1783	+	s1784	+	0M	SR:i:0	L1:i:978	L2:i:35755
+L	s174804	+	s1781	+	0M	SR:i:15	L1:i:70372	L2:i:24068
+L	s203669	+	s1778	-	0M	SR:i:42	L1:i:980	L2:i:21295
+L	s203670	+	s1777	-	0M	SR:i:42	L1:i:653	L2:i:1244
+L	s203671	+	s1775	-	0M	SR:i:42	L1:i:297	L2:i:31993
+</textarea>
+
+</body>
+</html>
