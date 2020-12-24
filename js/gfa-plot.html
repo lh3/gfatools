@@ -18,6 +18,7 @@
 rGFA input:
 <select id="examples" onChange="load_example()" title="Example subgraphs">
 	<option value="none"></option>
+	<option value="gfa-ex-chr11:20m">chr11:20M</option>
 	<option value="gfa-ex-cr1">CR1</option>
 	<option value="gfa-ex-c4">C4</option>
 	<option value="gfa-ex-lpa">LPA</option>
@@ -25,7 +26,7 @@ rGFA input:
 	<option value="gfa-ex-hla-ay">HLA-A/Y</option>
 	<option value="gfa-ex-rhd">RHD</option>
 </select>
-<input type="button" value="Clear" onClick="document.getElementById('gfa-text').value='';document.getElementById('examples').value='none'">
+<input type="button" value="Clear" onClick="document.getElementById('gfa-text').value='';document.getElementById('examples').value='none';clear_canvas();">
 <input type="button" value="Draw" onClick="gfa_plot(document.getElementById('canvas'),document.getElementById('gfa-text').value,document.getElementById('info'));">
 <span id="info" style="color: gray;"></span>
 </p>
@@ -35,12 +36,70 @@ rGFA input:
 </p>
 
 <script language="JavaScript">
+function clear_canvas() {
+	var canvas = document.getElementById('canvas');
+	var ctx = canvas.getContext("2d");
+	ctx.clearRect(0, 0, canvas.width, canvas.height);
+}
 function load_example() {
+	clear_canvas();
 	var sel = document.getElementById('examples').value;
 	if (sel == "none") document.getElementById('gfa-text').value = '';
 	else document.getElementById('gfa-text').value = document.getElementById(sel).value;
+	gfa_plot(document.getElementById('canvas'),document.getElementById('gfa-text').value,document.getElementById('info'));
 }
 </script>
+
+<textarea id="gfa-ex-chr11:20m" style="display: none">
+S	s111586	*	LN:i:151202	SN:Z:chr11	SO:i:19954974	SR:i:0
+S	s111587	*	LN:i:31	SN:Z:chr11	SO:i:20106176	SR:i:0
+S	s111588	*	LN:i:67949	SN:Z:chr11	SO:i:20106207	SR:i:0
+S	s111589	*	LN:i:140	SN:Z:chr11	SO:i:20174156	SR:i:0
+S	s111590	*	LN:i:57447	SN:Z:chr11	SO:i:20174296	SR:i:0
+S	s111591	*	LN:i:1084	SN:Z:chr11	SO:i:20231743	SR:i:0
+S	s111592	*	LN:i:321	SN:Z:chr11	SO:i:20232827	SR:i:0
+S	s111593	*	LN:i:1	SN:Z:chr11	SO:i:20233148	SR:i:0
+S	s111594	*	LN:i:8923	SN:Z:chr11	SO:i:20233149	SR:i:0
+S	s111595	*	LN:i:586	SN:Z:chr11	SO:i:20242072	SR:i:0
+S	s111596	*	LN:i:172853	SN:Z:chr11	SO:i:20242658	SR:i:0
+S	s111597	*	LN:i:80	SN:Z:chr11	SO:i:20415511	SR:i:0
+S	s111598	*	LN:i:132053	SN:Z:chr11	SO:i:20415591	SR:i:0
+S	s212728	*	LN:i:90	SN:Z:CHM13#0#chr11	SO:i:20353734	SR:i:1
+S	s247270	*	LN:i:18	SN:Z:HG00438#1#h1tg000047l	SO:i:20211446	SR:i:3
+S	s265534	*	LN:i:586	SN:Z:HG00673#2#h2tg000036l	SO:i:28688633	SR:i:6
+S	s341809	*	LN:i:136	SN:Z:HG01928#2#h2tg000013l	SO:i:51999681	SR:i:32
+S	s370892	*	LN:i:79	SN:Z:HG02486#1#h1tg000004l	SO:i:19992102	SR:i:49
+S	s378729	*	LN:i:51	SN:Z:HG02572#2#h2tg000119l	SO:i:12415188	SR:i:52
+S	s400706	*	LN:i:51	SN:Z:HG02886#2#h2tg000114l	SO:i:20358235	SR:i:64
+L	s111586	+	s370892	+	0M	SR:i:49	L1:i:151202	L2:i:79
+L	s111586	+	s111587	+	0M	SR:i:0	L1:i:151202	L2:i:31
+L	s111587	+	s111588	+	0M	SR:i:0	L1:i:31	L2:i:67949
+L	s111588	+	s247270	+	0M	SR:i:3	L1:i:67949	L2:i:18
+L	s111588	+	s111589	+	0M	SR:i:0	L1:i:67949	L2:i:140
+L	s111588	-	s378729	+	0M	SR:i:52	L1:i:67949	L2:i:51
+L	s111589	+	s111590	+	0M	SR:i:0	L1:i:140	L2:i:57447
+L	s111590	+	s111591	+	0M	SR:i:0	L1:i:57447	L2:i:1084
+L	s111591	+	s111592	+	0M	SR:i:0	L1:i:1084	L2:i:321
+L	s111592	+	s111593	+	0M	SR:i:0	L1:i:321	L2:i:1
+L	s111592	+	s400706	+	0M	SR:i:64	L1:i:321	L2:i:51
+L	s111592	+	s212728	+	0M	SR:i:1	L1:i:321	L2:i:90
+L	s111592	-	s111590	-	0M	SR:i:53	L1:i:321	L2:i:57447
+L	s111593	+	s111594	+	0M	SR:i:0	L1:i:1	L2:i:8923
+L	s111594	+	s111595	+	0M	SR:i:0	L1:i:8923	L2:i:586
+L	s111594	-	s341809	+	0M	SR:i:32	L1:i:8923	L2:i:136
+L	s111595	+	s111596	+	0M	SR:i:0	L1:i:586	L2:i:172853
+L	s111596	+	s111598	+	0M	SR:i:15	L1:i:172853	L2:i:132053
+L	s111596	+	s111597	+	0M	SR:i:0	L1:i:172853	L2:i:80
+L	s111596	-	s265534	+	0M	SR:i:6	L1:i:172853	L2:i:586
+L	s111597	+	s111598	+	0M	SR:i:0	L1:i:80	L2:i:132053
+L	s212728	+	s111593	+	0M	SR:i:1	L1:i:90	L2:i:1
+L	s247270	+	s111590	+	0M	SR:i:3	L1:i:18	L2:i:57447
+L	s265534	+	s111594	-	0M	SR:i:6	L1:i:586	L2:i:8923
+L	s341809	+	s111592	-	0M	SR:i:32	L1:i:136	L2:i:321
+L	s370892	+	s111588	+	0M	SR:i:49	L1:i:79	L2:i:67949
+L	s378729	+	s111586	-	0M	SR:i:52	L1:i:51	L2:i:151202
+L	s400706	+	s111594	+	0M	SR:i:64	L1:i:51	L2:i:8923
+</textarea>
 
 <textarea id="gfa-ex-cr1" style="display: none">
 S	s6241	*	LN:i:87389	SN:Z:chr1	SO:i:207450700	SR:i:0
