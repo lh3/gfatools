@@ -1,4 +1,4 @@
-function gfa_plot_arrow(ctx, x, y, len, w, color, rev, text)
+function gfa_plot_arrow(ctx, x, y, len, w, color, rev, text, lw)
 {
 	ctx.font = "10px Arial";
 	if (text != null) {
@@ -23,7 +23,7 @@ function gfa_plot_arrow(ctx, x, y, len, w, color, rev, text)
 	}
 	ctx.lineTo(x, y);
 	ctx.strokeStyle = color;
-	ctx.lineWidth = 1;
+	ctx.lineWidth = lw == null? 1 : lw;
 	ctx.stroke();
 }
 
@@ -35,6 +35,26 @@ function gfa_plot_conf()
 		xskip:   15,
 		yskip:   30
 	};
+}
+
+function gfa_plot_rank2color(g)
+{
+	var color = [ "#e41a1c", "#377eb8", "#4daf4a", "#984ea3", "#ff7f00", "#a65628", "#f781bf" ];
+	var rank = [];
+	for (var i = 0; i < g.seg.length; ++i)
+		if (g.seg[i].rank >= 0) rank.push(g.seg[i].rank);
+	for (var i = 0; i < g.arc.length; ++i)
+		if (g.arc[i].rank >= 0) rank.push(g.arc[i].rank);
+	if (rank.length == 0) return [];
+	rank = rank.sort();
+	var shrink = [rank[0]];
+	for (var i = 1; i < rank.length; ++i)
+		if (rank[i] != rank[i-1])
+			shrink.push(rank[i]);
+	var r2c = {};
+	for (var i = 0; i < shrink.length && i < color.length; ++i)
+		r2c[shrink[i]] = color[i];
+	return r2c;
 }
 
 function gfa_plot_find_v0(g) // FIXME: not general
@@ -100,10 +120,6 @@ function gfa_plot_cal_pos(conf, g)
 		}
 		level_max[pos[i].level] = pos[i].start + pos[i].len;
 	}
-	var lines = [];
-	for (var i = 0; i < pos.length; ++i)
-		lines.push([g.seg[sub.v[i].v>>1].name, pos[i].level, pos[i].start, pos[i].len].join("\t"));
-//	alert(lines.join("\n"));
 	return [sub, pos];
 }
 
@@ -133,24 +149,32 @@ function gfa_plot_draw(canvas, conf, g)
 	ctx = canvas.getContext("2d");
 	ctx.translate(0.5, 0.5);
 
+	var r2c = gfa_plot_rank2color(g);
+
+	// draw edges
+	ctx.globalAlpha = 0.8;
 	for (var i = 0; i < pos.length; ++i) {
 		for (var j = 0; j < sub.v[i].n; ++j) {
 			ctx.beginPath();
 			ctx.moveTo(pos[i].cx_en, pos[i].cy);
 			var k = sub.a[sub.v[i].off + j].i;
 			ctx.lineTo(pos[k].cx_st, pos[k].cy);
-			ctx.strokeStyle = sub.a[sub.v[i].off + j].rank == 0? "#FF0000" : "#A0A0A0";
+			var r = sub.a[sub.v[i].off + j].rank;
+			ctx.strokeStyle = r2c[r] != null? r2c[r] : "#A0A0A0";
 			ctx.stroke();
 		}
 	}
+
+	// draw nodes
+	ctx.globalAlpha = 1.0;
 	for (var i = 0; i < pos.length; ++i) {
 		var s = g.seg[sub.v[i].v>>1];
-		var color = s.rank == 0? '#FF0000' : '#000000';
 		var label;
 		if (s.rank == 0) label = s.sname + ":" + s.soff + ":" + s.len;
 		else label = s.len;
 		label = s.len;
-		gfa_plot_arrow(ctx, pos[i].cx_st, pos[i].cy, pos[i].len, 4, color, sub.v[i].v&1, label);
+		var color = r2c[s.rank] != null? r2c[s.rank] : "#000000";
+		gfa_plot_arrow(ctx, pos[i].cx_st, pos[i].cy, pos[i].len, 4, color, sub.v[i].v&1, label, s.rank == 0? 1.5 : 1);
 	}
 }
 
