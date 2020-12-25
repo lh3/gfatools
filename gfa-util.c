@@ -448,6 +448,7 @@ gfa_bubble_t *gfa_bubble(const gfa_t *g, int32_t *n_bb_)
 		free(ba);
 		gfa_sub_destroy(sub);
 	}
+	free(vtmp);
 	gfa_scbuf_destroy(scbuf);
 	free(vs);
 	*n_bb_ = n_bb;
@@ -472,15 +473,15 @@ const char *gfa_parse_reg(const char *s, int32_t *beg, int32_t *end)
 	}
 	// parse the interval
 	if (name_end < l) {
-		char *tmp;
-		tmp = (char*)malloc(l - name_end + 1);
+		char *tmp, *tmp0;
+		tmp0 = tmp = (char*)malloc(l - name_end + 1);
 		for (i = name_end + 1, k = 0; i < l; ++i)
 			if (s[i] != ',') tmp[k++] = s[i];
 		tmp[k] = 0;
 		if ((*beg = strtol(tmp, &tmp, 10) - 1) < 0) *beg = 0;
 		*end = *tmp? strtol(tmp + 1, &tmp, 10) : 1<<29;
 		if (*beg > *end) name_end = l;
-		free(tmp);
+		free(tmp0);
 	}
 	if (name_end == l) *beg = 0, *end = 1<<29;
 	return s + name_end;
