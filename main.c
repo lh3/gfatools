@@ -10,7 +10,7 @@
 #include "kseq.h"
 KSTREAM_INIT(gzFile, gzread, 65536)
 
-#define GFATOOLS_VERSION "0.4-r179-dirty"
+#define GFATOOLS_VERSION "0.4-r211-dirty"
 
 char **gv_read_list(const char *o, int *n_)
 {
@@ -114,6 +114,7 @@ int main_view(int argc, char *argv[])
 		} else {
 			gfa_bubble_t *bb;
 			int32_t n_bb;
+			gfa_sort_ref_arc(g);
 			bb = gfa_bubble(g, &n_bb);
 			list = gfa_query_by_reg(g, n_bb, bb, reg_arg, &n);
 			for (i = 0; i < n_bb; ++i) free(bb[i].v);
