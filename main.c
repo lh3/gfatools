@@ -10,7 +10,7 @@
 #include "kseq.h"
 KSTREAM_INIT(gzFile, gzread, 65536)
 
-#define GFATOOLS_VERSION "0.4-r211-dirty"
+#define GFATOOLS_VERSION "0.4-r214-dirty"
 
 char **gv_read_list(const char *o, int *n_)
 {
@@ -398,6 +398,29 @@ int main_bubble(int argc, char *argv[])
 	return 0;
 }
 
+int main_sql(int argc, char *argv[])
+{
+	ketopt_t o = KETOPT_INIT;
+	int32_t c;
+	gfa_t *g;
+
+	while ((c = ketopt(&o, argc, argv, 1, "", 0)) >= 0) {
+	}
+	if (o.ind == argc) {
+		fprintf(stderr, "Usage: gfatools sql <in.gfa>\n");
+		return 1;
+	}
+	g = gfa_read(argv[o.ind]);
+	if (g == 0) {
+		fprintf(stderr, "ERROR: failed to read the graph\n");
+		return 2;
+	}
+	gfa_sort_ref_arc(g);
+	gfa_sql_write(stdout, g);
+	gfa_destroy(g);
+	return 0;
+}
+
 int main_gt(int argc, char *argv[])
 {
 	ketopt_t o = KETOPT_INIT;
@@ -528,11 +551,12 @@ int main(int argc, char *argv[])
 		fprintf(stderr, "  view        read a GFA file\n");
 		fprintf(stderr, "  stat        statistics about a GFA file\n");
 		fprintf(stderr, "  gfa2fa      convert GFA to FASTA\n");
-		fprintf(stderr, "  gfa2bed     convert GFA to BED (requiring rGFA)\n");
+		fprintf(stderr, "  gfa2bed     convert rGFA to BED (requiring rGFA)\n");
 		fprintf(stderr, "  blacklist   blacklist regions\n");
 		fprintf(stderr, "  bubble      print bubble-like regions (EXPERIMENTAL)\n");
 //		fprintf(stderr, "  gt          genotype from the \"dc\" tag (requring rGFA; EXPERIMENTAL)\n");
 		fprintf(stderr, "  asm         miniasm-like graph transformation\n");
+		fprintf(stderr, "  sql         export rGFA to SQLite (requiring rGFA)\n");
 		fprintf(stderr, "  version     print version number\n");
 		return 1;
 	}
@@ -546,6 +570,7 @@ int main(int argc, char *argv[])
 	else if (strcmp(argv[1], "bubble") == 0) ret = main_bubble(argc-1, argv+1);
 	else if (strcmp(argv[1], "gt") == 0) ret = main_gt(argc-1, argv+1);
 	else if (strcmp(argv[1], "asm") == 0) ret = main_asm(argc-1, argv+1);
+	else if (strcmp(argv[1], "sql") == 0) ret = main_sql(argc-1, argv+1);
 	else if (strcmp(argv[1], "version") == 0) {
 		printf("gfa.h: %s\ngfatools: %s\n", GFA_VERSION, GFATOOLS_VERSION);
 		return 0;

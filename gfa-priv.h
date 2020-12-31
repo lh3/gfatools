@@ -111,6 +111,8 @@ void gfa_gt_simple_print(const gfa_t *g, float min_dc, int32_t is_path); // FIXM
 
 void gfa_aux_update_cv(gfa_t *g, const char *tag, const double *cov_seg, const double *cov_link);
 
+void gfa_sql_write(FILE *fp, const gfa_t *g);
+
 static inline int64_t gfa_find_arc(const gfa_t *g, uint32_t v, uint32_t w)
 {
 	uint32_t i, nv = gfa_arc_n(g, v), nw = 0, k = (uint32_t)-1;
