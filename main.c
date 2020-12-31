@@ -401,13 +401,16 @@ int main_bubble(int argc, char *argv[])
 int main_sql(int argc, char *argv[])
 {
 	ketopt_t o = KETOPT_INIT;
-	int32_t c;
+	int32_t c, write_seq = 0;
 	gfa_t *g;
 
-	while ((c = ketopt(&o, argc, argv, 1, "", 0)) >= 0) {
+	while ((c = ketopt(&o, argc, argv, 1, "s", 0)) >= 0) {
+		if (c == 's') write_seq = 1;
 	}
 	if (o.ind == argc) {
 		fprintf(stderr, "Usage: gfatools sql <in.gfa>\n");
+		fprintf(stderr, "Options:\n");
+		fprintf(stderr, "  -s      write sequence\n");
 		return 1;
 	}
 	g = gfa_read(argv[o.ind]);
@@ -416,7 +419,7 @@ int main_sql(int argc, char *argv[])
 		return 2;
 	}
 	gfa_sort_ref_arc(g);
-	gfa_sql_write(stdout, g);
+	gfa_sql_write(stdout, g, write_seq);
 	gfa_destroy(g);
 	return 0;
 }

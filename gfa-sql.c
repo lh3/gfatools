@@ -53,12 +53,13 @@ CREATE TABLE b2v (           -- bubble-vertex relationship\n\
 ";
 
 const char *gfa_sql_index = "\
-CREATE INDEX idx_name  ON seg (name);\n\
-CREATE INDEX idx_scoor ON seg (sname, soff);\n\
-CREATE INDEX idx_s2v   ON vtx (sid, strand);\n\
-CREATE INDEX idx_bst   ON bbl (sname, start);\n\
-CREATE INDEX idx_ben   ON bbl (sname, end);\n\
-CREATE INDEX idx_b2v   ON b2v (bid, vid);\n\
+CREATE UNIQUE INDEX idx_name  ON seg (name);\n\
+CREATE        INDEX idx_scoor ON seg (sname, soff);\n\
+CREATE UNIQUE INDEX idx_s2v   ON vtx (sid, strand);\n\
+CREATE UNIQUE INDEX idx_bst   ON bbl (sname, start);\n\
+CREATE UNIQUE INDEX idx_ben   ON bbl (sname, end);\n\
+CREATE        INDEX idx_b2v   ON b2v (bid, vid);\n\
+CREATE        INDEX idx_v2b   ON b2v (vid);\n\
 ";
 
 const char *gfa_sql_view = "\
@@ -68,6 +69,9 @@ CREATE VIEW named_arc AS\n\
     FROM arc a, vtx v1, vtx v2, seg s1, seg s2\n\
     WHERE a.vid1 = v1.vid AND a.vid2 = v2.vid AND v1.sid = s1.sid AND v2.sid = s2.sid;\n\
 ";
+
+// WITH x AS (SELECT t.vid FROM bbl b, b2v t WHERE b.sname="chr11" AND b.end>=10000000 AND b.start<=11000000 AND b.bid=t.bid) SELECT v.* FROM named_vtx v WHERE v.vid IN x;
+// WITH x AS (SELECT t.vid FROM bbl b, b2v t WHERE b.sname="chr11" AND b.end>=10000000 AND b.start<=11000000 AND b.bid=t.bid) SELECT a.* FROM named_arc a WHERE a.vid1 IN x AND a.vid2 IN x;
 
 static inline void str_enlarge(kstring_t *s, int l)
 {
@@ -142,6 +146,17 @@ void gfa_sql_write_seg(FILE *fp, const gfa_t *g, kstring_t *out)
 	}
 }
 
+void gfa_sql_write_seq(FILE *fp, const gfa_t *g, kstring_t *out)
+{
+	uint32_t i;
+	for (i = 0; i < g->n_seg; ++i) {
+		const gfa_seg_t *s = &g->seg[i];
+		out->l = 0;
+		mg_sprintf_lite(out, "INSERT INTO seq (sid,seq) VALUES ('%d','%s');\n", i, s->seq);
+		fputs(out->s, fp);
+	}
+}
+
 void gfa_sql_write_vtx(FILE *fp, const gfa_t *g, kstring_t *out)
 {
 	uint32_t v, n_vtx = gfa_n_vtx(g);
@@ -192,7 +207,7 @@ void gfa_sql_write_bbl(FILE *fp, const gfa_t *g, kstring_t *out)
 	free(bb);
 }
 
-void gfa_sql_write(FILE *fp, const gfa_t *g)
+void gfa_sql_write(FILE *fp, const gfa_t *g, int ins_seq)
 {
 	kstring_t out = {0,0,0};
 	fputs(gfa_sql_schema, fp);
@@ -201,6 +216,7 @@ void gfa_sql_write(FILE *fp, const gfa_t *g)
 	gfa_sql_write_vtx(fp, g, &out);
 	gfa_sql_write_arc(fp, g, &out);
 	gfa_sql_write_bbl(fp, g, &out);
+	if (ins_seq) gfa_sql_write_seq(fp, g, &out);
 	fputs("END TRANSACTION;\n", fp);
 	fputs(gfa_sql_index, fp);
 	fputs(gfa_sql_view, fp);
