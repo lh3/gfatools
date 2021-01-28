@@ -28,7 +28,7 @@ CREATE TABLE arc (           -- arc (edge)\n\
   PRIMARY KEY (vid1, vid2)\n\
 );\n\
 CREATE TABLE seq (           -- segment sequence\n\
-  sid     INTEGRE,           -- segment ID\n\
+  sid     INTEGER,           -- segment ID\n\
   seq     TEXT NOT NULL,     -- sequence\n\
   PRIMARY KEY (sid)\n\
 );\n\
