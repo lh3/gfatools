@@ -164,7 +164,7 @@ void gfa_sql_write_seg(FILE *fp, const gfa_t *g, kstring_t *out)
 			mg_sprintf_lite(out, "INSERT INTO seg (sid,name,len,sname,soff,rank) VALUES ('%u','%s','%d','%s','%d','%d');\n",
 				i, s->name, s->len, g->sseq[s->snid].name, s->soff, s->rank);
 		} else {
-			mg_sprintf_lite(out, "INSERT INTO seg (sid,name,len) VALUES ('%u','%s','%d')\n", i, s->name, s->len);
+			mg_sprintf_lite(out, "INSERT INTO seg (sid,name,len) VALUES ('%u','%s','%d');\n", i, s->name, s->len);
 		}
 		fputs(out->s, fp);
 	}
@@ -200,7 +200,7 @@ void gfa_sql_write_arc(FILE *fp, const gfa_t *g, kstring_t *out)
 		if (a->rank >= 0)
 			mg_sprintf_lite(out, "INSERT INTO arc (vid1,vid2,ori,rank) VALUES ('%u','%d','%d','%d');\n", (uint32_t)(a->v_lv>>32), a->w, !a->comp, a->rank);
 		else
-			mg_sprintf_lite(out, "INSERT INTO arc (vid1,vid2,ori) VALUES ('%u','%d');\n", (uint32_t)(a->v_lv>>32), a->w, !a->comp);
+			mg_sprintf_lite(out, "INSERT INTO arc (vid1,vid2,ori) VALUES ('%u','%d','%d');\n", (uint32_t)(a->v_lv>>32), a->w, !a->comp);
 		fputs(out->s, fp);
 	}
 }
