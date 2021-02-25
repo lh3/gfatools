@@ -94,7 +94,7 @@ CREATE VIEW var_call AS\n\
 ";
 
 // WITH x AS (SELECT t.vid FROM bbl b, b2v t WHERE b.sname="chr11" AND b.end>=10000000 AND b.start<=11000000 AND b.bid=t.bid) SELECT v.* FROM named_vtx v WHERE v.vid IN x;
-// WITH x AS (SELECT t.vid FROM bbl b, b2v t WHERE b.sname="chr11" AND b.end>=10000000 AND b.start<=11000000 AND b.bid=t.bid) SELECT a.* FROM named_arc a WHERE a.vid1 IN x AND a.vid2 IN x;
+// WITH x AS (SELECT t.vid>>1 FROM bbl b, b2v t WHERE b.sname="chr11" AND b.end>=10000000 AND b.start<=11000000 AND b.bid=t.bid) SELECT a.* FROM named_arc a WHERE a.vid1>>1 IN x AND a.vid2>>1 IN x AND a.ori=1;
 // SELECT c.bid, c.sname, c.start, c.end, c.len, COUNT(c.wid) FROM var_call c WHERE c.sname="chr11" AND c.end>=10000000 AND c.start<=11000000 group by c.bid, c.wid;
 
 static inline void str_enlarge(kstring_t *s, int l)

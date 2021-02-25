@@ -195,7 +195,9 @@ int gfa_parse_L(gfa_t *g, char *s)
 				if (*q != '+' && *q != '-') return -2;
 				oriw = (*q != '+');
 			} else if (i == 4) {
-				if (*q == ':') {
+				if (*q == '*') {
+					ov = ow = 0;
+				} else if (*q == ':') {
 					ov = INT32_MAX;
 					ow = isdigit(*(q+1))? strtol(q+1, &q, 10) : INT32_MAX;
 				} else if (isdigit(*q)) {
@@ -221,6 +223,7 @@ int gfa_parse_L(gfa_t *g, char *s)
 			if (c == 0) break;
 		}
 	}
+	if (i == 4) ov = ow = 0, is_ok = 1; // no overlap field
 	if (is_ok) {
 		uint32_t v, w;
 		int l_aux, m_aux = 0;
