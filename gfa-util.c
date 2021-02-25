@@ -224,8 +224,8 @@ void gfa_sort_ref_arc(gfa_t *g)
 		for (i = 0; i < nv; ++i) {
 			uint32_t w = av[i].w;
 			gfa_seg_t *t = &g->seg[w>>1];
-			if ((w&1) == 0 && t->rank == 0 && t->snid == s->snid && s->soff + s->len == t->soff)
-				break;
+			if (t->rank != 0 || t->snid != s->snid) continue;
+			if (s->soff + s->len == t->soff || t->soff + t->len == s->soff) break;
 		}
 		if (nv > 0 && i == nv)
 			fprintf(stderr, "[W] can't find the next reference segment for >%s at %s:%d\n",
@@ -239,8 +239,8 @@ void gfa_sort_ref_arc(gfa_t *g)
 		for (i = 0; i < nv; ++i) {
 			uint32_t w = av[i].w;
 			gfa_seg_t *t = &g->seg[w>>1];
-			if ((w&1) == 1 && t->rank == 0 && t->snid == s->snid && t->soff + t->len == s->soff)
-				break;
+			if (t->rank != 0 || t->snid != s->snid) continue;
+			if (s->soff + s->len == t->soff || t->soff + t->len == s->soff) break;
 		}
 		if (nv > 0 && i == nv)
 			fprintf(stderr, "[W] can't find the next reference segment for <%s at %s:%d\n",
