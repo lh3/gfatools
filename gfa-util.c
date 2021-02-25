@@ -227,8 +227,11 @@ void gfa_sort_ref_arc(gfa_t *g)
 			if ((w&1) == 0 && t->rank == 0 && t->snid == s->snid && s->soff + s->len == t->soff)
 				break;
 		}
-		assert(nv == 0 || i < nv);
-		if (i > 0) b = av[i], av[i] = av[0], av[0] = b;
+		if (nv > 0 && i == nv)
+			fprintf(stderr, "[W] can't find the next reference segment for >%s at %s:%d\n",
+					s->name, g->sseq[s->snid].name, s->soff);
+		//assert(nv == 0 || i < nv);
+		if (i > 0 && i != nv) b = av[i], av[i] = av[0], av[0] = b;
 		// reverse strand
 		v = (uint32_t)k<<1 | 1;
 		nv = gfa_arc_n(g, v);
@@ -239,8 +242,11 @@ void gfa_sort_ref_arc(gfa_t *g)
 			if ((w&1) == 1 && t->rank == 0 && t->snid == s->snid && t->soff + t->len == s->soff)
 				break;
 		}
-		assert(nv == 0 || i < nv);
-		if (i > 0) b = av[i], av[i] = av[0], av[0] = b;
+		if (nv > 0 && i == nv)
+			fprintf(stderr, "[W] can't find the next reference segment for <%s at %s:%d\n",
+					s->name, g->sseq[s->snid].name, s->soff);
+		//assert(nv == 0 || i < nv);
+		if (i > 0 && i != nv) b = av[i], av[i] = av[0], av[0] = b;
 	}
 }
 
