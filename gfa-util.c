@@ -256,11 +256,12 @@ typedef struct {
 	float lf, sf, rf;
 } bb_aux_t;
 
-static void bb_write_seq(const gfa_t *g, int32_t n, const uint32_t *v, int32_t l_seq, char *seq)
+static int bb_write_seq(const gfa_t *g, int32_t n, const uint32_t *v, int32_t l_seq, char *seq)
 {
 	int32_t k, l;
 	for (k = n - 1, l = 0; k >= 0; --k) {
 		const gfa_seg_t *s = &g->seg[v[k]>>1];
+		if (l + s->len > l_seq) return -1;
 		if (v[k]&1) {
 			int32_t p;
 			for (p = s->len - 1; p >= 0; --p)
@@ -270,8 +271,9 @@ static void bb_write_seq(const gfa_t *g, int32_t n, const uint32_t *v, int32_t l
 			l += s->len;
 		}
 	}
-	assert(l == l_seq);
+	if (l != l_seq) return -1;
 	seq[l] = 0;
+	return 0;
 }
 
 static float aux_get_f(const gfa_aux_t *aux, const char tag[2], float fallback)
@@ -324,6 +326,12 @@ static int32_t bb_n_paths(const gfa_t *g, const gfa_sub_t *sub, int32_t js, int3
 	c = cnt[je - js];
 	free(cnt);
 	return c < INT32_MAX? c : INT32_MAX;
+}
+
+static void bb_warning(const gfa_t *g, const gfa_bubble_t *b)
+{
+	fprintf(stderr, "[W] unresolved structure at [%c%s,%c%s] on %s:%d-%d\n", "><"[b->vs&1], g->seg[b->vs>>1].name, "><"[b->ve&1], g->seg[b->ve>>1].name,
+			g->sseq[b->snid].name, b->ss, b->se);
 }
 
 gfa_bubble_t *gfa_bubble(const gfa_t *g, int32_t *n_bb_)
@@ -385,12 +393,12 @@ gfa_bubble_t *gfa_bubble(const gfa_t *g, int32_t *n_bb_)
 				const gfa_seg_t *sen = &g->seg[t->v>>1];
 				if (sst->snid == i && sen->snid == i) {
 					int32_t n, l;
-					uint32_t *v;
+					uint32_t *v = 0;
 					float f;
 					gfa_bubble_t *b;
 
 					// basic information
-					if (j - jst <= 1) continue;
+					if (j - jst <= 1) continue; // TODO: perhaps this should be "goto skip_bb"
 					if (n_bb == m_bb) GFA_EXPAND(bb, m_bb);
 					b = &bb[n_bb++];
 					b->snid = i;
@@ -402,6 +410,11 @@ gfa_bubble_t *gfa_bubble(const gfa_t *g, int32_t *n_bb_)
 					b->len_max = ba[j].ld - ba[jst].ld - sst->len;
 					b->cf_ref = bb_ref_freq(g, sub, jst, j);
 					b->n_paths = bb_n_paths(g, sub, jst, j);
+					if (b->len_min < 0 || b->len_max < 0 || b->len_max < b->len_min) {
+						bb_warning(g, b);
+						--n_bb;
+						goto skip_bb;
+					}
 					assert(b->len_min >= 0);
 					assert(b->len_max >= 0 && b->len_max >= b->len_min);
 					b->n_seg = j - jst + 1;
@@ -434,7 +447,10 @@ gfa_bubble_t *gfa_bubble(const gfa_t *g, int32_t *n_bb_)
 						k = ba[k].sp;
 					}
 					b->cf_min = f;
-					bb_write_seq(g, n, v, b->len_min, b->seq_min);
+					if (bb_write_seq(g, n, v, b->len_min, b->seq_min) < 0) {
+						bb_warning(g, b);
+						goto skip_bb;
+					}
 					k = j, n = 0, f = 1.0f;
 					while (k > jst) {
 						if (k < j) v[n++] = sub->v[k].v;
@@ -442,18 +458,21 @@ gfa_bubble_t *gfa_bubble(const gfa_t *g, int32_t *n_bb_)
 						k = ba[k].lp;
 					}
 					b->cf_max = f;
-					bb_write_seq(g, n, v, b->len_max, b->seq_max);
-					free(v);
+					if (bb_write_seq(g, n, v, b->len_max, b->seq_max) < 0) {
+						bb_warning(g, b);
+						goto skip_bb;
+					}
+skip_bb:			free(v);
 				}
 				max_a = -1, jst = j;
-			}
+			} // ~if(j==max_a)
 			for (k = 0; k < t->n; ++k)
 				if ((int32_t)(sub->a[t->off + k]>>32) > max_a)
 					max_a = sub->a[t->off + k]>>32;
-		}
+		} // ~for(j)
 		free(ba);
 		gfa_sub_destroy(sub);
-	}
+	} // ~for(i)
 	free(vtmp);
 	gfa_scbuf_destroy(scbuf);
 	free(vs);
