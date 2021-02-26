@@ -247,7 +247,6 @@ void gfa_sort_ref_arc(gfa_t *g)
 typedef struct {
 	int32_t ld, sd, rd;
 	int32_t lp, sp;
-	float lf, sf, rf;
 } bb_aux_t;
 
 static void bb_write_seq(const gfa_t *g, int32_t n, const uint32_t *v, int32_t l_seq, char *seq)
@@ -266,13 +265,6 @@ static void bb_write_seq(const gfa_t *g, int32_t n, const uint32_t *v, int32_t l
 	}
 	assert(l == l_seq);
 	seq[l] = 0;
-}
-
-static float aux_get_f(const gfa_aux_t *aux, const char tag[2], float fallback)
-{
-	const uint8_t *s;
-	s = gfa_aux_get(aux->l_aux, aux->aux, tag);
-	return s && *s == 'f'? *(float*)(s+1) : fallback;
 }
 
 static int32_t bb_n_paths(const gfa_t *g, const gfa_sub_t *sub, int32_t js, int32_t je)
@@ -343,9 +335,9 @@ gfa_bubble_t *gfa_bubble(const gfa_t *g, int32_t *n_bb_)
 				int32_t l = (int32_t)g->arc[(uint32_t)a].v_lv;
 				if (jv <= j) continue; // skip loop or cycle
 				if (ba[jv].sd >= ba[j].sd + l)
-					ba[jv].sd = ba[j].sd + l, ba[jv].sp = j, ba[jv].sf = aux_get_f(&g->link_aux[g->arc[(uint32_t)a].link_id], "cf", -1.0f);
+					ba[jv].sd = ba[j].sd + l, ba[jv].sp = j;
 				if (ba[jv].ld < ba[j].ld + l)
-					ba[jv].ld = ba[j].ld + l, ba[jv].lp = j, ba[jv].lf = aux_get_f(&g->link_aux[g->arc[(uint32_t)a].link_id], "cf", -1.0f);
+					ba[jv].ld = ba[j].ld + l, ba[jv].lp = j;
 			}
 		}
 		for (j = 0, jst = 0, max_a = -1; j < sub->n_v; ++j) {
