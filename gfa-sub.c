@@ -11,9 +11,6 @@
  * Extract a subgraph starting from a vertex *
  *********************************************/
 
-#define generic_key(x) (x)
-KRADIX_SORT_INIT(gfa32, int32_t, generic_key, 4)
-
 typedef struct tnode_s {
 	uint64_t xnd;
 	uint32_t v, in_tree:31, forced:1;
@@ -195,14 +192,6 @@ gfa_sub_t *gfa_sub_from(void *km0, const gfa_t *g, uint32_t v0, int32_t max_dist
 	return sub;
 }
 
-void gfa_sub_destroy(gfa_sub_t *sub)
-{
-	void *km;
-	if (sub == 0) return;
-	km = sub->km;
-	kfree(km, sub->v); kfree(km, sub->a); kfree(km, sub);
-}
-
 void gfa_sub_print(FILE *fp, const gfa_t *g, const gfa_sub_t *sub)
 {
 	int32_t i, j;
@@ -218,140 +207,4 @@ void gfa_sub_print(FILE *fp, const gfa_t *g, const gfa_sub_t *sub)
 		}
 		fputc('\n', fp);
 	}
-}
-
-/****************
- * Tarjan's SCC *
- ****************/
-
-typedef struct {
-	uint32_t index, low:31, stack:1;
-	uint32_t i;     // index in gfa_sub_t::v[]; a temporary field
-	uint32_t start; // starting vertex
-} gfa_scinfo_t;
-
-struct gfa_scbuf_s {
-	uint32_t index;
-	gfa_scinfo_t *a;     // node information
-	kvec_t(uint32_t) ts; // Tarjan's stack
-	kvec_t(uint64_t) ds; // DFS stack
-};
-
-gfa_scbuf_t *gfa_scbuf_init(const gfa_t *g)
-{
-	uint32_t v, n_vtx = gfa_n_vtx(g);
-	gfa_scbuf_t *b;
-	GFA_CALLOC(b, 1);
-	GFA_CALLOC(b->a, n_vtx);
-	for (v = 0; v < n_vtx; ++v)
-		b->a[v].index = b->a[v].start = (uint32_t)-1;
-	return b;
-}
-
-void gfa_scbuf_destroy(gfa_scbuf_t *b)
-{
-	free(b->a); free(b->ts.a); free(b->ds.a); free(b);
-}
-
-gfa_sub_t *gfa_scc1(void *km0, const gfa_t *g, gfa_scbuf_t *b, uint32_t v0)
-{
-	gfa_sub_t *sub;
-	uint32_t k, off, m_v = 0;
-	void *km;
-
-	km = km_init2(km0, 0x10000);
-	KCALLOC(km0, sub, 1);
-	sub->km = km0;
-
-	kv_push(uint64_t, b->ds, (uint64_t)v0<<32);
-	while (b->ds.n > 0) {
-		uint64_t x = kv_pop(b->ds);
-		uint32_t i = (uint32_t)x, v = x>>32, nv;
-		if (i == 0) { // i is the number of outgoing edges already visited
-			b->a[v].low = b->a[v].index = b->index++;
-			b->a[v].stack = 1;
-			kv_push(uint32_t, b->ts, v);
-		}
-		nv = gfa_arc_n(g, v);
-		if (i == nv) { // done with v
-			if (b->a[v].low == b->a[v].index) {
-				int32_t i, j = b->ts.n - 1;
-				while (b->ts.a[j] != v) --j;
-				for (i = b->ts.n - 1; i >= j; --i) {
-					uint32_t w = b->ts.a[i];
-					gfa_subv_t *p;
-					//fprintf(stderr, "V\t%c%s\t%d\t%c%s\t%d\t%d\n", "><"[v&1], g->seg[v>>1].name, i, "><"[w&1], g->seg[w>>1].name, b->a[w^1].stack, b->a[w].index);
-					if (sub->n_v == m_v) KEXPAND(sub->km, sub->v, m_v);
-					p = &sub->v[sub->n_v++];
-					p->v = w;
-					b->a[w].stack = 0;
-				}
-				b->ts.n = j;
-			}
-			if (b->ds.n > 0) { // if the DFS stack is not empty, update the top element
-				uint32_t w = v;
-				v = b->ds.a[b->ds.n - 1] >> 32;
-				b->a[v].low = b->a[v].low < b->a[w].low? b->a[v].low : b->a[w].low;
-			}
-		} else { // process v's neighbor av[i].w
-			gfa_arc_t *av = gfa_arc_a(g, v);
-			uint32_t w = av[i].w;
-			kv_push(uint64_t, b->ds, (uint64_t)v<<32 | (i+1)); // update the old top of the stack
-			if (b->a[w].index == (uint32_t)-1 && b->a[w^1].stack == 0)
-				kv_push(uint64_t, b->ds, (uint64_t)w<<32);
-			else if (b->a[w].stack)
-				b->a[v].low = b->a[v].low < b->a[w].index? b->a[v].low : b->a[w].index;
-		}
-	}
-
-	// reverse the vertex array
-	for (k = 0; k < sub->n_v>>1; ++k) {
-		gfa_subv_t x;
-		x = sub->v[k], sub->v[k] = sub->v[sub->n_v - k - 1], sub->v[sub->n_v - k - 1] = x;
-	}
-
-	// fill other fields in sub
-	for (k = 0; k < sub->n_v; ++k)
-		b->a[sub->v[k].v].start = v0, b->a[sub->v[k].v].i = k;
-	for (k = 0, off = 0; k < sub->n_v; ++k) { // precompute the length of gfa_sub_t::a[]
-		uint32_t v = sub->v[k].v;
-		int32_t i, nv = gfa_arc_n(g, v);
-		gfa_arc_t *av = gfa_arc_a(g, v);
-		for (i = 0; i < nv; ++i)
-			if (b->a[av[i].w].start == v0)
-				++off;
-	}
-	sub->n_a = off;
-	KCALLOC(sub->km, sub->a, sub->n_a);
-	for (k = 0, off = 0; k < sub->n_v; ++k) {
-		uint32_t o0, v = sub->v[k].v;
-		int32_t i, nv = gfa_arc_n(g, v);
-		gfa_arc_t *av = gfa_arc_a(g, v);
-		for (i = 0, o0 = off; i < nv; ++i)
-			if (b->a[av[i].w].start == v0)
-				sub->a[off++] = (uint64_t)b->a[av[i].w].i << 32 | (&av[i] - g->arc);
-		sub->v[k].d = 0;
-		sub->v[k].off = o0;
-		sub->v[k].n = off - o0;
-		if (o0 < off) {
-			radix_sort_gfa64(&sub->a[o0], &sub->a[off]);
-			if (sub->a[o0]>>32 <= k) sub->is_dag = 0;
-		}
-	}
-	return sub;
-}
-
-void gfa_scc_all(const gfa_t *g)
-{
-	uint32_t v, n_vtx = gfa_n_vtx(g);
-	gfa_scbuf_t *b;
-	b = gfa_scbuf_init(g);
-	for (v = 0; v < n_vtx; ++v)
-		if (b->a[v].index == (uint32_t)-1 && b->a[v^1].index == (uint32_t)-1) {
-			gfa_sub_t *sub;
-			sub = gfa_scc1(0, g, b, v);
-			gfa_sub_print(stderr, g, sub);
-			gfa_sub_destroy(sub);
-		}
-	gfa_scbuf_destroy(b);
 }
