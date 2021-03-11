@@ -226,6 +226,7 @@ void gfa_sort_ref_arc(gfa_t *g)
 					break;
 			}
 		}
+		if (nv > 0 && i == nv) fprintf(stderr, "X\t%c%s\t%d\t%s\t%d\n", "><"[v&1], s->name, i, g->sseq[s->snid].name, s->soff);
 		assert(nv == 0 || i < nv);
 		if (i > 0 && i < nv) b = av[i], av[i] = av[0], av[0] = b;
 	}
