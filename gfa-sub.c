@@ -191,20 +191,3 @@ gfa_sub_t *gfa_sub_from(void *km0, const gfa_t *g, uint32_t v0, int32_t max_dist
 	//gfa_sub_print(stderr, g, sub);
 	return sub;
 }
-
-void gfa_sub_print(FILE *fp, const gfa_t *g, const gfa_sub_t *sub)
-{
-	int32_t i, j;
-	for (i = 0; i < sub->n_v; ++i) {
-		gfa_subv_t *p = &sub->v[i];
-		fprintf(fp, "[%d]\t%d\t%c%s\t%d\t%d", i, p->v, "><"[p->v&1], g->seg[p->v>>1].name, p->d, p->n);
-		if (p->n > 0) {
-			fputc('\t', fp);
-			for (j = 0; j < p->n; ++j) {
-				if (j) fputc(',', fp);
-				fprintf(fp, "%d", (uint32_t)(sub->a[p->off + j]>>32));
-			}
-		}
-		fputc('\n', fp);
-	}
-}
