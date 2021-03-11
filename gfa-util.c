@@ -341,7 +341,6 @@ gfa_bubble_t *gfa_bubble(const gfa_t *g, int32_t *n_bb_)
 					gfa_bubble_t *b;
 
 					// basic information
-					if (j - jst <= 1) continue;
 					if (n_bb == m_bb) GFA_EXPAND(bb, m_bb);
 					b = &bb[n_bb++];
 					b->snid = i;
@@ -352,6 +351,7 @@ gfa_bubble_t *gfa_bubble(const gfa_t *g, int32_t *n_bb_)
 					b->len_min = ba[j].sd - ba[jst].sd - sst->len;
 					b->len_max = ba[j].ld - ba[jst].ld - sst->len;
 					b->n_paths = bb_n_paths(g, sub, jst, j);
+					//fprintf(stderr, "X\t%s[%d]\tvs=%c%s\tve=%c%s\tlen_min=%d\n", g->sseq[i].name, i, "><"[b->vs&1], g->seg[b->vs>>1].name, "><"[b->ve&1], g->seg[b->ve>>1].name, b->len_min);
 					assert(b->len_min >= 0);
 					assert(b->len_max >= 0 && b->len_max >= b->len_min);
 					b->n_seg = j - jst + 1;
@@ -390,9 +390,9 @@ gfa_bubble_t *gfa_bubble(const gfa_t *g, int32_t *n_bb_)
 					}
 					bb_write_seq(g, n, v, b->len_max, b->seq_max);
 					free(v);
-				}
+				} // ~if(sst->snid==i&&sen->snid==i)
 				max_a = -1, jst = j;
-			}
+			} // ~if(j==max_a)
 			for (k = 0; k < t->n; ++k)
 				if ((int32_t)(sub->a[t->off + k]>>32) > max_a)
 					max_a = sub->a[t->off + k]>>32;
