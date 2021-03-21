@@ -1,3 +1,20 @@
+Release 0.5-r234 (21 March 2021)
+--------------------------------
+
+Many changes:
+
+ * Use Tarjan's SCC algorithm to identify bubble. This algorithm is more robust
+   to inversions, but requires reference paths.
+
+ * Generate unitig sequences from assembly graphs.
+
+ * Use BFS to extract subgraphs within a radius. The older code uses DFS which
+   is sometimes counter-intuitive.
+
+(21 March 2021, r234)
+
+
+
 Release 0.4-r165 (23 December 2019)
 -----------------------------------
 
