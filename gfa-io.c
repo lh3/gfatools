@@ -223,7 +223,7 @@ int gfa_parse_L(gfa_t *g, char *s)
 			if (c == 0) break;
 		}
 	}
-	if (i == 4) ov = ow = 0, is_ok = 1; // no overlap field
+	if (i == 4 && is_ok == 0) ov = ow = 0, is_ok = 1; // no overlap field
 	if (is_ok) {
 		uint32_t v, w;
 		int l_aux, m_aux = 0;
