@@ -13,7 +13,7 @@ void gfa_sub(gfa_t *g, int n, char *const* seg, int step)
 	int8_t *flag;
 	kdq_t(uint64_t) *q;
 	if (n == 0) return;
-	q = kdq_init(uint64_t);
+	q = kdq_init(uint64_t, 0);
 	GFA_CALLOC(flag, g->n_seg * 2);
 	for (i = 0; i < n; ++i) {
 		int32_t s;
