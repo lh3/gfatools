@@ -3,12 +3,14 @@
 #include <unistd.h>
 #include <stdio.h>
 #include <ctype.h>
+#include <assert.h>
 #include "ketopt.h"
 #include "gfa-priv.h"
+#include "kalloc.h"
 
 #include <zlib.h>
 #include "kseq.h"
-KSTREAM_INIT(gzFile, gzread, 65536)
+KSEQ_INIT(gzFile, gzread)
 
 #define GFATOOLS_VERSION "0.4-r214-dirty"
 
@@ -541,6 +543,73 @@ int main_asm(int argc, char *argv[])
 	return 0;
 }
 
+int main_ed(int argc, char *argv[])
+{
+	gzFile fp;
+	kseq_t *ks;
+	ketopt_t o = KETOPT_INIT;
+	gfa_t *g;
+	gfa_edrst_t rst;
+	gfa_edseq_t *es;
+	int c, traceback = 0;
+	uint32_t v0 = 0<<1|0; // first segment, forward strand
+	uint32_t max_lag = 0;
+	void *km = 0;
+	char *sname = 0;
+
+	while ((c = ketopt(&o, argc, argv, 1, "ptl:s:", 0)) >= 0) {
+		if (c == 'l') max_lag = atoi(o.arg);
+		else if (c == 's') sname = o.arg;
+		else if (c == 't') traceback = 1;
+	}
+	if (argc - o.ind < 2) {
+		fprintf(stderr, "Usage: gfa ed [options] <target.gfa|fa> <query.fa>\n");
+		fprintf(stderr, "Options:\n");
+		fprintf(stderr, "  -l INT    max lag behind the furthest wavefront; 0 to disable [0]\n");
+		fprintf(stderr, "  -s STR    starting segment name [first]\n");
+		fprintf(stderr, "  -t        report the alignment path\n");
+		return 1;
+	}
+
+	km = km_init();
+
+	g = gfa_read(argv[o.ind]);
+	assert(g);
+	if (sname) {
+		int32_t sid;
+		sid = gfa_name2id(g, sname);
+		if (sid < 0) fprintf(stderr, "ERROR: failed to find segment '%s'\n", sname);
+		else v0 = sid<<1 | 0; // TODO: also allow to change the orientation
+	}
+	es = gfa_edseq_init(g);
+
+	fp = gzopen(argv[o.ind+1], "r");
+	assert(fp);
+	ks = kseq_init(fp);
+	while (kseq_read(ks) >= 0) {
+		int32_t s;
+		s = gfa_edit_dist(km, g, es, ks->seq.l, ks->seq.s, v0, 0, -1, -1, max_lag, traceback, &rst);
+		if (traceback) {
+			int32_t i, last_len = -1, len = 0;
+			printf("%s\t%d\t0\t%d\t+\t", ks->name.s, ks->seq.l, ks->seq.l);
+			for (i = 0; i < rst.nv; ++i) {
+				uint32_t v = rst.v[i];
+				printf("%c%s", "><"[v&1], g->seg[v>>1].name);
+				last_len = g->seg[v>>1].len;
+				len += last_len;
+			}
+			printf("\t%d\t0\t%d\t%d\n", len, len - (last_len - rst.end_off) + 1, rst.s);
+		} else printf("%s\t%d\n", ks->name.s, s);
+	}
+	kseq_destroy(ks);
+	gzclose(fp);
+
+	gfa_edseq_destroy(g->n_seg, es);
+	gfa_destroy(g);
+	km_destroy(km);
+	return 0;
+}
+
 int main(int argc, char *argv[])
 {
 	extern double gfa_realtime(void);
@@ -574,6 +643,7 @@ int main(int argc, char *argv[])
 	else if (strcmp(argv[1], "gt") == 0) ret = main_gt(argc-1, argv+1);
 	else if (strcmp(argv[1], "asm") == 0) ret = main_asm(argc-1, argv+1);
 	else if (strcmp(argv[1], "sql") == 0) ret = main_sql(argc-1, argv+1);
+	else if (strcmp(argv[1], "ed") == 0) ret = main_ed(argc-1, argv+1);
 	else if (strcmp(argv[1], "version") == 0) {
 		printf("gfa.h: %s\ngfatools: %s\n", GFA_VERSION, GFATOOLS_VERSION);
 		return 0;

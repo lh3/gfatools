@@ -12,7 +12,7 @@
  * Preparation *
  ***************/
 
-gfa_edseq_t *gfa_edseq_alloc(const gfa_t *g)
+gfa_edseq_t *gfa_edseq_init(const gfa_t *g)
 {
 	uint32_t i, n_vtx = gfa_n_vtx(g);
 	gfa_edseq_t *es;
@@ -32,7 +32,7 @@ gfa_edseq_t *gfa_edseq_alloc(const gfa_t *g)
 	return es;
 }
 
-void gfa_edseq_free(int32_t n_seg, gfa_edseq_t *es)
+void gfa_edseq_destroy(int32_t n_seg, gfa_edseq_t *es)
 {
 	int32_t i;
 	for (i = 0; i < n_seg; ++i)
