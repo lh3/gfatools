@@ -517,6 +517,7 @@ int main_asm(int argc, char *argv[])
 
 int main_ed(int argc, char *argv[])
 {
+	extern int gfa_ed_dbg;
 	gzFile fp;
 	kseq_t *ks;
 	ketopt_t o = KETOPT_INIT;
@@ -529,10 +530,11 @@ int main_ed(int argc, char *argv[])
 	void *km = 0;
 	char *sname = 0;
 
-	while ((c = ketopt(&o, argc, argv, 1, "ptl:s:", 0)) >= 0) {
+	while ((c = ketopt(&o, argc, argv, 1, "ptl:s:d:", 0)) >= 0) {
 		if (c == 'l') max_lag = atoi(o.arg);
 		else if (c == 's') sname = o.arg;
 		else if (c == 't') traceback = 1;
+		else if (c == 'd') gfa_ed_dbg = atoi(o.arg);
 	}
 	if (argc - o.ind < 2) {
 		fprintf(stderr, "Usage: gfa ed [options] <target.gfa|fa> <query.fa>\n");
@@ -600,6 +602,7 @@ int main(int argc, char *argv[])
 		fprintf(stderr, "  bubble      print bubble-like regions (EXPERIMENTAL)\n");
 		fprintf(stderr, "  asm         miniasm-like graph transformation\n");
 		fprintf(stderr, "  sql         export rGFA to SQLite (requiring rGFA)\n");
+		fprintf(stderr, "  ed          GWFA prefix alignment (for evaluation only)\n");
 		fprintf(stderr, "  version     print version number\n");
 		return 1;
 	}

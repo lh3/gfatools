@@ -8,6 +8,8 @@
 #include "kdq.h"
 #include "kvec-km.h"
 
+int gfa_ed_dbg = 0;
+
 /***************
  * Preparation *
  ***************/
@@ -360,6 +362,7 @@ static void gwf_ed_extend_batch(void *km, const gfa_t *g, const gfa_edseq_t *es,
 	b[n+1].k  = a[n-1].k;
 
 	// drop out-of-bound cells
+	if (a[n-1].k == vl - 1) b[n+1].k = vl; // insertion to the end of a vertex is handled elsewhere
 	for (j = 0; j < n; ++j) {
 		gwf_diag_t *p = &a[j];
 		if (p->k == vl - 1 || (int32_t)p->vd - GWF_DIAG_SHIFT + p->k == ql - 1)
@@ -496,6 +499,15 @@ static void gwf_traceback(gwf_edbuf_t *buf, int32_t end_v, int32_t end_tb, gfa_e
 		n = path->v[i], path->v[i] = path->v[path->nv - 1 - i], path->v[path->nv - 1 - i] = n;
 }
 
+void gwf_ed_print_diag(const gfa_t *g, size_t n, gwf_diag_t *a) // for debugging only
+{
+	size_t i;
+	for (i = 0; i < n; ++i) {
+		int32_t d = (int32_t)a[i].vd - GWF_DIAG_SHIFT;
+		printf("Z\t%d\t%s\t%d\t%d\t%d\n", d + a[i].k, g->seg[(a[i].vd>>32)>>1].name, d, a[i].k, a[i].xo>>1);
+	}
+}
+
 int32_t gfa_edit_dist(void *km, const gfa_t *g, const gfa_edseq_t *es, int32_t ql, const char *q, int32_t v0, int32_t off0, int32_t v1, int32_t off1,
 					  uint32_t max_lag, int32_t traceback, gfa_edrst_t *rst)
 {
@@ -515,6 +527,10 @@ int32_t gfa_edit_dist(void *km, const gfa_t *g, const gfa_edseq_t *es, int32_t q
 		a = gwf_ed_extend(&buf, g, es, ql, q, v1, off1, max_lag, traceback, &rst->end_v, &rst->end_off, &end_tb, &n_a, a);
 		if (rst->end_off >= 0 || n_a == 0) break;
 		++s;
+		if (gfa_ed_dbg >= 1) {
+			printf("[%s] dist=%d, n=%d, n_intv=%ld, n_tb=%ld\n", __func__, s, n_a, buf.intv.n, buf.t.n);
+			if (gfa_ed_dbg >= 2) gwf_ed_print_diag(g, n_a, a);
+		}
 	}
 	if (traceback) gwf_traceback(&buf, rst->end_v, end_tb, rst);
 	gwf_set64_destroy(buf.ha);
