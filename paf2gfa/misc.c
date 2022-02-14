@@ -22,15 +22,14 @@ void ma_sys_init(void)
 	gfa_sys_init();
 }
 
-#include "khash.h"
-KHASH_MAP_INIT_STR(str, uint32_t)
-typedef khash_t(str) shash_t;
+#include "khashl.h"
+KHASHL_MAP_INIT(KH_LOCAL, shash_t, h_s2i, kh_cstr_t, uint32_t, kh_hash_str, kh_eq_str)
 
 sdict_t *sd_init(void)
 {
 	sdict_t *d;
 	d = (sdict_t*)calloc(1, sizeof(sdict_t));
-	d->h = kh_init(str);
+	d->h = h_s2i_init();
 	return d;
 }
 
@@ -38,7 +37,7 @@ void sd_destroy(sdict_t *d)
 {
 	uint32_t i;
 	if (d == 0) return;
-	if (d->h) kh_destroy(str, (shash_t*)d->h);
+	if (d->h) h_s2i_destroy((shash_t*)d->h);
 	for (i = 0; i < d->n_seq; ++i)
 		free(d->seq[i].name);
 	free(d->seq);
@@ -50,7 +49,7 @@ int32_t sd_put(sdict_t *d, const char *name, uint32_t len)
 	shash_t *h = (shash_t*)d->h;
 	khint_t k;
 	int absent;
-	k = kh_put(str, h, name, &absent);
+	k = h_s2i_put(h, name, &absent);
 	if (absent) {
 		sd_seq_t *s;
 		if (d->n_seq == d->m_seq) {
@@ -69,7 +68,7 @@ int32_t sd_get(const sdict_t *d, const char *name)
 {
 	shash_t *h = (shash_t*)d->h;
 	khint_t k;
-	k = kh_get(str, h, name);
+	k = h_s2i_get(h, name);
 	return k == kh_end(h)? -1 : kh_val(h, k);
 }
 
@@ -78,11 +77,11 @@ void sd_hash(sdict_t *d)
 	uint32_t i;
 	shash_t *h;
 	if (d->h) return;
-	d->h = h = kh_init(str);
+	d->h = h = h_s2i_init();
 	for (i = 0; i < d->n_seq; ++i) {
 		int absent;
 		khint_t k;
-		k = kh_put(str, h, d->seq[i].name, &absent);
+		k = h_s2i_put(h, d->seq[i].name, &absent);
 		kh_val(h, k) = i;
 	}
 }
@@ -91,7 +90,7 @@ int32_t *sd_squeeze(sdict_t *d)
 {
 	int32_t *map, i, j;
 	if (d->h) {
-		kh_destroy(str, (shash_t*)d->h);
+		h_s2i_destroy((shash_t*)d->h);
 		d->h = 0;
 	}
 	map = (int32_t*)calloc(d->n_seq, 4);

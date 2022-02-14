@@ -3,7 +3,7 @@
 #include "gfa-priv.h"
 #include "kalloc.h"
 #include "kavl.h"
-#include "khash.h"
+#include "khashl.h"
 #include "ksort.h"
 #include "kvec.h"
 
@@ -22,7 +22,7 @@ typedef struct tnode_s {
 #define tn_cmp(a, b) (tn_lt(b, a) - tn_lt(a, b))
 
 KAVL_INIT(v, tnode_t, head, tn_cmp)
-KHASH_MAP_INIT_INT(v, tnode_p)
+KHASHL_MAP_INIT(KH_LOCAL, h_i2n_t, h_i2n, uint32_t, tnode_p, kh_hash_uint32, kh_eq_generic)
 
 static inline tnode_t *gen_tnode(void *km, const gfa_t *g, uint32_t v, int32_t d)
 {
@@ -41,16 +41,16 @@ gfa_sub_t *gfa_sub_from(void *km0, const gfa_t *g, uint32_t v0, int32_t max_dist
 {
 	void *km;
 	tnode_t *p, *root = 0, **L = 0;
-	khash_t(v) *h;
+	h_i2n_t *h;
 	khint_t k;
 	int32_t j, n_L = 0, m_L = 0, n_arc = 0, m_arc = 0, off, n_bidir = 0, orphan_inv = 0;
 	int absent;
 	gfa_sub_t *sub = 0;
 
 	km = km_init2(km0, 0x10000);
-	h = kh_init2(v, km);
+	h = h_i2n_init2(km);
 
-	k = kh_put(v, h, v0, &absent);
+	k = h_i2n_put(h, v0, &absent);
 	p = kh_val(h, k) = gen_tnode(km, g, v0, 0);
 	kavl_insert(v, &root, p, 0);
 
@@ -74,7 +74,7 @@ gfa_sub_t *gfa_sub_from(void *km0, const gfa_t *g, uint32_t v0, int32_t max_dist
 		r = kavl_at(&itr);
 		if (orphan_inv) { // then prioritize on vertices whose complements have been moved out of the tree
 			while ((r = kavl_at(&itr)) != 0) {
-				k = kh_get(v, h, r->v^1);
+				k = h_i2n_get(h, r->v^1);
 				if (k != kh_end(h) && !kh_val(h, k)->in_tree) {
 					--orphan_inv;
 					q = kavl_erase(v, &root, r, 0);
@@ -89,8 +89,8 @@ gfa_sub_t *gfa_sub_from(void *km0, const gfa_t *g, uint32_t v0, int32_t max_dist
 			for (i = 0; i < nv; ++i) {
 				gfa_arc_t *avi = &av[i];
 				khint_t k1, k2;
-				k1 = kh_get(v, h, avi->w^1);
-				k2 = kh_get(v, h, avi->w);
+				k1 = h_i2n_get(h, avi->w^1);
+				k2 = h_i2n_get(h, avi->w);
 				if ((k1 == kh_end(h) && k2 != kh_end(h) && !kh_val(h, k2)->in_tree) || (k2 == kh_end(h) && k1 != kh_end(h) && !kh_val(h, k1)->in_tree))
 					++n;
 				else break;
@@ -116,7 +116,7 @@ gfa_sub_t *gfa_sub_from(void *km0, const gfa_t *g, uint32_t v0, int32_t max_dist
 		if (n_L == m_L) KEXPAND(km, L, m_L);
 		L[n_L++] = q;
 
-		k = kh_get(v, h, q->v^1);
+		k = h_i2n_get(h, q->v^1);
 		if (k != kh_end(h) && kh_val(h, k)->in_tree)
 			++orphan_inv;
 		//fprintf(stderr, "OUT vertex:%c%s[%u], remained:%d, orphan_inv:%d\n", "><"[q->v&1], g->seg[q->v>>1].name, q->v, kavl_size(head, root), orphan_inv);
@@ -128,13 +128,13 @@ gfa_sub_t *gfa_sub_from(void *km0, const gfa_t *g, uint32_t v0, int32_t max_dist
 			gfa_arc_t *avi = &av[i];
 			int32_t dt = d + g->seg[avi->w>>1].len;
 			if (max_dist > 0 && dt > max_dist) continue;
-			k = kh_get(v, h, avi->w^1);
+			k = h_i2n_get(h, avi->w^1);
 			if (k != kh_end(h) && !kh_val(h, k)->in_tree && !kh_val(h, k)->forced) {
 				++n_bidir;
 				continue;
 			}
 			++n_arc;
-			k = kh_put(v, h, avi->w, &absent);
+			k = h_i2n_put(h, avi->w, &absent);
 			if (absent) { // a vertex that hasn't been visited before
 				p = kh_val(h, k) = gen_tnode(km, g, avi->w, dt);
 			} else { // visited before; then update the info
@@ -168,7 +168,7 @@ gfa_sub_t *gfa_sub_from(void *km0, const gfa_t *g, uint32_t v0, int32_t max_dist
 		av = gfa_arc_a(g, L[j]->v);
 		for (i = 0; i < nv; ++i) {
 			gfa_arc_t *avi = &av[i];
-			k = kh_get(v, h, avi->w);
+			k = h_i2n_get(h, avi->w);
 			if (k == kh_end(h)) continue;
 			if (off == m_arc) KEXPAND(sub->km, sub->a, m_arc);
 			sub->a[off++] = (uint64_t)kh_val(h, k)->in_tree << 32 | (avi - g->arc);

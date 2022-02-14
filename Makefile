@@ -39,12 +39,12 @@ depend:
 
 gfa-asm.o: gfa-priv.h gfa.h kvec.h kdq.h kalloc.h
 gfa-aug.o: gfa-priv.h gfa.h ksort.h
-gfa-base.o: gfa-priv.h gfa.h kstring.h khash.h kalloc.h ksort.h
+gfa-base.o: gfa-priv.h gfa.h kstring.h khashl.h kalloc.h ksort.h
 gfa-bbl.o: gfa-priv.h gfa.h kalloc.h ksort.h kvec.h
 gfa-ed.o: gfa-priv.h gfa.h kalloc.h ksort.h khashl.h kdq.h kvec-km.h
 gfa-io.o: kstring.h gfa-priv.h gfa.h kseq.h
 gfa-sql.o: kstring.h gfa-priv.h gfa.h
-gfa-sub.o: gfa-priv.h gfa.h kalloc.h kavl.h khash.h ksort.h kvec.h
+gfa-sub.o: gfa-priv.h gfa.h kalloc.h kavl.h khashl.h ksort.h kvec.h
 gfa-util.o: gfa-priv.h gfa.h kvec.h ksort.h kdq.h kalloc.h
 kalloc.o: kalloc.h
-main.o: ketopt.h gfa-priv.h gfa.h kseq.h
+main.o: ketopt.h gfa-priv.h gfa.h kalloc.h kseq.h

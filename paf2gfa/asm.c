@@ -141,7 +141,7 @@ ma_ug_t *ma_ug_gen(gfa_t *g)
 	ug->g = gfa_init();
 	mark = (int32_t*)calloc(n_vtx, 4);
 
-	q = kdq_init(uint64_t);
+	q = kdq_init(uint64_t, 0);
 	for (v = 0; v < n_vtx; ++v) {
 		uint32_t w, x, l, start, end, len;
 		ma_utg_t *p;

@@ -315,6 +315,8 @@ static kh_inline khint_t __kh_h2b(khint_t hash, khint_t bits) { return hash * 26
 #define kh_eq_str(a, b) (strcmp((a), (b)) == 0)
 #define kh_hash_dummy(x) ((khint_t)(x))
 
+typedef const char *kh_cstr_t;
+
 static kh_inline khint_t kh_hash_uint32(khint_t key) {
 	key += ~(key << 15);
 	key ^=  (key >> 10);
