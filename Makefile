@@ -3,7 +3,7 @@ CFLAGS=		-g -Wall -Wc++-compat -std=c99 -O2
 CPPFLAGS=
 INCLUDES=	-I.
 OBJS=		kalloc.o gfa-base.o gfa-io.o gfa-aug.o gfa-sub.o gfa-asm.o gfa-util.o \
-			gfa-bbl.o gfa-ed.o gfa-sql.o gfa-gt.o
+			gfa-bbl.o gfa-ed.o gfa-sql.o
 EXE=		gfatools
 LIBS=		-lz
 
@@ -42,7 +42,6 @@ gfa-aug.o: gfa-priv.h gfa.h ksort.h
 gfa-base.o: gfa-priv.h gfa.h kstring.h khash.h kalloc.h ksort.h
 gfa-bbl.o: gfa-priv.h gfa.h kalloc.h ksort.h kvec.h
 gfa-ed.o: gfa-priv.h gfa.h kalloc.h ksort.h khashl.h kdq.h kvec-km.h
-gfa-gt.o: gfa-priv.h gfa.h khash.h kalloc.h
 gfa-io.o: kstring.h gfa-priv.h gfa.h kseq.h
 gfa-sql.o: kstring.h gfa-priv.h gfa.h
 gfa-sub.o: gfa-priv.h gfa.h kalloc.h kavl.h khash.h ksort.h kvec.h

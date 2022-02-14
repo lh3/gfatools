@@ -12,7 +12,7 @@
 #include "kseq.h"
 KSEQ_INIT(gzFile, gzread)
 
-#define GFATOOLS_VERSION "0.4-r214-dirty"
+#define GFATOOLS_VERSION "0.5-r238-dirty"
 
 char **gv_read_list(const char *o, int *n_)
 {
@@ -426,34 +426,6 @@ int main_sql(int argc, char *argv[])
 	return 0;
 }
 
-int main_gt(int argc, char *argv[])
-{
-	ketopt_t o = KETOPT_INIT;
-	int32_t c, is_path = 0;
-	float min_dc = 5.0f;
-	gfa_t *g;
-
-	while ((c = ketopt(&o, argc, argv, 1, "d:p", 0)) >= 0) {
-		if (c == 'd') min_dc = atof(o.arg);
-		else if (c == 'p') is_path = 1;
-	}
-	if (o.ind == argc) {
-		fprintf(stderr, "Usage: gfatools gt [options] <in.gfa>\n");
-		fprintf(stderr, "Options:\n");
-		fprintf(stderr, "  -d FLOAT      min depth [%g]\n", min_dc);
-		fprintf(stderr, "  -p            print path instead of allele sequences (for debugging)\n");
-		return 1;
-	}
-	g = gfa_read(argv[o.ind]);
-	if (g == 0) {
-		fprintf(stderr, "ERROR: failed to read the graph\n");
-		return 2;
-	}
-	gfa_gt_simple_print(g, min_dc, is_path);
-	gfa_destroy(g);
-	return 0;
-}
-
 int main_asm(int argc, char *argv[])
 {
 	const char *tr_opts = "v:ur:t:b:B:o:c:z:y";
@@ -626,7 +598,6 @@ int main(int argc, char *argv[])
 		fprintf(stderr, "  gfa2bed     convert rGFA to BED (requiring rGFA)\n");
 		fprintf(stderr, "  blacklist   blacklist regions\n");
 		fprintf(stderr, "  bubble      print bubble-like regions (EXPERIMENTAL)\n");
-//		fprintf(stderr, "  gt          genotype from the \"dc\" tag (requring rGFA; EXPERIMENTAL)\n");
 		fprintf(stderr, "  asm         miniasm-like graph transformation\n");
 		fprintf(stderr, "  sql         export rGFA to SQLite (requiring rGFA)\n");
 		fprintf(stderr, "  version     print version number\n");
@@ -640,7 +611,6 @@ int main(int argc, char *argv[])
 	else if (strcmp(argv[1], "gfa2fa") == 0) ret = main_gfa2fa(argc-1, argv+1);
 	else if (strcmp(argv[1], "blacklist") == 0) ret = main_blacklist(argc-1, argv+1);
 	else if (strcmp(argv[1], "bubble") == 0) ret = main_bubble(argc-1, argv+1);
-	else if (strcmp(argv[1], "gt") == 0) ret = main_gt(argc-1, argv+1);
 	else if (strcmp(argv[1], "asm") == 0) ret = main_asm(argc-1, argv+1);
 	else if (strcmp(argv[1], "sql") == 0) ret = main_sql(argc-1, argv+1);
 	else if (strcmp(argv[1], "ed") == 0) ret = main_ed(argc-1, argv+1);
