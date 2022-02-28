@@ -524,22 +524,26 @@ int main_ed(int argc, char *argv[])
 	gfa_t *g;
 	gfa_edrst_t rst;
 	gfa_edseq_t *es;
-	int c, traceback = 0;
-	uint32_t v0 = 0<<1|0; // first segment, forward strand
-	uint32_t max_lag = 0;
+	gfa_edopt_t opt;
+	int c;
 	void *km = 0;
 	char *sname = 0;
 
-	while ((c = ketopt(&o, argc, argv, 1, "ptl:s:d:", 0)) >= 0) {
-		if (c == 'l') max_lag = atoi(o.arg);
+	gfa_edopt_init(&opt);
+	while ((c = ketopt(&o, argc, argv, 1, "ptl:s:d:w:m:", 0)) >= 0) {
+		if (c == 'l') opt.max_lag = atoi(o.arg);
+		else if (c == 'w') opt.max_width = atoi(o.arg);
 		else if (c == 's') sname = o.arg;
-		else if (c == 't') traceback = 1;
+		else if (c == 'm') opt.max_dist = atoi(o.arg);
+		else if (c == 't') opt.traceback = 1;
 		else if (c == 'd') gfa_ed_dbg = atoi(o.arg);
 	}
 	if (argc - o.ind < 2) {
 		fprintf(stderr, "Usage: gfa ed [options] <target.gfa|fa> <query.fa>\n");
 		fprintf(stderr, "Options:\n");
 		fprintf(stderr, "  -l INT    max lag behind the furthest wavefront; 0 to disable [0]\n");
+		fprintf(stderr, "  -w INT    check max lag if there are more than INT diagnoals [%d]\n", opt.max_width);
+		fprintf(stderr, "  -m INT    max edit distance; -1 to disable [-1]\n");
 		fprintf(stderr, "  -s STR    starting segment name [first]\n");
 		fprintf(stderr, "  -t        report the alignment path\n");
 		return 1;
@@ -553,7 +557,7 @@ int main_ed(int argc, char *argv[])
 		int32_t sid;
 		sid = gfa_name2id(g, sname);
 		if (sid < 0) fprintf(stderr, "ERROR: failed to find segment '%s'\n", sname);
-		else v0 = sid<<1 | 0; // TODO: also allow to change the orientation
+		else opt.v0 = sid<<1 | 0; // TODO: also allow to change the orientation
 	}
 	es = gfa_edseq_init(g);
 
@@ -562,8 +566,8 @@ int main_ed(int argc, char *argv[])
 	ks = kseq_init(fp);
 	while (kseq_read(ks) >= 0) {
 		int32_t s;
-		s = gfa_edit_dist(km, g, es, ks->seq.l, ks->seq.s, v0, 0, -1, -1, max_lag, traceback, &rst);
-		if (traceback) {
+		s = gfa_edit_dist(&opt, km, g, es, ks->seq.l, ks->seq.s, &rst);
+		if (opt.traceback) {
 			int32_t i, last_len = -1, len = 0;
 			printf("%s\t%d\t0\t%d\t+\t", ks->name.s, ks->seq.l, ks->seq.l);
 			for (i = 0; i < rst.nv; ++i) {

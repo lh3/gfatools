@@ -383,8 +383,8 @@ static void gwf_ed_extend_batch(void *km, const gfa_t *g, const gfa_edseq_t *es,
 }
 
 // wfa_extend and wfa_next combined
-static gwf_diag_t *gwf_ed_extend(gwf_edbuf_t *buf, const gfa_t *g, const gfa_edseq_t *es, int32_t ql, const char *q, int32_t v1, int32_t off1, uint32_t max_lag, int32_t traceback,
-								 int32_t *end_v, int32_t *end_off, int32_t *end_tb, int32_t *n_a_, gwf_diag_t *a)
+static gwf_diag_t *gwf_ed_extend(gwf_edbuf_t *buf, const gfa_t *g, const gfa_edseq_t *es, int32_t ql, const char *q, uint32_t v1, int32_t off1, int32_t max_size, int32_t max_lag,
+								 int32_t traceback, int32_t *end_v, int32_t *end_off, int32_t *end_tb, int32_t *n_a_, gwf_diag_t *a)
 {
 	int32_t i, x, n = *n_a_, do_dedup = 1;
 	kdq_t(gwf_diag_t) *A;
@@ -460,7 +460,7 @@ static gwf_diag_t *gwf_ed_extend(gwf_edbuf_t *buf, const gfa_t *g, const gfa_eds
 			}
 			if (nv == 0 || n_ext != nv) // add an insertion to the target; this *might* cause a duplicate in corner cases
 				gwf_diag_push(buf->km, &B, v, d+1, k, x0 + 1, 1, t.t);
-		} else if (v1 < 0 || (v == v1 && k == off1)) { // i + 1 == ql
+		} else if (v1 == (uint32_t)-1 || (v == v1 && k == off1)) { // i + 1 == ql
 			*end_v = v, *end_off = k, *end_tb = t.t, *n_a_ = 0;
 			kdq_destroy(gwf_diag_t, A);
 			kfree(buf->km, B.a);
@@ -480,7 +480,7 @@ static gwf_diag_t *gwf_ed_extend(gwf_edbuf_t *buf, const gfa_t *g, const gfa_eds
 	*n_a_ = n = B.n, b = B.a;
 
 	if (do_dedup) *n_a_ = n = gwf_dedup(buf, n, b);
-	if (max_lag > 0) *n_a_ = n = gwf_prune(n, b, max_lag);
+	if (max_lag > 0 && n > max_size) *n_a_ = n = gwf_prune(n, b, max_lag);
 	return b;
 }
 
@@ -499,7 +499,7 @@ static void gwf_traceback(gwf_edbuf_t *buf, int32_t end_v, int32_t end_tb, gfa_e
 		n = path->v[i], path->v[i] = path->v[path->nv - 1 - i], path->v[path->nv - 1 - i] = n;
 }
 
-void gwf_ed_print_diag(const gfa_t *g, size_t n, gwf_diag_t *a) // for debugging only
+static void gwf_ed_print_diag(const gfa_t *g, size_t n, gwf_diag_t *a) // for debugging only
 {
 	size_t i;
 	for (i = 0; i < n; ++i) {
@@ -508,8 +508,23 @@ void gwf_ed_print_diag(const gfa_t *g, size_t n, gwf_diag_t *a) // for debugging
 	}
 }
 
-int32_t gfa_edit_dist(void *km, const gfa_t *g, const gfa_edseq_t *es, int32_t ql, const char *q, int32_t v0, int32_t off0, int32_t v1, int32_t off1,
-					  uint32_t max_lag, int32_t traceback, gfa_edrst_t *rst)
+static void gwf_ed_print_intv(size_t n, gwf_intv_t *a) // for debugging only
+{
+	size_t i;
+	for (i = 0; i < n; ++i)
+		printf("Z\t%d\t%d\t%d\n", (int32_t)(a[i].vd0>>32), (int32_t)a[i].vd0 - GWF_DIAG_SHIFT, (int32_t)a[i].vd1 - GWF_DIAG_SHIFT);
+}
+
+void gfa_edopt_init(gfa_edopt_t *opt)
+{
+	memset(opt, 0, sizeof(*opt));
+	opt->max_dist = -1;
+	opt->max_width = 1000;
+	opt->v1 = (uint32_t)-1;
+	opt->off1 = -1;
+}
+
+int32_t gfa_edit_dist(const gfa_edopt_t *opt, void *km, const gfa_t *g, const gfa_edseq_t *es, int32_t ql, const char *q, gfa_edrst_t *rst)
 {
 	int32_t s = 0, n_a = 1, end_tb;
 	gwf_diag_t *a;
@@ -521,21 +536,24 @@ int32_t gfa_edit_dist(void *km, const gfa_t *g, const gfa_edseq_t *es, int32_t q
 	buf.ht = gwf_map64_init2(km);
 	kv_resize(gwf_trace_t, km, buf.t, gfa_n_vtx(g) + 16);
 	KCALLOC(km, a, 1);
-	a[0].vd = gwf_gen_vd(v0, off0), a[0].k = off0 - 1, a[0].xo = 0; // the initial state
-	if (traceback) a[0].t = gwf_trace_push(km, &buf.t, -1, -1, buf.ht);
+	a[0].vd = gwf_gen_vd(opt->v0, opt->off0), a[0].k = opt->off0 - 1, a[0].xo = 0; // the initial state
+	if (opt->traceback) a[0].t = gwf_trace_push(km, &buf.t, -1, -1, buf.ht);
 	while (n_a > 0) {
-		a = gwf_ed_extend(&buf, g, es, ql, q, v1, off1, max_lag, traceback, &rst->end_v, &rst->end_off, &end_tb, &n_a, a);
+		a = gwf_ed_extend(&buf, g, es, ql, q, opt->v1, opt->off1, opt->max_width, opt->max_lag, opt->traceback, &rst->end_v, &rst->end_off, &end_tb, &n_a, a);
 		if (rst->end_off >= 0 || n_a == 0) break;
+		if (opt->max_dist >= 0 && s >= opt->max_dist) break;
 		++s;
 		if (gfa_ed_dbg >= 1) {
 			printf("[%s] dist=%d, n=%d, n_intv=%ld, n_tb=%ld\n", __func__, s, n_a, buf.intv.n, buf.t.n);
-			if (gfa_ed_dbg >= 2) gwf_ed_print_diag(g, n_a, a);
+			if (gfa_ed_dbg == 2) gwf_ed_print_diag(g, n_a, a);
+			if (gfa_ed_dbg == 3) gwf_ed_print_intv(buf.intv.n, buf.intv.a);
 		}
 	}
-	if (traceback) gwf_traceback(&buf, rst->end_v, end_tb, rst);
+	if (opt->traceback && rst->end_off >= 0)
+		gwf_traceback(&buf, rst->end_v, end_tb, rst);
 	gwf_set64_destroy(buf.ha);
 	gwf_map64_destroy(buf.ht);
 	kfree(km, buf.intv.a); kfree(km, buf.tmp.a); kfree(km, buf.swap.a); kfree(km, buf.t.a);
 	rst->s = rst->end_v >= 0? s : -1;
-	return rst->s; // end_v < 0 could happen if v0 can't reach v1
+	return rst->s; // end_v < 0 could happen if v0 can't reach v1 within opt->max_dist
 }
