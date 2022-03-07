@@ -549,7 +549,7 @@ int main_ed(int argc, char *argv[])
 		return 1;
 	}
 
-	km = km_init();
+	//km = km_init();
 
 	g = gfa_read(argv[o.ind]);
 	assert(g);
@@ -577,6 +577,7 @@ int main_ed(int argc, char *argv[])
 				len += last_len;
 			}
 			printf("\t%d\t0\t%d\t%d\n", len, len - (last_len - rst.end_off) + 1, rst.s);
+			kfree(km, rst.v);
 		} else printf("%s\t%d\n", ks->name.s, s);
 	}
 	kseq_destroy(ks);
