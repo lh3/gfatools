@@ -381,7 +381,7 @@ static void gwf_ed_extend_batch(void *km, const gfa_t *g, const gfa_edseq_t *es,
 	b[n+1].k  = a[n-1].k;
 
 	// drop out-of-bound cells
-	if (a[n-1].k == vl - 1) b[n+1].k = vl; // insertion to the end of a vertex is handled elsewhere
+	//if (a[n-1].k == vl - 1) b[n+1].k = vl; // insertion to the end of a vertex is handled elsewhere. FIXME: this line leads to wrong result for MHC-57 and MHC-HG002.2
 	for (j = 0; j < n; ++j) {
 		gwf_diag_t *p = &a[j];
 		if (p->k == vl - 1 || (int32_t)p->vd - GWF_DIAG_SHIFT + p->k == ql - 1)
@@ -607,7 +607,7 @@ int32_t gfa_edit_dist(void *km, const gfa_t *g, const gfa_edseq_t *es, int32_t q
 {
 	void *z;
 	z = gfa_ed_init(km, g, es, ql, q, 0, v0, off0, max_width, max_lag, traceback);
-	gfa_ed_step(z, -1, (uint32_t)-1, -1, -1, rst);
+	gfa_ed_step(z, -1, (uint32_t)-1, -1, max_s, rst);
 	gfa_ed_destroy(z);
 	return rst->s;
 }
