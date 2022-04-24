@@ -593,6 +593,7 @@ void gfa_ed_destroy(void *z_)
 {
 	gfa_edbuf_t *z = (gfa_edbuf_t*)z_;
 	void *km = z->buf.km;
+	kfree(km, z->a);
 	gwf_set64_destroy(z->buf.ha);
 	gwf_map64_destroy(z->buf.ht);
 	kfree(km, z->buf.ooo.a);
