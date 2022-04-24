@@ -493,7 +493,8 @@ static gwf_diag_t *gwf_ed_extend(gwf_edbuf_t *buf, const gfa_edopt_t *opt, const
 			if (opt->traceback) tw = gwf_trace_push(buf->km, &buf->t, v, t.t, buf->ht);
 			for (j = 0; j < nv; ++j)
 				gwf_diag_push(buf->km, &B, av[j].w, i - av[j].ow, av[j].ow, x0 + 1, 1, tw); // deleting the first base on the next vertex
-		} else assert(0); // should never come here
+		} else { // may come here when k>off1 (due to banding); do nothing in this case
+		}
 	}
 
 	kdq_destroy(gwf_diag_t, A);
