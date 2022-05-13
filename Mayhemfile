@@ -1,0 +1,5 @@
+project: jacob-clemente/gfatools
+target: gfatools
+
+cmds:
+  - cmd: /gfatools view @@
