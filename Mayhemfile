@@ -1,4 +1,4 @@
-project: jacob-clemente/gfatools
+project: gfatools
 target: gfatools
 
 cmds:
