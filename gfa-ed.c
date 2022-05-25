@@ -572,9 +572,10 @@ void gfa_ed_step(void *z_, uint32_t v1, int32_t off1, int32_t s_term, gfa_edrst_
 	gfa_edbuf_t *z = (gfa_edbuf_t*)z_;
 	const gfa_edopt_t *opt = z->opt;
 	if (s_term < 0 && z->opt->s_term >= 0) s_term = z->opt->s_term;
-	r->n_end = 0;
+	r->n_end = 0, r->n_iter = 0;
 	while (z->n_a > 0) {
 		z->a = gwf_ed_extend(&z->buf, opt, z->g, z->es, z->s, z->ql, z->q, v1, off1, &z->end_tb, &z->n_a, z->a, r);
+		r->n_iter += z->n_a + z->buf.intv.n;
 		if (r->end_off >= 0 || z->n_a == 0) break;
 		if (r->n_end > 0) break;
 		if (s_term >= 0 && z->s >= s_term) break;

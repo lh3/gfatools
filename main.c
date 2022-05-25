@@ -212,7 +212,7 @@ int main_gfa2bed(int argc, char *argv[])
 		for (i = 0; i < g->n_seg; ++i) {
 			gfa_seg_t *s = &g->seg[i];
 			if (s->snid >= 0 && s->soff >= 0)
-				printf("%s\t%d\t%d\t%s\n", g->sseq[s->snid].name, s->soff, s->soff + s->len, s->name);
+				printf("%s\t%d\t%d\t%s\t%d\n", g->sseq[s->snid].name, s->soff, s->soff + s->len, s->name, s->rank);
 		}
 	} else {
 		int32_t j, n_sfa;

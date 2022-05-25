@@ -83,6 +83,7 @@ typedef struct {
 	int32_t wlen; // length of walk
 	int32_t n_end;
 	int32_t nv;
+	int64_t n_iter;
 	int32_t *v;
 } gfa_edrst_t;
 
