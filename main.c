@@ -12,7 +12,7 @@
 #include "kseq.h"
 KSEQ_INIT(gzFile, gzread)
 
-#define GFATOOLS_VERSION "0.5-r238-dirty"
+#define GFATOOLS_VERSION "0.5-r250-dirty"
 
 char **gv_read_list(const char *o, int *n_)
 {
@@ -525,13 +525,13 @@ int main_ed(int argc, char *argv[])
 	gfa_edrst_t rst;
 	gfa_edseq_t *es;
 	gfa_edopt_t opt;
-	int c;
+	int c, no_kalloc = 0;
 	uint32_t v0 = 0<<0|0;
 	void *km = 0;
 	char *sname = 0;
 
 	gfa_edopt_init(&opt);
-	while ((c = ketopt(&o, argc, argv, 1, "cl:s:d:w:m:n:", 0)) >= 0) {
+	while ((c = ketopt(&o, argc, argv, 1, "cl:s:d:w:m:n:K", 0)) >= 0) {
 		if (c == 'l') opt.max_lag = atoi(o.arg);
 		else if (c == 'w') opt.bw_dyn = atoi(o.arg);
 		else if (c == 'n') opt.max_chk = atoi(o.arg);
@@ -539,6 +539,7 @@ int main_ed(int argc, char *argv[])
 		else if (c == 'c') opt.traceback = 1;
 		else if (c == 's') sname = o.arg;
 		else if (c == 'd') gfa_ed_dbg = atoi(o.arg);
+		else if (c == 'K') no_kalloc = 1;
 	}
 	if (argc - o.ind < 2) {
 		fprintf(stderr, "Usage: gfa ed [options] <target.gfa|fa> <query.fa>\n");
@@ -564,6 +565,7 @@ int main_ed(int argc, char *argv[])
 	}
 	es = gfa_edseq_init(g);
 
+	km = no_kalloc? 0 : km_init();
 	fp = gzopen(argv[o.ind+1], "r");
 	assert(fp);
 	ks = kseq_init(fp);
