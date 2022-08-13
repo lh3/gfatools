@@ -12,7 +12,7 @@
 #include "kseq.h"
 KSEQ_INIT(gzFile, gzread)
 
-#define GFATOOLS_VERSION "0.5-r252-dirty"
+#define GFATOOLS_VERSION "0.5-r253-dirty"
 
 char **gv_read_list(const char *o, int *n_)
 {

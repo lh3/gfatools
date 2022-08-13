@@ -323,7 +323,7 @@ gfa_t *gfa_subview(gfa_t *g, int32_t n_seg, const int32_t *seg)
 	for (i = j = 0; i < n_seg; ++i)
 		if (seg[i] < g->n_seg) {
 			k = gfa_map64_put(h, seg[i], &absent);
-			kh_val(h, k) = j++;
+			if (absent) kh_val(h, k) = j++;
 		}
 
 	GFA_CALLOC(f, 1);
@@ -334,7 +334,7 @@ gfa_t *gfa_subview(gfa_t *g, int32_t n_seg, const int32_t *seg)
 		const gfa_arc_t *av;
 		if (!kh_exist(h, k)) continue;
 		s = kh_key(h, k), t = kh_val(h, k);
-		f->seg[kh_val(h, k)] = g->seg[s];
+		f->seg[t] = g->seg[s];
 		for (j = 0; j < 2; ++j) {
 			uint32_t v = (uint32_t)s<<1 | j;
 			nv = gfa_arc_n(g, v);
