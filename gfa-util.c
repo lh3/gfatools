@@ -7,6 +7,9 @@
 #include "kdq.h"
 KDQ_INIT(uint64_t)
 
+#include "khashl.h"
+KHASHL_MAP_INIT(KH_LOCAL, gfa_map64_t, gfa_map64, uint64_t, int32_t, kh_hash_uint64, kh_eq_generic)
+
 void gfa_sub(gfa_t *g, int n, char *const* seg, int step)
 {
 	int32_t i;
@@ -307,4 +310,61 @@ char **gfa_query_by_reg(const gfa_t *g, int32_t n_bb, const gfa_bubble_t *bb, co
 	free(tmp);
 	if (snid < 0) return 0;
 	return gfa_query_by_id(g, n_bb, bb, snid, start, end, n_seg);
+}
+
+gfa_t *gfa_subview(gfa_t *g, int32_t n_seg, const int32_t *seg)
+{
+	gfa_map64_t *h;
+	gfa_t *f;
+	int32_t i, j, absent;
+	uint32_t k, l;
+
+	h = gfa_map64_init();
+	for (i = j = 0; i < n_seg; ++i)
+		if (seg[i] < g->n_seg) {
+			k = gfa_map64_put(h, seg[i], &absent);
+			kh_val(h, k) = j++;
+		}
+
+	GFA_CALLOC(f, 1);
+	f->n_seg = kh_size(h);
+	GFA_CALLOC(f->seg, f->n_seg);
+	for (k = 0; k < kh_end(h); ++k) {
+		int32_t nv, s, i, j, t;
+		const gfa_arc_t *av;
+		if (!kh_exist(h, k)) continue;
+		s = kh_key(h, k), t = kh_val(h, k);
+		f->seg[kh_val(h, k)] = g->seg[s];
+		for (j = 0; j < 2; ++j) {
+			uint32_t v = (uint32_t)s<<1 | j;
+			nv = gfa_arc_n(g, v);
+			av = gfa_arc_a(g, v);
+			for (i = 0; i < nv; ++i) {
+				gfa_arc_t *a;
+				l = gfa_map64_get(h, av[i].w>>1);
+				if (l != kh_end(h)) {
+					if (f->n_arc == f->m_arc) {
+						f->m_arc += (f->m_arc>>1) + 16;
+						GFA_REALLOC(f->arc, f->m_arc);
+					}
+					a = &f->arc[f->n_arc++];
+					*a = av[i];
+					a->v_lv = (uint64_t)t<<33 | (uint64_t)j<<32 | a->v_lv<<32>>32;
+					a->w = (uint32_t)kh_val(h, l)<<1 | (a->w&1);
+				}
+			}
+		}
+	}
+
+	gfa_map64_destroy(h);
+	gfa_arc_sort(f);
+	gfa_arc_index(f);
+	f->sseq = g->sseq;
+	f->link_aux = g->link_aux;
+	return f;
+}
+
+void gfa_subview_destroy(gfa_t *f)
+{
+	free(f->idx); free(f->arc); free(f->seg); free(f);
 }

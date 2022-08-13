@@ -12,7 +12,7 @@
 #include "kseq.h"
 KSEQ_INIT(gzFile, gzread)
 
-#define GFATOOLS_VERSION "0.5-r250-dirty"
+#define GFATOOLS_VERSION "0.5-r252-dirty"
 
 char **gv_read_list(const char *o, int *n_)
 {
@@ -363,14 +363,15 @@ int main_blacklist(int argc, char *argv[])
 int main_bubble(int argc, char *argv[])
 {
 	ketopt_t o = KETOPT_INIT;
-	int32_t i, j, c, n_bb;
+	int32_t i, j, c, n_bb, sub_gfa = 0;
 	gfa_t *g;
 	gfa_bubble_t *bb;
 
-	while ((c = ketopt(&o, argc, argv, 1, "", 0)) >= 0) {
+	while ((c = ketopt(&o, argc, argv, 1, "g", 0)) >= 0) {
+		if (c == 'g') sub_gfa = 1;
 	}
 	if (o.ind == argc) {
-		fprintf(stderr, "Usage: gfatools bubble <in.gfa>\n");
+		fprintf(stderr, "Usage: gfatools bubble [-g] <in.gfa>\n");
 		return 1;
 	}
 	g = gfa_read(argv[o.ind]);
@@ -382,6 +383,7 @@ int main_bubble(int argc, char *argv[])
 	bb = gfa_bubble(g, &n_bb);
 	for (i = 0; i < n_bb; ++i) {
 		gfa_bubble_t *b = &bb[i];
+		if (sub_gfa) printf("bb\t");
 		printf("%s\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t-1\t-1\t-1\t", g->sseq[b->snid].name, b->ss, b->se, b->n_seg, b->n_paths,
 			   b->is_bidir, b->len_min, b->len_max);
 		for (j = 0; j < b->n_seg; ++j) {
@@ -393,6 +395,17 @@ int main_bubble(int argc, char *argv[])
 		if (b->len_max == 0) fputs("\t*", stdout);
 		else printf("\t%s", b->seq_max);
 		putchar('\n');
+		if (sub_gfa) {
+			int32_t i, *seg;
+			gfa_t *f;
+			GFA_CALLOC(seg, b->n_seg);
+			for (i = 0; i < b->n_seg; ++i)
+				seg[i] = b->v[i]>>1;
+			f = gfa_subview(g, b->n_seg, seg);
+			gfa_print(f, stdout, GFA_O_NO_SEQ);
+			gfa_subview_destroy(f);
+			printf("be\n");
+		}
 		free(b->v);
 	}
 	free(bb);
