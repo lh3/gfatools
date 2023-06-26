@@ -388,10 +388,82 @@ gfa_t *gfa_read(const char *fn)
 	return g;
 }
 
+static inline void str_enlarge(kstring_t *s, int l)
+{
+	if (s->l + l + 1 > s->m) {
+		s->m = s->l + l + 1;
+		kroundup32(s->m);
+		GFA_REALLOC(s->s, s->m);
+	}
+}
+
+static inline void str_copy(kstring_t *s, const char *st, const char *en)
+{
+	str_enlarge(s, en - st);
+	memcpy(&s->s[s->l], st, en - st);
+	s->l += en - st;
+}
+
+void gfa_sprintf_lite(kstring_t *s, const char *fmt, ...)
+{
+	char buf[32]; // for integer to string conversion
+	const char *p, *q;
+	va_list ap;
+	va_start(ap, fmt);
+	for (q = p = fmt; *p; ++p) {
+		if (*p == '%') {
+			if (p > q) str_copy(s, q, p);
+			++p;
+			if (*p == 'd') {
+				int c, i, l = 0;
+				unsigned int x;
+				c = va_arg(ap, int);
+				x = c >= 0? c : -c;
+				do { buf[l++] = x%10 + '0'; x /= 10; } while (x > 0);
+				if (c < 0) buf[l++] = '-';
+				str_enlarge(s, l);
+				for (i = l - 1; i >= 0; --i) s->s[s->l++] = buf[i];
+			} else if (*p == 'l' && *(p+1) == 'd') {
+				int c, i, l = 0;
+				unsigned long x;
+				c = va_arg(ap, long);
+				x = c >= 0? c : -c;
+				do { buf[l++] = x%10 + '0'; x /= 10; } while (x > 0);
+				if (c < 0) buf[l++] = '-';
+				str_enlarge(s, l);
+				for (i = l - 1; i >= 0; --i) s->s[s->l++] = buf[i];
+				++p;
+			} else if (*p == 'u') {
+				int i, l = 0;
+				uint32_t x;
+				x = va_arg(ap, uint32_t);
+				do { buf[l++] = x%10 + '0'; x /= 10; } while (x > 0);
+				str_enlarge(s, l);
+				for (i = l - 1; i >= 0; --i) s->s[s->l++] = buf[i];
+			} else if (*p == 's') {
+				char *r = va_arg(ap, char*);
+				str_copy(s, r, r + strlen(r));
+			} else if (*p == 'c') {
+				str_enlarge(s, 1);
+				s->s[s->l++] = va_arg(ap, int);
+			} else {
+				fprintf(stderr, "ERROR: unrecognized type '%%%c'\n", *p);
+				abort();
+			}
+			q = p + 1;
+		}
+	}
+	if (p > q) str_copy(s, q, p);
+	va_end(ap);
+	s->s[s->l] = 0;
+}
+
 void gfa_print(const gfa_t *g, FILE *fp, int flag)
 {
 	uint32_t i;
 	uint64_t k;
+	kstring_t out = {0,0,0};
+	// S-lines
 	for (i = 0; i < g->n_seg; ++i) {
 		const gfa_seg_t *s = &g->seg[i];
 		if (s->del) continue;
@@ -421,6 +493,7 @@ void gfa_print(const gfa_t *g, FILE *fp, int flag)
 			}
 		}
 	}
+	// L-lines
 	for (k = 0; k < g->n_arc; ++k) {
 		const gfa_arc_t *a = &g->arc[k];
 		const gfa_aux_t *aux = a->link_id < g->n_arc? &g->link_aux[a->link_id] : 0;
@@ -444,4 +517,16 @@ void gfa_print(const gfa_t *g, FILE *fp, int flag)
 		}
 		fputc('\n', fp);
 	}
+	// W-lines
+	for (i = 0; i < g->n_walk; ++i) {
+		const gfa_walk_t *w = &g->walk[i];
+		int32_t j;
+		out.l = 0;
+		gfa_sprintf_lite(&out, "W\t%s\t%d\t%s\t%ld\t%ld\t", w->sample, w->hap, g->sseq[w->snid].name, (long)w->st, (long)w->en);
+		for (j = 0; j < w->len; ++j)
+			gfa_sprintf_lite(&out, "%c%s", "><"[w->walk[j]&1], g->seg[w->walk[j]>>1].name);
+		gfa_sprintf_lite(&out, "\n");
+		fputs(out.s, fp);
+	}
+	free(out.s);
 }
