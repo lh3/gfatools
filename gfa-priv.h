@@ -73,7 +73,7 @@ int32_t gfa_sseq_get(const gfa_t *g, const char *sname);
 int32_t gfa_sseq_add(gfa_t *g, const char *sname);
 void gfa_sseq_update(gfa_t *g, const gfa_seg_t *s);
 
-char *gfa_sample_add(gfa_t *g, const char *name);
+const char *gfa_sample_add(gfa_t *g, const char *name);
 
 // whole graph operations
 void gfa_arc_sort(gfa_t *g);

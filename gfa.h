@@ -4,7 +4,7 @@
 #include <stdio.h>
 #include <stdint.h>
 
-#define GFA_VERSION "0.5-r251-dirty"
+#define GFA_VERSION "0.5-r252-dirty"
 
 #define GFA_O_OV_EXT   0x1
 #define GFA_O_NO_SEQ   0x2
@@ -83,7 +83,7 @@ typedef struct {
 } gfa_sseq_t;
 
 typedef struct {
-	char *sample;
+	const char *sample;
 	int32_t snid;
 	int32_t hap, len;
 	int64_t st, en;

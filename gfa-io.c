@@ -290,7 +290,7 @@ int gfa_parse_W(gfa_t *g, char *s)
 					if (*pp == '>' || *pp == '<')
 						t.len++;
 				GFA_MALLOC(t.walk, t.len);
-				for (pp = q, t.len = 0; pp <= p; ++pp) {
+				for (qq = q, pp = q + 1, t.len = 0; pp <= p; ++pp) {
 					if (pp == p || *pp == '>' || *pp == '<') {
 						int32_t a = *pp, seg;
 						*pp = 0;

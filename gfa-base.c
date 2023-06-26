@@ -207,7 +207,7 @@ void gfa_arc_index(gfa_t *g)
  * Walk related *
  ****************/
 
-char *gfa_sample_add(gfa_t *g, const char *name)
+const char *gfa_sample_add(gfa_t *g, const char *name)
 {
 	h_s2i_t *h = (h_s2i_t*)g->h_samples;
 	khint_t k;
