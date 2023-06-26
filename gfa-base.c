@@ -22,6 +22,7 @@ gfa_t *gfa_init(void)
 	g = (gfa_t*)calloc(1, sizeof(gfa_t));
 	g->h_names = h_s2i_init();
 	g->h_snames = h_s2i_init();
+	g->h_samples = h_s2i_init();
 	return g;
 }
 
@@ -46,6 +47,14 @@ void gfa_destroy(gfa_t *g)
 	}
 	for (i = 0; i < g->n_sseq; ++i) free(g->sseq[i].name);
 	h_s2i_destroy((h_s2i_t*)g->h_snames);
+	if (g->h_samples) {
+		h_s2i_t *h = (h_s2i_t*)g->h_samples;
+		khint_t k;
+		for (k = 0; k != kh_end(h); ++k)
+			if (kh_exist(h, k))
+				free((char*)kh_key(h, k));
+		h_s2i_destroy((h_s2i_t*)g->h_samples);
+	}
 	if (g->link_aux)
 		for (k = 0; k < g->n_arc; ++k)
 			free(g->link_aux[k].aux);
@@ -192,6 +201,31 @@ void gfa_arc_index(gfa_t *g)
 {
 	if (g->idx) free(g->idx);
 	g->idx = gfa_arc_index_core(g->n_seg, g->n_arc, g->arc);
+}
+
+/****************
+ * Walk related *
+ ****************/
+
+char *gfa_sample_add(gfa_t *g, const char *name)
+{
+	h_s2i_t *h = (h_s2i_t*)g->h_samples;
+	khint_t k;
+	int absent;
+	k = h_s2i_put(h, name, &absent);
+	if (absent) {
+		kh_val(h, k) = g->n_sseq - 1;
+		kh_key(h, k) = gfa_strdup(name);
+	}
+	return kh_key(h, k);
+}
+
+int32_t gfa_sample_get(const gfa_t *g, const char *name)
+{
+	h_s2i_t *h = (h_s2i_t*)g->h_samples;
+	khint_t k;
+	k = h_s2i_get(h, name);
+	return k == kh_end(h)? -1 : kh_val(h, k);
 }
 
 /********************

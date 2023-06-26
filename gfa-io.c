@@ -263,6 +263,57 @@ int gfa_parse_L(gfa_t *g, char *s)
 	return 0;
 }
 
+int gfa_parse_W(gfa_t *g, char *s)
+{
+	char *p, *q, *ctg = 0, *sample = 0;
+	int32_t i;
+	gfa_walk_t t;
+	GFA_BZERO(&t, 1);
+	for (p = q = s + 2, i = 0;; ++p) {
+		t.sample = 0;
+		if (*p == 0 || *p == '\t') {
+			int32_t c = *p;
+			*p = 0;
+			if (i == 0) {
+				sample = q;
+			} else if (i == 1) {
+				t.hap = atoi(q);
+			} else if (i == 2) {
+				ctg = q;
+			} else if (i == 3) {
+				t.st = atol(q);
+			} else if (i == 4) {
+				t.en = atol(q);
+			} else if (i == 5) {
+				char *pp, *qq;
+				for (pp = q, t.len = 0; pp < p; ++pp)
+					if (*pp == '>' || *pp == '<')
+						t.len++;
+				GFA_MALLOC(t.walk, t.len);
+				for (pp = q, t.len = 0; pp <= p; ++pp) {
+					if (pp == p || *pp == '>' || *pp == '<') {
+						int32_t a = *pp, seg;
+						*pp = 0;
+						seg = gfa_name2id(g, qq + 1);
+						if (seg < 0) break;
+						t.walk[t.len++] = (uint32_t)seg<<1 | (*qq == '<');
+						*pp = a, qq = pp;
+					}
+				}
+			}
+			q = p + 1, ++i;
+			if (c == 0) break;
+		}
+	}
+	if (i >= 5) {
+		t.sample = gfa_sample_add(g, sample);
+		t.snid = gfa_sseq_add(g, ctg);
+		GFA_GROW(gfa_walk_t, g->walk, g->n_walk, g->m_walk);
+		g->walk[g->n_walk++] = t;
+	} else return -1;
+	return 0;
+}
+
 static gfa_seg_t *gfa_parse_fa_hdr(gfa_t *g, char *s)
 {
 	int32_t i;
@@ -324,6 +375,7 @@ gfa_t *gfa_read(const char *fn)
 		if (s.l < 3 || s.s[1] != '\t') continue; // empty line
 		if (s.s[0] == 'S') ret = gfa_parse_S(g, s.s);
 		else if (s.s[0] == 'L') ret = gfa_parse_L(g, s.s);
+		else if (s.s[0] == 'W') ret = gfa_parse_W(g, s.s);
 		if (ret < 0 && gfa_verbose >= 1)
 			fprintf(stderr, "[E] invalid %c-line at line %ld (error code %d)\n", s.s[0], (long)lineno, ret);
 	}

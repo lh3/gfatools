@@ -13,6 +13,24 @@
 		GFA_REALLOC((a), (m)); \
 	} while (0)
 
+#define GFA_GROW(type, ptr, __i, __m) do { \
+		if ((__i) >= (__m)) { \
+			(__m) = (__i) + 1; \
+			(__m) += ((__m)>>1) + 16; \
+			GFA_REALLOC(ptr, (__m)); \
+		} \
+	} while (0)
+
+#define GFA_GROW0(type, ptr, __i, __m) do { \
+		if ((__i) >= (__m)) { \
+			size_t old_m = (__m); \
+			(__m) = (__i) + 1; \
+			(__m) += ((__m)>>1) + 16; \
+			GFA_REALLOC(ptr, (__m)); \
+			GFA_BZERO((ptr) + old_m, (__m) - old_m); \
+		} \
+	} while (0)
+
 typedef struct { uint64_t x, y; } gfa128_t;
 
 // linearized subgraphs
@@ -54,6 +72,8 @@ gfa_arc_t *gfa_add_arc1(gfa_t *g, uint32_t v, uint32_t w, int32_t ov, int32_t ow
 int32_t gfa_sseq_get(const gfa_t *g, const char *sname);
 int32_t gfa_sseq_add(gfa_t *g, const char *sname);
 void gfa_sseq_update(gfa_t *g, const gfa_seg_t *s);
+
+char *gfa_sample_add(gfa_t *g, const char *name);
 
 // whole graph operations
 void gfa_arc_sort(gfa_t *g);
