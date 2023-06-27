@@ -59,7 +59,7 @@ void gfa_destroy(gfa_t *g)
 	if (g->link_aux)
 		for (k = 0; k < g->n_arc; ++k)
 			free(g->link_aux[k].aux);
-	free(g->idx); free(g->seg); free(g->arc); free(g->link_aux); free(g->sseq);
+	free(g->idx); free(g->seg); free(g->arc); free(g->link_aux); free(g->sseq); free(g->walk);
 	free(g);
 }
 
@@ -358,6 +358,31 @@ void gfa_arc_rm(gfa_t *g)
 		g->idx = 0;
 	}
 	g->n_arc = n;
+}
+
+void gfa_walk_rm(gfa_t *g)
+{
+	int32_t i, k;
+	for (i = 0; i < g->n_walk; ++i) {
+		gfa_walk_t *w = &g->walk[i];
+		int32_t j, n = 0;
+		for (j = 0; j < w->n_v; ++j)
+			if (!g->seg[w->v[j]>>1].del)
+				++n;
+		if (n == 0) {
+			free(w->v);
+		} else {
+			for (j = k = 0; j < w->n_v; ++j)
+				if (!g->seg[w->v[j]>>1].del)
+					w->v[k++] = w->v[j];
+			if (k != w->n_v) w->st = w->en = -1;
+		}
+		w->n_v = n;
+	}
+	for (i = k = 0; i < g->n_walk; ++i)
+		if (g->walk[i].n_v > 0)
+			g->walk[k++] = g->walk[i];
+	g->n_walk = k;
 }
 
 void gfa_cleanup(gfa_t *g)

@@ -522,7 +522,9 @@ void gfa_print(const gfa_t *g, FILE *fp, int flag)
 		const gfa_walk_t *w = &g->walk[i];
 		int32_t j;
 		out.l = 0;
-		gfa_sprintf_lite(&out, "W\t%s\t%d\t%s\t%ld\t%ld\t", w->sample, w->hap, g->sseq[w->snid].name, (long)w->st, (long)w->en);
+		gfa_sprintf_lite(&out, "W\t%s\t%d\t%s\t", w->sample, w->hap, g->sseq[w->snid].name);
+		if (w->st >= 0 && w->en >= 0) gfa_sprintf_lite(&out, "%ld\t%ld\t", (long)w->st, (long)w->en);
+		else gfa_sprintf_lite(&out, "*\t*\t");
 		for (j = 0; j < w->n_v; ++j)
 			gfa_sprintf_lite(&out, "%c%s", "><"[w->v[j]&1], g->seg[w->v[j]>>1].name);
 		gfa_sprintf_lite(&out, "\n");

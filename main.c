@@ -139,6 +139,7 @@ int main_view(int argc, char *argv[])
 			for (i = 0; i < n_seg; ++i)
 				g->seg[seg[i]].del = 1;
 		}
+		gfa_walk_rm(g);
 		gfa_arc_rm(g);
 		free(seg);
 	}
