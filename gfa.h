@@ -4,7 +4,7 @@
 #include <stdio.h>
 #include <stdint.h>
 
-#define GFA_VERSION "0.5-r253-dirty"
+#define GFA_VERSION "0.5-r254-dirty"
 
 #define GFA_O_OV_EXT   0x1
 #define GFA_O_NO_SEQ   0x2
@@ -85,9 +85,9 @@ typedef struct {
 typedef struct {
 	const char *sample;
 	int32_t snid;
-	int32_t hap, len;
+	int32_t hap, n_v;
 	int64_t st, en;
-	uint32_t *walk;
+	uint32_t *v;
 } gfa_walk_t;
 
 #define gfa_n_vtx(g) ((g)->n_seg << 1)

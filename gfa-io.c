@@ -286,17 +286,17 @@ int gfa_parse_W(gfa_t *g, char *s)
 				t.en = atol(q);
 			} else if (i == 5) {
 				char *pp, *qq;
-				for (pp = q, t.len = 0; pp < p; ++pp)
+				for (pp = q, t.n_v = 0; pp < p; ++pp)
 					if (*pp == '>' || *pp == '<')
-						t.len++;
-				GFA_MALLOC(t.walk, t.len);
-				for (qq = q, pp = q + 1, t.len = 0; pp <= p; ++pp) {
+						t.n_v++;
+				GFA_MALLOC(t.v, t.n_v);
+				for (qq = q, pp = q + 1, t.n_v = 0; pp <= p; ++pp) {
 					if (pp == p || *pp == '>' || *pp == '<') {
 						int32_t a = *pp, seg;
 						*pp = 0;
 						seg = gfa_name2id(g, qq + 1);
 						if (seg < 0) break;
-						t.walk[t.len++] = (uint32_t)seg<<1 | (*qq == '<');
+						t.v[t.n_v++] = (uint32_t)seg<<1 | (*qq == '<');
 						*pp = a, qq = pp;
 					}
 				}
@@ -523,8 +523,8 @@ void gfa_print(const gfa_t *g, FILE *fp, int flag)
 		int32_t j;
 		out.l = 0;
 		gfa_sprintf_lite(&out, "W\t%s\t%d\t%s\t%ld\t%ld\t", w->sample, w->hap, g->sseq[w->snid].name, (long)w->st, (long)w->en);
-		for (j = 0; j < w->len; ++j)
-			gfa_sprintf_lite(&out, "%c%s", "><"[w->walk[j]&1], g->seg[w->walk[j]>>1].name);
+		for (j = 0; j < w->n_v; ++j)
+			gfa_sprintf_lite(&out, "%c%s", "><"[w->v[j]&1], g->seg[w->v[j]>>1].name);
 		gfa_sprintf_lite(&out, "\n");
 		fputs(out.s, fp);
 	}
