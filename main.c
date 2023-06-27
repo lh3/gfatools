@@ -73,11 +73,11 @@ static inline int64_t gfa_str2num(const char *str, char **q)
 int main_view(int argc, char *argv[])
 {
 	ketopt_t o = KETOPT_INIT;
-	int c, out_flag = 0, step = 0, is_del = 0, fix_multi = 0;
+	int c, out_flag = 0, step = 0, is_del = 0, fix_multi = 0, flip_walk = 0;
 	char *list_arg = 0, *reg_arg = 0;
 	gfa_t *g;
 
-	while ((c = ketopt(&o, argc, argv, 1, "v:dr:l:SMR:", 0)) >= 0) {
+	while ((c = ketopt(&o, argc, argv, 1, "v:dr:l:SMR:w", 0)) >= 0) {
 		if (c == 'v') gfa_verbose = atoi(o.arg);
 		else if (c == 'd') is_del = 1;
 		else if (c == 'r') step = atoi(o.arg);
@@ -85,6 +85,7 @@ int main_view(int argc, char *argv[])
 		else if (c == 'S') out_flag |= GFA_O_NO_SEQ;
 		else if (c == 'R') reg_arg = o.arg;
 		else if (c == 'M') fix_multi = 1;
+		else if (c == 'w') flip_walk = 1;
 	}
 	if (o.ind == argc) {
 		fprintf(stderr, "Usage: gfatools view [options] <in.gfa>\n");
@@ -96,6 +97,7 @@ int main_view(int argc, char *argv[])
 		fprintf(stderr, "  -d            delete the list of segments (requiring -l; ignoring -r)\n");
 		fprintf(stderr, "  -M            remove multiple edges\n");
 		fprintf(stderr, "  -S            don't print sequences\n");
+		fprintf(stderr, "  -w            flip walk\n");
 		return 1;
 	}
 	if (list_arg && reg_arg) {
@@ -143,6 +145,7 @@ int main_view(int argc, char *argv[])
 		gfa_arc_rm(g);
 		free(seg);
 	}
+	if (flip_walk) gfa_walk_flip(g);
 	gfa_print(g, stdout, out_flag);
 end_view:
 	gfa_destroy(g);

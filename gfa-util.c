@@ -385,3 +385,37 @@ int32_t *gfa_list2seg(const gfa_t *g, int32_t n_seg, char *const* seg, int32_t *
 	*n_ret = k;
 	return ret;
 }
+
+void gfa_walk_flip(gfa_t *g)
+{
+	int32_t i, j;
+	int8_t *strand;
+	if (g->n_walk == 0) return;
+	GFA_CALLOC(strand, g->n_seg);
+	for (i = 0; i < g->n_walk; ++i) {
+		gfa_walk_t *w = &g->walk[i];
+		for (j = 0; j < w->n_v; ++j)
+			if (strand[w->v[j]>>1] == 0)
+				strand[w->v[j]>>1] = w->v[j]&1? -1 : 1;
+	}
+	for (i = 0; i < g->n_walk; ++i) {
+		gfa_walk_t *w = &g->walk[i];
+		int32_t n[2];
+		n[0] = n[1] = 0;
+		for (j = 0; j < w->n_v; ++j) {
+			int8_t s;
+			assert(strand[w->v[j]>>1] != 0);
+			s = w->v[j]&1? -1 : 1;
+			if (s == strand[w->v[j]>>1]) ++n[0];
+			else ++n[1];
+		}
+		if (n[0] >= n[1]) continue;
+		for (j = 0; j < w->n_v>>1; ++j) {
+			uint32_t t = w->v[j]^1;
+			w->v[j] = w->v[w->n_v - 1 - j]^1;
+			w->v[w->n_v - 1 - j] = t;
+		}
+		if (w->n_v&1) w->v[w->n_v>>1] ^= 1;
+	}
+	free(strand);
+}
