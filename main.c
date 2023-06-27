@@ -109,36 +109,41 @@ int main_view(int argc, char *argv[])
 	}
 	if (fix_multi) gfa_fix_multi(g);
 	if (list_arg || reg_arg) {
-		int i, n;
-		char **list;
+		int32_t i, n_seg, *seg;
+		char **list = 0;
 		if (list_arg) {
+			int32_t n;
 			list = gv_read_list(list_arg, &n);
+			seg = gfa_list2seg(g, n, list, &n_seg);
 		} else {
 			gfa_bubble_t *bb;
 			int32_t n_bb;
 			gfa_sort_ref_arc(g);
 			bb = gfa_bubble(g, &n_bb);
-			list = gfa_query_by_reg(g, n_bb, bb, reg_arg, &n);
+			seg = gfa_query_by_reg(g, n_bb, bb, reg_arg, &n_seg);
 			for (i = 0; i < n_bb; ++i) free(bb[i].v);
 			free(bb);
 		}
-		if (n == 0) { // nothing to extract
-			gfa_destroy(g);
-			return 0;
+		if (n_seg == 0) goto end_view; // nothing to extract
+		if (step > 0) {
+			int32_t n_seg0 = n_seg, *seg0 = seg;
+			seg = gfa_sub_extend(g, n_seg0, seg0, step, &n_seg);
+			free(seg0);
 		}
 		if (!is_del) {
-			gfa_sub(g, n, list, step);
+			for (i = 0; i < g->n_seg; ++i)
+				g->seg[i].del = 1;
+			for (i = 0; i < n_seg; ++i)
+				g->seg[seg[i]].del = 0;
 		} else {
-			for (i = 0; i < n; ++i) {
-				int32_t seg;
-				seg = gfa_name2id(g, list[i]);
-				if (seg >= 0) gfa_seg_del(g, seg);
-			}
+			for (i = 0; i < n_seg; ++i)
+				g->seg[seg[i]].del = 1;
 		}
-		for (i = 0; i < n; ++i) free(list[i]);
-		free(list);
+		gfa_arc_rm(g);
+		free(seg);
 	}
 	gfa_print(g, stdout, out_flag);
+end_view:
 	gfa_destroy(g);
 	return 0;
 }
