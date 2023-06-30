@@ -295,8 +295,12 @@ int gfa_parse_W(gfa_t *g, char *s)
 						int32_t a = *pp, seg;
 						*pp = 0;
 						seg = gfa_name2id(g, qq + 1);
-						if (seg < 0) break;
-						t.v[t.n_v++] = (uint32_t)seg<<1 | (*qq == '<');
+						if (seg >= 0) {
+							t.v[t.n_v++] = (uint32_t)seg<<1 | (*qq == '<');
+						} else {
+							if (gfa_verbose >= 2)
+								fprintf(stderr, "WARNING: failed to find segment '%s'\n", qq + 1);
+						}
 						*pp = a, qq = pp;
 					}
 				}

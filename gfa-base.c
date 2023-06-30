@@ -375,7 +375,7 @@ void gfa_walk_rm(gfa_t *g)
 			for (j = k = 0; j < w->n_v; ++j)
 				if (!g->seg[w->v[j]>>1].del)
 					w->v[k++] = w->v[j];
-			if (k != w->n_v) w->st = w->en = -1;
+			w->st = w->en = -1;
 		}
 		w->n_v = n;
 	}
