@@ -39,6 +39,7 @@ function gfa_plot_conf()
 }
 
 var gfa_conf = gfa_plot_conf();
+var gfa_obj = null;
 
 function gfa_plot_rank2color(g)
 {
@@ -131,7 +132,7 @@ function gfa_plot_cal_pos(conf, g)
 	return [sub, pos];
 }
 
-function gfa_plot_draw(canvas, conf, g)
+function gfa_plot_graph(canvas, conf, g)
 {
 	var ctx = canvas.getContext("2d");
 	ctx.clearRect(0, 0, canvas.width, canvas.height);
@@ -183,14 +184,4 @@ function gfa_plot_draw(canvas, conf, g)
 		var color = r2c[s.rank] != null? r2c[s.rank] : "#000000";
 		gfa_plot_arrow(ctx, pos[i].cx_st, pos[i].cy, pos[i].len, 4, color, sub.v[i].v&1, label, s.rank == 0? 1.5 : 1);
 	}
-}
-
-function gfa_plot(canvas, gfa_text, info_elem)
-{
-	var g = gfa_parse(gfa_text);
-	if (g == null || g.seg.length == 0) {
-		info_elem.innerHTML = "Error: failed to parse GFA";
-		return;
-	}
-	gfa_plot_draw(canvas, gfa_conf, g);
 }

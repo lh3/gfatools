@@ -88,6 +88,7 @@ function gfa_parse(str)
 					walk.v.push(v);
 				}
 			}
+			g.walk.push(walk);
 		}
 	}
 
