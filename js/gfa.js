@@ -38,9 +38,10 @@ function gfa_index(g)
 
 function gfa_parse(str)
 {
-	var g = { seg:[], arc:[], segname:{}, idx:[], err:0 };
+	var g = { seg:[], arc:[], segname:{}, idx:[], walk:[], err:0 };
 	var lines = str.split("\n");
 	var re_cigar = /(\d+)([MIDSN])/g;
+	var re_walk = /([><])([^\s><]+)/g;
 	for (var i = 0; i < lines.length; ++i) {
 		if (lines[i].length < 5) continue;
 		var m, t = lines[i].split("\t");
@@ -75,6 +76,18 @@ function gfa_parse(str)
 			}
 			g.arc.push({ v:v, w:w, ov:ov, ow:ow, rank:rank, ori:true });
 			g.arc.push({ v:w^1, w:v^1, ov:ow, ow:ov, rank:rank, ori:false });
+		} else if (t[0] == "W") {
+			if (t.length < 7) continue;
+			var walk = { sample:t[1], hap:parseInt(t[2]), sname:t[3], st:-1, en:-1, v:[] };
+			if (t[4] != "*") walk.st = parseInt(t[4]);
+			if (t[5] != "*") walk.st = parseInt(t[5]);
+			while ((m = re_walk.exec(t[6])) != null) {
+				if (g.segname[m[2]] != null) {
+					var sid = g.segname[m[2]];
+					var v = sid<<1 | (m[1] == '>'? 0 : 1);
+					walk.v.push(v);
+				}
+			}
 		}
 	}
 
