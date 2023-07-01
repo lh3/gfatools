@@ -30,12 +30,15 @@ function gfa_plot_arrow(ctx, x, y, len, w, color, rev, text, lw)
 function gfa_plot_conf()
 {
 	return {
+		label:   "name", // or "len"
 		min_len: 10,
 		scale:   10,
 		xskip:   15,
 		yskip:   30
 	};
 }
+
+var gfa_conf = gfa_plot_conf();
 
 function gfa_plot_rank2color(g)
 {
@@ -105,11 +108,13 @@ function gfa_plot_cal_pos(conf, g)
 			for (var j = 0; j < level_max.length; ++j) pl[j] = { cnt:0, i:-1 };
 			for (var j = 0; j < pred[i].length; ++j) {
 				var pos_ij = pos[pred[i][j]];
-				var end = pos_ij.start + pos_ij.len;
-				if (end > max_end) max_end = end;
-				pl[pos_ij.level].i = pred[i][j];
-				pl[pos_ij.level].end = pos[pred[i][j]].start + pos[pred[i][j]].len;
-				++pl[pos_ij.level].cnt;
+				if (pos_ij.level >= 0) {
+					var end = pos_ij.start + pos_ij.len;
+					if (end > max_end) max_end = end;
+					pl[pos_ij.level].i = pred[i][j];
+					pl[pos_ij.level].end = pos[pred[i][j]].start + pos[pred[i][j]].len;
+					++pl[pos_ij.level].cnt;
+				}
 			}
 			pos[i].start = max_end + conf.xskip;
 			// look for an existing level
@@ -163,7 +168,7 @@ function gfa_plot_draw(canvas, conf, g)
 			var k = sub.a[sub.v[i].off + j].i;
 			ctx.lineTo(pos[k].cx_st, pos[k].cy);
 			var r = sub.a[sub.v[i].off + j].rank;
-			ctx.strokeStyle = r2c[r] != null? r2c[r] : "#A0A0A0";
+			ctx.strokeStyle = r >= 0 && r2c[r] != null? r2c[r] : "#A0A0A0";
 			ctx.stroke();
 		}
 	}
@@ -173,9 +178,8 @@ function gfa_plot_draw(canvas, conf, g)
 	for (var i = 0; i < pos.length; ++i) {
 		var s = g.seg[sub.v[i].v>>1];
 		var label;
-		if (s.rank == 0) label = s.sname + ":" + s.soff + ":" + s.len;
-		else label = s.len;
-		label = s.len;
+		if (conf.label == "name") label = s.name;
+		else if (conf.label == "length") label = s.len;
 		var color = r2c[s.rank] != null? r2c[s.rank] : "#000000";
 		gfa_plot_arrow(ctx, pos[i].cx_st, pos[i].cy, pos[i].len, 4, color, sub.v[i].v&1, label, s.rank == 0? 1.5 : 1);
 	}
@@ -188,6 +192,5 @@ function gfa_plot(canvas, gfa_text, info_elem)
 		info_elem.innerHTML = "Error: failed to parse GFA";
 		return;
 	}
-	var conf = gfa_plot_conf();
-	gfa_plot_draw(canvas, conf, g);
+	gfa_plot_draw(canvas, gfa_conf, g);
 }

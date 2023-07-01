@@ -15,7 +15,7 @@
 
 <body>
 <p>
-rGFA input:
+Examples:
 <select id="examples" onChange="load_example()" title="Example subgraphs">
 	<option value="none"></option>
 	<option value="gfa-ex-chr11:20m">chr11:20M</option>
@@ -29,7 +29,11 @@ rGFA input:
 	<option value="gfa-ex-cyp2a6">CYP2A6 (old)</option>
 	<option value="gfa-ex-lpa">LPA (old)</option>
 </select>
-<input type="button" value="Clear" onClick="document.getElementById('gfa-text').value='';document.getElementById('examples').value='none';clear_canvas();">
+<input type="button" value="Clear" onClick="document.getElementById('gfa-text').value='';document.getElementById('examples').value='none';clear_canvas();">&nbsp;
+Label: <select id="label" onChange="set_label()" title="Label">
+	<option value="name" selected>Name</option>
+	<option value="length">Length </option>
+</select>&nbsp;
 <input type="button" value="Draw" onClick="gfa_plot(document.getElementById('canvas'),document.getElementById('gfa-text').value,document.getElementById('info'));">
 <span id="info" style="color: gray;"></span>
 </p>
@@ -50,6 +54,9 @@ function load_example() {
 	if (sel == "none") document.getElementById('gfa-text').value = '';
 	else document.getElementById('gfa-text').value = document.getElementById(sel).value;
 	gfa_plot(document.getElementById('canvas'),document.getElementById('gfa-text').value,document.getElementById('info'));
+}
+function set_label() {
+	gfa_conf.label = document.getElementById('label').value;
 }
 </script>
 

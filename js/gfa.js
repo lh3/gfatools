@@ -64,10 +64,9 @@ function gfa_parse(str)
 			var v = sid1<<1 | (t[2] == '+'? 0 : 1);
 			var w = sid2<<1 | (t[4] == '+'? 0 : 1);
 			var ov = 0, ow = 0, rank = -1;
-			for (var j = 6; j < t.length; ++j) {
-				if ((m = /^(SR:i):(\S+)/.exec(t[j])) == null) continue;
-				rank = parseInt(m[2]);
-			}
+			for (var j = 6; j < t.length; ++j)
+				if ((m = /^(SR:i):(\S+)/.exec(t[j])) != null)
+					rank = parseInt(m[2]);
 			if (t.length >= 6) {
 				while ((m = re_cigar.exec(t[5])) != null) {
 					if (m[2] == 'M' || m[2] == 'D' || m[2] == 'N') ov += parseInt(m[1]);
