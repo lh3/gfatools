@@ -33,6 +33,10 @@ Label: <select id="label" onChange="set_label()" title="Label">
 	<option value="name" selected>Name</option>
 	<option value="length">Length </option>
 </select>&nbsp;
+Merge walk: <select id="merge_walk" onChange="set_merge()" title="Merge walk">
+	<option value="yes" selected>Yes</option>
+	<option value="no">No</option>
+</select>&nbsp;
 <input type="button" value="Draw" onClick="do_plot();">
 <span id="info" style="color: gray;"></span>
 </p>
@@ -62,6 +66,9 @@ function load_example() {
 }
 function set_label() {
 	gfa_conf.label = document.getElementById('label').value;
+}
+function set_merge() {
+	gfa_conf.merge_walk = document.getElementById('merge_walk').value == "yes"? true : false;
 }
 function do_plot() {
 	var gfa_text = document.getElementById('gfa-text').value;
