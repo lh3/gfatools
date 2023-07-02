@@ -25,22 +25,14 @@ Examples:
 	<option value="gfa-ex-cr1">CR1</option>
 	<option value="gfa-ex-rhd">RHD</option>
 	<option value="gfa-ex-orm2">ORM1/2</option>
-	<option value="gfa-ex-cyp2a6">CYP2A6 (old)</option>
-	<option value="gfa-ex-lpa">LPA (old)</option>
 </select>
 <input type="button" value="Clear" onClick="document.getElementById('gfa-text').value='';document.getElementById('examples').value='none';clear_canvas();">&nbsp;
 Label: <select id="label" onChange="set_label()" title="Label">
 	<option value="name" selected>Name</option>
 	<option value="length">Length </option>
 </select>&nbsp;
-Merge walk: <select id="merge_walk" onChange="set_merge()" title="Merge walk">
-	<option value="yes" selected>Yes</option>
-	<option value="no">No</option>
-</select>&nbsp;
-Single walk: <select id="uniq_walk" onChange="set_uniq()" title="Unique walk">
-	<option value="yes" selected>Yes</option>
-	<option value="no">No</option>
-</select>&nbsp;
+Merge walk <input type="checkbox" id="merge_walk" checked onClick="set_merge();">&nbsp;
+Single walk <input type="checkbox" id="uniq_walk" checked onClick="set_uniq();">&nbsp;
 <input type="button" value="Draw" onClick="do_plot();">
 <span id="info" style="color: gray;"></span>
 </p>
@@ -72,10 +64,10 @@ function set_label() {
 	gfa_conf.label = document.getElementById('label').value;
 }
 function set_merge() {
-	gfa_conf.merge_walk = document.getElementById('merge_walk').value == "yes"? true : false;
+	gfa_conf.merge_walk = document.getElementById('merge_walk').checked;
 }
 function set_uniq() {
-	gfa_conf.uniq_walk = document.getElementById('uniq_walk').value == "yes"? true : false;
+	gfa_conf.uniq_walk = document.getElementById('uniq_walk').checked;
 }
 function do_plot() {
 	var gfa_text = document.getElementById('gfa-text').value;
@@ -228,116 +220,6 @@ L	s462710	+	s299747	+	0M	SR:i:16	L1:i:8318	L2:i:175
 L	s596009	+	s462708	+	0M	SR:i:50	L1:i:1567	L2:i:3506
 L	s596010	+	s462710	+	0M	SR:i:50	L1:i:82	L2:i:8318
 L	s596011	+	s299748	+	0M	SR:i:50	L1:i:13660	L2:i:84249
-</textarea>
-
-<textarea id="gfa-ex-cyp2a6" style="display: none">
-S	s99559	*	LN:i:134899	SN:Z:chr19	SO:i:40702829	SR:i:0
-S	s99560	*	LN:i:364	SN:Z:chr19	SO:i:40837728	SR:i:0
-S	s99561	*	LN:i:3562	SN:Z:chr19	SO:i:40838092	SR:i:0
-S	s99562	*	LN:i:161	SN:Z:chr19	SO:i:40841654	SR:i:0
-S	s99563	*	LN:i:1876	SN:Z:chr19	SO:i:40841815	SR:i:0
-S	s99564	*	LN:i:5091	SN:Z:chr19	SO:i:40843691	SR:i:0
-S	s99565	*	LN:i:369	SN:Z:chr19	SO:i:40848782	SR:i:0
-S	s99566	*	LN:i:26438	SN:Z:chr19	SO:i:40849151	SR:i:0
-S	s99567	*	LN:i:5031	SN:Z:chr19	SO:i:40875589	SR:i:0
-S	s99568	*	LN:i:302	SN:Z:chr19	SO:i:40880620	SR:i:0
-S	s99569	*	LN:i:39119	SN:Z:chr19	SO:i:40880922	SR:i:0
-S	s184899	*	LN:i:410	SN:Z:HG01243#2#h2tg000105l	SO:i:6549137	SR:i:22
-S	s194948	*	LN:i:1876	SN:Z:HG01891#1#h1tg000027l	SO:i:1056277	SR:i:31
-S	s194949	*	LN:i:161	SN:Z:HG01891#1#h1tg000027l	SO:i:1058153	SR:i:31
-S	s194950	*	LN:i:3575	SN:Z:HG01891#1#h1tg000027l	SO:i:1058314	SR:i:31
-S	s194951	*	LN:i:369	SN:Z:HG01891#1#h1tg000027l	SO:i:1061889	SR:i:31
-S	s194952	*	LN:i:24929	SN:Z:HG01891#1#h1tg000027l	SO:i:1062258	SR:i:31
-S	s199350	*	LN:i:221	SN:Z:HG02080#2#h2tg000019l	SO:i:7107162	SR:i:38
-S	s199351	*	LN:i:1428	SN:Z:HG02080#2#h2tg000019l	SO:i:7114335	SR:i:38
-S	s199352	*	LN:i:44	SN:Z:HG02080#2#h2tg000019l	SO:i:7119334	SR:i:38
-S	s217407	*	LN:i:1428	SN:Z:HG02630#2#h2tg000003l	SO:i:13619118	SR:i:56
-S	s217408	*	LN:i:44	SN:Z:HG02630#2#h2tg000003l	SO:i:13624081	SR:i:56
-L	s99559	+	s99560	+	0M	SR:i:0	L1:i:134899	L2:i:364
-L	s99560	+	s99561	+	0M	SR:i:0	L1:i:364	L2:i:3562
-L	s99561	+	s99562	+	0M	SR:i:0	L1:i:3562	L2:i:161
-L	s99561	-	s217408	+	0M	SR:i:56	L1:i:3562	L2:i:44
-L	s99562	+	s99563	+	0M	SR:i:0	L1:i:161	L2:i:1876
-L	s99563	+	s99564	+	0M	SR:i:0	L1:i:1876	L2:i:5091
-L	s99563	+	s99567	+	0M	SR:i:3	L1:i:1876	L2:i:5031
-L	s99563	-	s217407	+	0M	SR:i:56	L1:i:1876	L2:i:1428
-L	s99564	+	s99565	+	0M	SR:i:0	L1:i:5091	L2:i:369
-L	s99564	-	s194948	+	0M	SR:i:31	L1:i:5091	L2:i:1876
-L	s99565	+	s99566	+	0M	SR:i:0	L1:i:369	L2:i:26438
-L	s99566	+	s99567	+	0M	SR:i:0	L1:i:26438	L2:i:5031
-L	s99566	-	s199350	+	0M	SR:i:38	L1:i:26438	L2:i:221
-L	s99567	+	s99568	+	0M	SR:i:0	L1:i:5031	L2:i:302
-L	s99568	+	s99569	+	0M	SR:i:0	L1:i:302	L2:i:39119
-L	s99569	-	s184899	+	0M	SR:i:22	L1:i:39119	L2:i:410
-L	s184899	+	s99567	-	0M	SR:i:22	L1:i:410	L2:i:5031
-L	s194948	+	s194949	+	0M	SR:i:31	L1:i:1876	L2:i:161
-L	s194948	+	s199351	+	0M	SR:i:38	L1:i:1876	L2:i:1428
-L	s194949	+	s194950	+	0M	SR:i:31	L1:i:161	L2:i:3575
-L	s194950	+	s199352	+	0M	SR:i:38	L1:i:3575	L2:i:44
-L	s194950	+	s194951	+	0M	SR:i:31	L1:i:3575	L2:i:369
-L	s194951	+	s194952	+	0M	SR:i:31	L1:i:369	L2:i:24929
-L	s194952	+	s99563	-	0M	SR:i:31	L1:i:24929	L2:i:1876
-L	s199350	+	s99564	-	0M	SR:i:38	L1:i:221	L2:i:5091
-L	s199351	+	s194950	+	0M	SR:i:38	L1:i:1428	L2:i:3575
-L	s199352	+	s194952	+	0M	SR:i:38	L1:i:44	L2:i:24929
-L	s217407	+	s99561	-	0M	SR:i:56	L1:i:1428	L2:i:3562
-L	s217408	+	s99559	-	0M	SR:i:56	L1:i:44	L2:i:134899
-</textarea>
-
-<textarea id="gfa-ex-lpa" style="display: none">
-S	s41414	*	LN:i:74979	SN:Z:chr6	SO:i:160535209	SR:i:0
-S	s41415	*	LN:i:2344	SN:Z:chr6	SO:i:160610188	SR:i:0
-S	s41416	*	LN:i:10	SN:Z:chr6	SO:i:160612532	SR:i:0
-S	s41417	*	LN:i:171	SN:Z:chr6	SO:i:160612542	SR:i:0
-S	s41418	*	LN:i:4658	SN:Z:chr6	SO:i:160612713	SR:i:0
-S	s41419	*	LN:i:7	SN:Z:chr6	SO:i:160617371	SR:i:0
-S	s41420	*	LN:i:36594	SN:Z:chr6	SO:i:160617378	SR:i:0
-S	s121697	*	LN:i:30947	SN:Z:CHM13#0#chr6	SO:i:161865746	SR:i:1
-S	s121698	*	LN:i:14	SN:Z:CHM13#0#chr6	SO:i:161896693	SR:i:1
-S	s121699	*	LN:i:5555	SN:Z:CHM13#0#chr6	SO:i:161896707	SR:i:1
-S	s121700	*	LN:i:5538	SN:Z:CHM13#0#chr6	SO:i:161902262	SR:i:1
-S	s121701	*	LN:i:14	SN:Z:CHM13#0#chr6	SO:i:161907800	SR:i:1
-S	s121702	*	LN:i:18282	SN:Z:CHM13#0#chr6	SO:i:161907814	SR:i:1
-S	s121703	*	LN:i:11089	SN:Z:CHM13#0#chr6	SO:i:161926096	SR:i:1
-S	s121704	*	LN:i:7	SN:Z:CHM13#0#chr6	SO:i:161937185	SR:i:1
-S	s121705	*	LN:i:17351	SN:Z:CHM13#0#chr6	SO:i:161937192	SR:i:1
-S	s121706	*	LN:i:5546	SN:Z:CHM13#0#chr6	SO:i:161954543	SR:i:1
-S	s155945	*	LN:i:5564	SN:Z:HG00621#1#h1tg000099l	SO:i:10153816	SR:i:5
-S	s155946	*	LN:i:22175	SN:Z:HG00621#1#h1tg000099l	SO:i:10164914	SR:i:5
-S	s157739	*	LN:i:891	SN:Z:HG00673#2#h2tg000069l	SO:i:5406467	SR:i:6
-S	s219057	*	LN:i:5553	SN:Z:HG02630#1#h1tg000149l	SO:i:4999048	SR:i:57
-L	s41414	+	s41415	+	0M	SR:i:0	L1:i:74979	L2:i:2344
-L	s41415	+	s121697	+	0M	SR:i:1	L1:i:2344	L2:i:30947
-L	s41415	+	s41416	+	0M	SR:i:0	L1:i:2344	L2:i:10
-L	s41416	+	s41417	+	0M	SR:i:0	L1:i:10	L2:i:171
-L	s41417	+	s41418	+	0M	SR:i:0	L1:i:171	L2:i:4658
-L	s41417	-	s121705	-	0M	SR:i:2	L1:i:171	L2:i:17351
-L	s41417	-	s155945	+	0M	SR:i:5	L1:i:171	L2:i:5564
-L	s41418	+	s41419	+	0M	SR:i:0	L1:i:4658	L2:i:7
-L	s41418	-	s157739	+	0M	SR:i:6	L1:i:4658	L2:i:891
-L	s41419	+	s41420	+	0M	SR:i:0	L1:i:7	L2:i:36594
-L	s41420	-	s121702	-	0M	SR:i:27	L1:i:36594	L2:i:18282
-L	s121697	+	s121701	+	0M	SR:i:12	L1:i:30947	L2:i:14
-L	s121697	+	s121698	+	0M	SR:i:1	L1:i:30947	L2:i:14
-L	s121698	+	s121699	+	0M	SR:i:1	L1:i:14	L2:i:5555
-L	s121699	+	s121700	+	0M	SR:i:1	L1:i:5555	L2:i:5538
-L	s121699	+	s219057	+	0M	SR:i:57	L1:i:5555	L2:i:5553
-L	s121699	-	s41414	-	0M	SR:i:2	L1:i:5555	L2:i:74979
-L	s121700	+	s121701	+	0M	SR:i:1	L1:i:5538	L2:i:14
-L	s121700	-	s41414	-	0M	SR:i:6	L1:i:5538	L2:i:74979
-L	s121701	+	s121702	+	0M	SR:i:1	L1:i:14	L2:i:18282
-L	s121702	+	s121703	+	0M	SR:i:1	L1:i:18282	L2:i:11089
-L	s121702	-	s41414	-	0M	SR:i:27	L1:i:18282	L2:i:74979
-L	s121703	+	s41419	+	0M	SR:i:14	L1:i:11089	L2:i:7
-L	s121703	+	s121704	+	0M	SR:i:1	L1:i:11089	L2:i:7
-L	s121704	+	s121705	+	0M	SR:i:1	L1:i:7	L2:i:17351
-L	s121705	+	s121706	+	0M	SR:i:1	L1:i:17351	L2:i:5546
-L	s121706	+	s41416	+	0M	SR:i:1	L1:i:5546	L2:i:10
-L	s121706	-	s155946	+	0M	SR:i:5	L1:i:5546	L2:i:22175
-L	s155945	+	s121706	-	0M	SR:i:5	L1:i:5564	L2:i:5546
-L	s155946	+	s121705	-	0M	SR:i:5	L1:i:22175	L2:i:17351
-L	s157739	+	s121704	-	0M	SR:i:6	L1:i:891	L2:i:7
-L	s219057	+	s121700	+	0M	SR:i:57	L1:i:5553	L2:i:5538
 </textarea>
 
 <textarea id="gfa-ex-vntr1" style="display: none">
