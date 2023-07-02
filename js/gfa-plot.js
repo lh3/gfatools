@@ -1,12 +1,14 @@
 function gfa_plot_conf()
 {
 	return {
-		label:     "name", // or "len"
-		font_size: 9,
-		min_len:   10,
-		scale:     10,
-		xskip:     15,
-		yskip:     30
+		label:      "name", // or "len"
+		//merge_walk: false,
+		merge_walk: true,
+		font_size:  9,
+		min_len:    10,
+		scale:      10,
+		xskip:      15,
+		yskip:      30
 	};
 }
 
@@ -223,31 +225,75 @@ function gfa_plot_graph(canvas, conf, g)
 /*
  * Plot walks
  */
+function gfa_int_hash(x)
+{
+	x = ((x >> 16) ^ x) * 0x45d9f3b & 0xffffffff;
+	x = ((x >> 16) ^ x) * 0x45d9f3b & 0xffffffff;
+	return (x >> 16) ^ x;
+}
+
+function gfa_walk_gen(g, merge)
+{
+	var walk = [];
+	for (var i = 0; i < g.walk.length; ++i) {
+		var w = g.walk[i];
+		var ww = { label:g.walk[i].sample, hash:0, n:1, v:[] };
+		var hash = 0;
+		for (var j = 0; j < w.v.length; ++j)
+			hash = (hash + gfa_int_hash(w.v[j])) & 0xffffffff;
+		ww.v = w.v;
+		ww.hash = w.v.length << 32 | hash;
+		walk.push(ww);
+	}
+	if (merge) { // merge identical walks; FIXME: this only checks hash
+		walk = walk.sort(function(x,y) { return x.hash - y.hash; });
+		var i0, i, k;
+		for (i0 = 0, i = 1, k = 0; i <= walk.length; ++i) {
+			if (i == walk.length || walk[i0].hash != walk[i].hash) {
+				walk[k] = walk[i0];
+				walk[k++].n = i - i0;
+				i0 = i;
+			}
+		}
+		walk.length = k;
+		walk = walk.sort(function(x,y) { return y.n - x.n; });
+		for (i = 0; i < walk.length; ++i) // reassign sample name
+			walk[i].sample = walk[i].n;
+	}
+	return walk;
+}
+
 function gfa_plot_walk(canvas, conf, g)
 {
 	if (g.walk.length == 0) return;
+
 	var seg_aux = [];
 	for (var i = 0; i < g.seg.length; ++i) {
 		seg_aux[i] = {};
 		seg_aux[i].clen = gfa_plot_cal_length(g.seg[i].len, conf.min_len, conf.scale);
 		seg_aux[i].color = '#' + Math.floor(Math.random()*16777215).toString(16);
 	}
+
+	var walk = gfa_walk_gen(g, conf.merge_walk);
+
 	var max_len = 0;
-	for (var i = 0; i < g.walk.length; ++i) {
-		var w = g.walk[i], len = 0;
+	for (var i = 0; i < walk.length; ++i) {
+		var w = walk[i], len = 0;
 		for (var j = 0; j < w.v.length; ++j)
 			len += seg_aux[w.v[i]>>1].clen;
 		len += (w.v.length - 1) * conf.xskip;
 		max_len = max_len > len? max_len : len;
 	}
 	var max_w = max_len + conf.xskip * 2;
-	var max_h = (g.walk.length + 1) * conf.yskip;
+	var max_h = (walk.length + 1) * conf.yskip;
 	canvas.width = max_w, canvas.height = max_h;
 
 	var ctx = canvas.getContext("2d");
+
+	// draw segments
 	var cy = conf.yskip;
-	for (var i = 0; i < g.walk.length; ++i) {
-		var w = g.walk[i], cx = conf.xskip, cx_pre;
+	for (var i = 0; i < walk.length; ++i) {
+		var w = walk[i], cx = conf.xskip, cx_pre;
 		for (var j = 0; j < w.v.length; ++j) {
 			var label, sid = w.v[j]>>1;
 			if (conf.label == "name") label = g.seg[sid].name;
@@ -259,11 +305,12 @@ function gfa_plot_walk(canvas, conf, g)
 		cy += conf.yskip;
 	}
 
+	// draw lines
 	cy = conf.yskip;
 	ctx.lineWidth = 0.2;
 	ctx.strokeStyle = "#404040";
-	for (var i = 0; i < g.walk.length; ++i) {
-		var w = g.walk[i], cx = conf.xskip, cx_pre = 0;
+	for (var i = 0; i < walk.length; ++i) {
+		var w = walk[i], cx = conf.xskip, cx_pre = 0;
 		for (var j = 0; j < w.v.length; ++j) {
 			var sid = w.v[j]>>1;
 			if (j > 0) {
