@@ -226,13 +226,12 @@ function gfa_walk_gen(g, merge, uniq) // filter or combine walks
 		for (var i = 0; i < g.walk.length; ++i)
 			tmp.push(g.walk[i]);
 	}
-	for (var i = 0; i < tmp.length; ++i) { // comput hash
+	for (var i = 0; i < tmp.length; ++i) { // compute hash
 		var w = tmp[i];
-		var ww = { label:g.walk[i].sample, hash:0, n:1, v:[] };
+		var ww = { label:w.sample, hash:0, n:1, v:w.v };
 		var hash = 0;
 		for (var j = 0; j < w.v.length; ++j)
 			hash = (hash + gfa_int_hash(w.v[j])) & 0xffffffff;
-		ww.v = w.v;
 		ww.hash = w.v.length << 32 | hash;
 		walk.push(ww);
 	}
