@@ -1,6 +1,20 @@
+function gfa_plot_conf()
+{
+	return {
+		label:   "name", // or "len"
+		min_len: 10,
+		scale:   10,
+		xskip:   15,
+		yskip:   30
+	};
+}
+
+var gfa_conf = gfa_plot_conf();
+var gfa_obj = null;
+
 function gfa_plot_arrow(ctx, x, y, len, w, color, rev, text, lw)
 {
-	ctx.font = "10px Arial";
+	ctx.font = "9px mono";
 	if (text != null) {
 		ctx.strokeStyle = "#000000";
 		ctx.textAlign = "center";
@@ -26,20 +40,6 @@ function gfa_plot_arrow(ctx, x, y, len, w, color, rev, text, lw)
 	ctx.lineWidth = lw == null? 1 : lw;
 	ctx.stroke();
 }
-
-function gfa_plot_conf()
-{
-	return {
-		label:   "name", // or "len"
-		min_len: 10,
-		scale:   10,
-		xskip:   15,
-		yskip:   30
-	};
-}
-
-var gfa_conf = gfa_plot_conf();
-var gfa_obj = null;
 
 function gfa_plot_rank2color(g)
 {
@@ -79,12 +79,13 @@ function gfa_plot_find_v0(g) // FIXME: not general
 	return v0_ref >= 0? v0_ref : v0_src >= 0? v0_src : 0;
 }
 
+function gfa_plot_cal_length(len, min_len, scale)
+{
+	return Math.floor(min_len + Math.log(len + 1) / Math.log(10) * scale + .499);
+}
+
 function gfa_plot_cal_pos(conf, g)
 {
-	function cal_length(len, min_len, scale) {
-		return Math.floor(min_len + Math.log(len + 1) / Math.log(10) * scale + .499);
-	}
-
 	var v0 = gfa_plot_find_v0(g);
 	var aux = gfa_scc1_aux(g);
 	var sub = gfa_scc1(g, aux, v0);
@@ -97,7 +98,7 @@ function gfa_plot_cal_pos(conf, g)
 	var l = 0, level_max = [], pos = [];
 	for (var i = 0; i < sub.v.length; ++i) {
 		pos[i] = { level:-1, start:-1, len:0 };
-		pos[i].len = cal_length(g.seg[sub.v[i].v>>1].len, conf.min_len, conf.scale);
+		pos[i].len = gfa_plot_cal_length(g.seg[sub.v[i].v>>1].len, conf.min_len, conf.scale);
 	}
 	for (var i = 0; i < sub.v.length; ++i) {
 		var t = sub.v[i];
@@ -181,7 +182,46 @@ function gfa_plot_graph(canvas, conf, g)
 		var label;
 		if (conf.label == "name") label = s.name;
 		else if (conf.label == "length") label = s.len;
-		var color = r2c[s.rank] != null? r2c[s.rank] : "#000000";
+		var color = s.rank >= 0 && r2c[s.rank] != null? r2c[s.rank] : "#000000";
 		gfa_plot_arrow(ctx, pos[i].cx_st, pos[i].cy, pos[i].len, 4, color, sub.v[i].v&1, label, s.rank == 0? 1.5 : 1);
+	}
+}
+
+/*
+ * Plot walks
+ */
+function gfa_plot_walk(canvas, conf, g)
+{
+	if (g.walk.length == 0) return;
+	var seg_aux = [];
+	for (var i = 0; i < g.seg.length; ++i) {
+		seg_aux[i] = {};
+		seg_aux[i].clen = gfa_plot_cal_length(g.seg[i].len, conf.min_len, conf.scale);
+		seg_aux[i].color = '#' + Math.floor(Math.random()*16777215).toString(16);
+	}
+	var max_len = 0;
+	for (var i = 0; i < g.walk.length; ++i) {
+		var w = g.walk[i], len = 0;
+		for (var j = 0; j < w.v.length; ++j)
+			len += seg_aux[w.v[i]>>1].clen;
+		len += (w.v.length - 1) * conf.xskip;
+		max_len = max_len > len? max_len : len;
+	}
+	var max_w = max_len + conf.xskip * 2;
+	var max_h = (g.walk.length + 1) * conf.yskip;
+	canvas.width = max_w, canvas.height = max_h;
+
+	var ctx = canvas.getContext("2d");
+	var cy = conf.yskip;
+	for (var i = 0; i < g.walk.length; ++i) {
+		var w = g.walk[i], cx = conf.xskip;
+		for (var j = 0; j < w.v.length; ++j) {
+			var label, sid = w.v[j]>>1;
+			if (conf.label == "name") label = g.seg[sid].name;
+			else if (conf.label == "length") label = g.seg[sid].len;
+			gfa_plot_arrow(ctx, cx, cy, seg_aux[sid].clen, 4, seg_aux[sid].color, w.v[j].v&1, label, 0.5);
+			cx += seg_aux[sid].clen + conf.xskip;
+		}
+		cy += conf.yskip;
 	}
 }

@@ -5,8 +5,7 @@
 <script language="JavaScript" src="gfa-plot.js"></script>
 <style type="text/css">
 <!--
-	#container { position: relative; }
-	#canvas { border: 1px solid #000; }
+	#canvas_graph,#canvas_walk { border: 1px solid #000; }
 	body, input, select, option, p { font-size: 12px; font-family: "Lucida Grande", "Lucida Sans Unicode", Arial, sans-serif; }
 	textarea { font: 100% "consolas", "Andale Mono", Monaco, Courier; overflow: auto }
 -->
@@ -39,13 +38,19 @@ Label: <select id="label" onChange="set_label()" title="Label">
 </p>
 <textarea id="gfa-text" rows="15" cols="110"></textarea>
 <p>
-<canvas id="canvas" width="800" height="100"></canvas>
+<canvas id="canvas_graph" width="800" height="100"></canvas>
+</p>
+<p>
+<canvas id="canvas_walk" width="800" height="100"></canvas>
 </p>
 
 <script language="JavaScript">
 function clear_canvas() {
-	var canvas = document.getElementById('canvas');
+	var canvas = document.getElementById('canvas_graph');
 	var ctx = canvas.getContext("2d");
+	ctx.clearRect(0, 0, canvas.width, canvas.height);
+	canvas = document.getElementById('canvas_walk');
+	ctx = canvas.getContext("2d");
 	ctx.clearRect(0, 0, canvas.width, canvas.height);
 }
 function load_example() {
@@ -66,7 +71,8 @@ function do_plot() {
 		info.innerHTML = "Error: failed to parse GFA";
 		return;
 	}
-	gfa_plot_graph(document.getElementById('canvas'), gfa_conf, g);
+	gfa_plot_graph(document.getElementById('canvas_graph'), gfa_conf, g);
+	gfa_plot_walk(document.getElementById('canvas_walk'), gfa_conf, g);
 }
 </script>
 
