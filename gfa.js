@@ -36,11 +36,18 @@ function gfa_index(g)
 	}
 }
 
+function gfa_assign_color(g)
+{
+	for (var i = 0; i < g.seg.length; ++i)
+		g.seg[i].color = '#' + Math.floor(Math.random()*16777215).toString(16);
+}
+
 function gfa_parse(str)
 {
-	var g = { seg:[], arc:[], segname:{}, idx:[], err:0 };
+	var g = { seg:[], arc:[], segname:{}, idx:[], walk:[], err:0 };
 	var lines = str.split("\n");
 	var re_cigar = /(\d+)([MIDSN])/g;
+	var re_walk = /([><])([^\s><]+)/g;
 	for (var i = 0; i < lines.length; ++i) {
 		if (lines[i].length < 5) continue;
 		var m, t = lines[i].split("\t");
@@ -64,10 +71,9 @@ function gfa_parse(str)
 			var v = sid1<<1 | (t[2] == '+'? 0 : 1);
 			var w = sid2<<1 | (t[4] == '+'? 0 : 1);
 			var ov = 0, ow = 0, rank = -1;
-			for (var j = 6; j < t.length; ++j) {
-				if ((m = /^(SR:i):(\S+)/.exec(t[j])) == null) continue;
-				rank = parseInt(m[2]);
-			}
+			for (var j = 6; j < t.length; ++j)
+				if ((m = /^(SR:i):(\S+)/.exec(t[j])) != null)
+					rank = parseInt(m[2]);
 			if (t.length >= 6) {
 				while ((m = re_cigar.exec(t[5])) != null) {
 					if (m[2] == 'M' || m[2] == 'D' || m[2] == 'N') ov += parseInt(m[1]);
@@ -76,12 +82,26 @@ function gfa_parse(str)
 			}
 			g.arc.push({ v:v, w:w, ov:ov, ow:ow, rank:rank, ori:true });
 			g.arc.push({ v:w^1, w:v^1, ov:ow, ow:ov, rank:rank, ori:false });
+		} else if (t[0] == "W") {
+			if (t.length < 7) continue;
+			var walk = { asm:t[1]+"#"+t[2], sample:t[1], hap:parseInt(t[2]), sname:t[3], st:-1, en:-1, v:[] };
+			if (t[4] != "*") walk.st = parseInt(t[4]);
+			if (t[5] != "*") walk.st = parseInt(t[5]);
+			while ((m = re_walk.exec(t[6])) != null) {
+				if (g.segname[m[2]] != null) {
+					var sid = g.segname[m[2]];
+					var v = sid<<1 | (m[1] == '>'? 0 : 1);
+					walk.v.push(v);
+				}
+			}
+			g.walk.push(walk);
 		}
 	}
 
 	for (var i = 0; i < g.seg.length; ++i)
 		if (g.seg[i].len < 0) g.err |= 1;
 	gfa_index(g);
+	gfa_assign_color(g);
 	return g;
 }
 

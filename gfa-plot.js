@@ -1,40 +1,55 @@
-function gfa_plot_arrow(ctx, x, y, len, w, color, rev, text, lw)
-{
-	ctx.font = "10px Arial";
-	if (text != null) {
-		ctx.strokeStyle = "#000000";
-		ctx.textAlign = "center";
-		ctx.fillText(text, x + len/2, y - w - 2);
-	}
-	ctx.beginPath();
-	ctx.moveTo(x, y);
-	if (rev == null || !rev) {
-		ctx.lineTo(x - w, y - w);
-		ctx.lineTo(x - w + len, y - w);
-		ctx.lineTo(x + len, y);
-		ctx.lineTo(x - w + len, y + w);
-		ctx.lineTo(x - w, y + w);
-	} else {
-		ctx.lineTo(x + w, y - w);
-		ctx.lineTo(x + w + len, y - w);
-		ctx.lineTo(x + len, y);
-		ctx.lineTo(x + w + len, y + w);
-		ctx.lineTo(x + w, y + w);
-	}
-	ctx.lineTo(x, y);
-	ctx.strokeStyle = color;
-	ctx.lineWidth = lw == null? 1 : lw;
-	ctx.stroke();
-}
-
 function gfa_plot_conf()
 {
 	return {
-		min_len: 10,
-		scale:   10,
-		xskip:   15,
-		yskip:   30
+		label:      "name", // or "len"
+		merge_walk: true,
+		uniq_walk:  true,
+		font_size:  9,
+		min_len:    10,
+		scale:      10,
+		h_arrow:    4,
+		xskip:      15,
+		yskip:      30
 	};
+}
+
+var gfa_conf = gfa_plot_conf();
+var gfa_obj = null;
+
+function gfa_plot_arrow(ctx, x, y, len, w, rev, text, fs, color_stroke, color_fill, lw)
+{
+	ctx.font = fs? fs + "px mono" : "9px mono";
+	var reg = new Path2D();
+	reg.moveTo(x, y);
+	if (rev == null || !rev) {
+		reg.lineTo(x - w, y - w);
+		reg.lineTo(x - w + len, y - w);
+		reg.lineTo(x + len, y);
+		reg.lineTo(x - w + len, y + w);
+		reg.lineTo(x - w, y + w);
+	} else {
+		reg.lineTo(x + w, y - w);
+		reg.lineTo(x + w + len, y - w);
+		reg.lineTo(x + len, y);
+		reg.lineTo(x + w + len, y + w);
+		reg.lineTo(x + w, y + w);
+	}
+	reg.lineTo(x, y);
+	reg.closePath();
+	if (color_fill) {
+		ctx.fillStyle = color_fill;
+		ctx.fill(reg);
+	}
+	if (color_stroke) {
+		ctx.strokeStyle = color_stroke;
+		ctx.stroke(reg);
+	}
+	if (text != null) {
+		ctx.textAlign = "center";
+		ctx.fillText(text, x + len/2, y - w - 2);
+		ctx.fillStyle = color_fill? color_fill : "#000000";
+		ctx.stroke();
+	}
 }
 
 function gfa_plot_rank2color(g)
@@ -75,12 +90,13 @@ function gfa_plot_find_v0(g) // FIXME: not general
 	return v0_ref >= 0? v0_ref : v0_src >= 0? v0_src : 0;
 }
 
+function gfa_plot_cal_length(len, min_len, scale)
+{
+	return Math.floor(min_len + Math.log(len + 1) / Math.log(10) * scale + .499);
+}
+
 function gfa_plot_cal_pos(conf, g)
 {
-	function cal_length(len, min_len, scale) {
-		return Math.floor(min_len + Math.log(len + 1) / Math.log(10) * scale + .499);
-	}
-
 	var v0 = gfa_plot_find_v0(g);
 	var aux = gfa_scc1_aux(g);
 	var sub = gfa_scc1(g, aux, v0);
@@ -93,7 +109,7 @@ function gfa_plot_cal_pos(conf, g)
 	var l = 0, level_max = [], pos = [];
 	for (var i = 0; i < sub.v.length; ++i) {
 		pos[i] = { level:-1, start:-1, len:0 };
-		pos[i].len = cal_length(g.seg[sub.v[i].v>>1].len, conf.min_len, conf.scale);
+		pos[i].len = gfa_plot_cal_length(g.seg[sub.v[i].v>>1].len, conf.min_len, conf.scale);
 	}
 	for (var i = 0; i < sub.v.length; ++i) {
 		var t = sub.v[i];
@@ -105,11 +121,13 @@ function gfa_plot_cal_pos(conf, g)
 			for (var j = 0; j < level_max.length; ++j) pl[j] = { cnt:0, i:-1 };
 			for (var j = 0; j < pred[i].length; ++j) {
 				var pos_ij = pos[pred[i][j]];
-				var end = pos_ij.start + pos_ij.len;
-				if (end > max_end) max_end = end;
-				pl[pos_ij.level].i = pred[i][j];
-				pl[pos_ij.level].end = pos[pred[i][j]].start + pos[pred[i][j]].len;
-				++pl[pos_ij.level].cnt;
+				if (pos_ij.level >= 0) {
+					var end = pos_ij.start + pos_ij.len;
+					if (end > max_end) max_end = end;
+					pl[pos_ij.level].i = pred[i][j];
+					pl[pos_ij.level].end = pos[pred[i][j]].start + pos[pred[i][j]].len;
+					++pl[pos_ij.level].cnt;
+				}
 			}
 			pos[i].start = max_end + conf.xskip;
 			// look for an existing level
@@ -126,7 +144,7 @@ function gfa_plot_cal_pos(conf, g)
 	return [sub, pos];
 }
 
-function gfa_plot_draw(canvas, conf, g)
+function gfa_plot_graph(canvas, conf, g)
 {
 	var ctx = canvas.getContext("2d");
 	ctx.clearRect(0, 0, canvas.width, canvas.height);
@@ -163,31 +181,149 @@ function gfa_plot_draw(canvas, conf, g)
 			var k = sub.a[sub.v[i].off + j].i;
 			ctx.lineTo(pos[k].cx_st, pos[k].cy);
 			var r = sub.a[sub.v[i].off + j].rank;
-			ctx.strokeStyle = r2c[r] != null? r2c[r] : "#A0A0A0";
+			ctx.strokeStyle = r >= 0 && r2c[r] != null? r2c[r] : "#A0A0A0";
 			ctx.stroke();
 		}
 	}
+	ctx.globalAlpha = 1.0;
 
 	// draw nodes
 	ctx.globalAlpha = 1.0;
 	for (var i = 0; i < pos.length; ++i) {
 		var s = g.seg[sub.v[i].v>>1];
 		var label;
-		if (s.rank == 0) label = s.sname + ":" + s.soff + ":" + s.len;
-		else label = s.len;
-		label = s.len;
-		var color = r2c[s.rank] != null? r2c[s.rank] : "#000000";
-		gfa_plot_arrow(ctx, pos[i].cx_st, pos[i].cy, pos[i].len, 4, color, sub.v[i].v&1, label, s.rank == 0? 1.5 : 1);
+		if (conf.label == "name") label = s.name;
+		else if (conf.label == "length") label = s.len;
+		var color_stroke = s.rank >= 0 && r2c[s.rank] != null? r2c[s.rank] : null;
+		var lw = s.rank == 0? 1.5 : 1;
+		gfa_plot_arrow(ctx, pos[i].cx_st, pos[i].cy, pos[i].len, conf.h_arrow, sub.v[i].v&1, label, conf.font_size, color_stroke, s.color, lw);
 	}
 }
 
-function gfa_plot(canvas, gfa_text, info_elem)
+/*
+ * Plot walks
+ */
+function gfa_int_hash(x)
 {
-	var g = gfa_parse(gfa_text);
-	if (g == null || g.seg.length == 0) {
-		info_elem.innerHTML = "Error: failed to parse GFA";
-		return;
+	x = ((x >> 16) ^ x) * 0x45d9f3b & 0xffffffff;
+	x = ((x >> 16) ^ x) * 0x45d9f3b & 0xffffffff;
+	return (x >> 16) ^ x;
+}
+
+function gfa_walk_gen(g, merge, uniq) // filter or combine walks
+{
+	var walk = [], tmp = [];
+	if (uniq) { // only choose samples with one walk
+		var t2 = g.walk.sort(function(x,y) { return x.asm == y.asm? 0 : x.asm < y.asm? -1 : 1 });
+		var i, i0;
+		for (i0 = 0, i = 1; i <= t2.length; ++i) {
+			if (i == t2.length || t2[i].asm != t2[i0].asm) {
+				if (i - i0 == 1) tmp.push(t2[i0]);
+				i0 = i;
+			}
+		}
+	} else { // choose all walks
+		for (var i = 0; i < g.walk.length; ++i)
+			tmp.push(g.walk[i]);
 	}
-	var conf = gfa_plot_conf();
-	gfa_plot_draw(canvas, conf, g);
+	for (var i = 0; i < tmp.length; ++i) { // compute hash
+		var w = tmp[i];
+		var ww = { label:w.asm, hash:0, n:1, v:w.v };
+		var hash = 0;
+		for (var j = 0; j < w.v.length; ++j)
+			hash = (hash + gfa_int_hash(w.v[j])) & 0xffffffff;
+		ww.hash = w.v.length << 32 | hash;
+		walk.push(ww);
+	}
+	if (merge) { // merge identical walks; FIXME: this only checks hash
+		walk = walk.sort(function(x,y) { return x.hash - y.hash; });
+		var i0, i, k;
+		for (i0 = 0, i = 1, k = 0; i <= walk.length; ++i) {
+			if (i == walk.length || walk[i0].hash != walk[i].hash) {
+				walk[k] = walk[i0];
+				walk[k++].n = i - i0;
+				i0 = i;
+			}
+		}
+		walk.length = k;
+		walk = walk.sort(function(x,y) { return y.n - x.n; });
+		for (i = 0; i < walk.length; ++i) // reassign sample name
+			walk[i].label = "" + walk[i].n;
+	}
+	return walk;
+}
+
+function gfa_plot_walk(canvas, conf, g)
+{
+	if (g.walk.length == 0) return;
+
+	var seg_aux = [];
+	for (var i = 0; i < g.seg.length; ++i) {
+		seg_aux[i] = {};
+		seg_aux[i].clen = gfa_plot_cal_length(g.seg[i].len, conf.min_len, conf.scale);
+	}
+
+	var walk = gfa_walk_gen(g, conf.merge_walk, conf.uniq_walk);
+
+	var max_len = 0, max_label_len = 0;
+	for (var i = 0; i < walk.length; ++i) {
+		var w = walk[i], len = 0;
+		max_label_len = max_label_len > w.label.length? max_label_len : w.label.length;
+		for (var j = 0; j < w.v.length; ++j)
+			len += seg_aux[w.v[i]>>1].clen;
+		len += (w.v.length - 1) * conf.xskip;
+		max_len = max_len > len? max_len : len;
+	}
+	var off_x = conf.xskip + (max_label_len + 1) * conf.font_size + conf.xskip;
+	var max_w = off_x + max_len + conf.xskip;
+	var max_h = (walk.length + 1) * conf.yskip;
+	canvas.width = max_w, canvas.height = max_h;
+
+	var ctx = canvas.getContext("2d");
+
+	// draw segments
+	var cy = conf.yskip;
+	for (var i = 0; i < walk.length; ++i) {
+		var w = walk[i], cx = off_x, cx_pre;
+		for (var j = 0; j < w.v.length; ++j) {
+			var label, sid = w.v[j]>>1;
+			var s = g.seg[sid];
+			if (conf.label == "name") label = s.name;
+			else if (conf.label == "length") label = s.len;
+			gfa_plot_arrow(ctx, cx, cy, seg_aux[sid].clen, conf.h_arrow, w.v[j]&1, label, conf.font_size, null, s.color, 1);
+			cx_pre = cx + seg_aux[sid].clen;
+			cx += seg_aux[sid].clen + conf.xskip;
+		}
+		cy += conf.yskip;
+	}
+
+	// draw lines
+	cy = conf.yskip;
+	ctx.lineWidth = 0.2;
+	ctx.strokeStyle = "#404040";
+	for (var i = 0; i < walk.length; ++i) {
+		var w = walk[i], cx = off_x, cx_pre = 0;
+		for (var j = 0; j < w.v.length; ++j) {
+			var sid = w.v[j]>>1;
+			if (j > 0) {
+				ctx.beginPath();
+				ctx.moveTo(cx_pre, cy);
+				ctx.lineTo(cx, cy);
+				ctx.stroke();
+			}
+			cx_pre = cx + seg_aux[sid].clen;
+			cx += seg_aux[sid].clen + conf.xskip;
+		}
+		cy += conf.yskip;
+	}
+
+	// draw labels
+	cy = conf.yskip + (conf.font_size>>1);
+	for (var i = 0; i < walk.length; ++i) {
+		var w = walk[i], cx = off_x, cx_pre = 0;
+		ctx.fillStyle = "#000000";
+		ctx.textAlign = "left";
+		ctx.fillText(w.label, conf.xskip, cy);
+		cy += conf.yskip;
+	}
 }
