@@ -2,7 +2,6 @@ function gfa_plot_conf()
 {
 	return {
 		label:      "name", // or "len"
-		//merge_walk: false,
 		merge_walk: true,
 		font_size:  9,
 		min_len:    10,
@@ -15,11 +14,11 @@ function gfa_plot_conf()
 var gfa_conf = gfa_plot_conf();
 var gfa_obj = null;
 
-function gfa_plot_arrow(ctx, x, y, len, w, color, rev, text, lw, fs)
+function gfa_plot_arrow(ctx, x, y, len, w, color, rev, text, lw, fs) // plot an arrow outline
 {
 	ctx.font = fs? fs + "px mono" : "9px mono";
 	if (text != null) {
-		ctx.strokeStyle = "#000000";
+		ctx.fillStyle = "#000000";
 		ctx.textAlign = "center";
 		ctx.fillText(text, x + len/2, y - w - 2);
 	}
@@ -44,7 +43,7 @@ function gfa_plot_arrow(ctx, x, y, len, w, color, rev, text, lw, fs)
 	ctx.stroke();
 }
 
-function gfa_plot_solid_arrow(ctx, x, y, len, w, color, rev, text, lw, fs)
+function gfa_plot_solid_arrow(ctx, x, y, len, w, color, rev, text, lw, fs) // plot a solid-filled arrow
 {
 	ctx.font = fs? fs + "px mono" : "9px mono";
 	var reg = new Path2D();
@@ -67,7 +66,6 @@ function gfa_plot_solid_arrow(ctx, x, y, len, w, color, rev, text, lw, fs)
 	ctx.fillStyle = color;
 	ctx.fill(reg);
 	if (text != null) {
-		ctx.strokeStyle = "#000000";
 		ctx.textAlign = "center";
 		ctx.fillText(text, x + len/2, y - w - 2);
 		ctx.strokeStyle = color;
@@ -258,7 +256,7 @@ function gfa_walk_gen(g, merge)
 		walk.length = k;
 		walk = walk.sort(function(x,y) { return y.n - x.n; });
 		for (i = 0; i < walk.length; ++i) // reassign sample name
-			walk[i].sample = walk[i].n;
+			walk[i].label = "" + walk[i].n;
 	}
 	return walk;
 }
@@ -276,15 +274,17 @@ function gfa_plot_walk(canvas, conf, g)
 
 	var walk = gfa_walk_gen(g, conf.merge_walk);
 
-	var max_len = 0;
+	var max_len = 0, max_label_len = 0;
 	for (var i = 0; i < walk.length; ++i) {
 		var w = walk[i], len = 0;
+		max_label_len = max_label_len > w.label.length? max_label_len : w.label.length;
 		for (var j = 0; j < w.v.length; ++j)
 			len += seg_aux[w.v[i]>>1].clen;
 		len += (w.v.length - 1) * conf.xskip;
 		max_len = max_len > len? max_len : len;
 	}
-	var max_w = max_len + conf.xskip * 2;
+	var off_x = conf.xskip + (max_label_len + 1) * conf.font_size + conf.xskip;
+	var max_w = off_x + max_len + conf.xskip;
 	var max_h = (walk.length + 1) * conf.yskip;
 	canvas.width = max_w, canvas.height = max_h;
 
@@ -293,7 +293,7 @@ function gfa_plot_walk(canvas, conf, g)
 	// draw segments
 	var cy = conf.yskip;
 	for (var i = 0; i < walk.length; ++i) {
-		var w = walk[i], cx = conf.xskip, cx_pre;
+		var w = walk[i], cx = off_x, cx_pre;
 		for (var j = 0; j < w.v.length; ++j) {
 			var label, sid = w.v[j]>>1;
 			if (conf.label == "name") label = g.seg[sid].name;
@@ -310,7 +310,7 @@ function gfa_plot_walk(canvas, conf, g)
 	ctx.lineWidth = 0.2;
 	ctx.strokeStyle = "#404040";
 	for (var i = 0; i < walk.length; ++i) {
-		var w = walk[i], cx = conf.xskip, cx_pre = 0;
+		var w = walk[i], cx = off_x, cx_pre = 0;
 		for (var j = 0; j < w.v.length; ++j) {
 			var sid = w.v[j]>>1;
 			if (j > 0) {
@@ -322,6 +322,16 @@ function gfa_plot_walk(canvas, conf, g)
 			cx_pre = cx + seg_aux[sid].clen;
 			cx += seg_aux[sid].clen + conf.xskip;
 		}
+		cy += conf.yskip;
+	}
+
+	// draw labels
+	cy = conf.yskip + (conf.font_size>>1);
+	for (var i = 0; i < walk.length; ++i) {
+		var w = walk[i], cx = off_x, cx_pre = 0;
+		ctx.fillStyle = "#000000";
+		ctx.textAlign = "left";
+		ctx.fillText(w.label, conf.xskip, cy);
 		cy += conf.yskip;
 	}
 }
