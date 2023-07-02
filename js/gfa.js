@@ -36,6 +36,12 @@ function gfa_index(g)
 	}
 }
 
+function gfa_assign_color(g)
+{
+	for (var i = 0; i < g.seg.length; ++i)
+		g.seg[i].color = '#' + Math.floor(Math.random()*16777215).toString(16);
+}
+
 function gfa_parse(str)
 {
 	var g = { seg:[], arc:[], segname:{}, idx:[], walk:[], err:0 };
@@ -95,6 +101,7 @@ function gfa_parse(str)
 	for (var i = 0; i < g.seg.length; ++i)
 		if (g.seg[i].len < 0) g.err |= 1;
 	gfa_index(g);
+	gfa_assign_color(g);
 	return g;
 }
 

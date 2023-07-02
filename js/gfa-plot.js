@@ -6,6 +6,7 @@ function gfa_plot_conf()
 		font_size:  9,
 		min_len:    10,
 		scale:      10,
+		h_arrow:    4,
 		xskip:      15,
 		yskip:      30
 	};
@@ -14,36 +15,7 @@ function gfa_plot_conf()
 var gfa_conf = gfa_plot_conf();
 var gfa_obj = null;
 
-function gfa_plot_arrow(ctx, x, y, len, w, color, rev, text, lw, fs) // plot an arrow outline
-{
-	ctx.font = fs? fs + "px mono" : "9px mono";
-	if (text != null) {
-		ctx.fillStyle = "#000000";
-		ctx.textAlign = "center";
-		ctx.fillText(text, x + len/2, y - w - 2);
-	}
-	ctx.beginPath();
-	ctx.moveTo(x, y);
-	if (rev == null || !rev) {
-		ctx.lineTo(x - w, y - w);
-		ctx.lineTo(x - w + len, y - w);
-		ctx.lineTo(x + len, y);
-		ctx.lineTo(x - w + len, y + w);
-		ctx.lineTo(x - w, y + w);
-	} else {
-		ctx.lineTo(x + w, y - w);
-		ctx.lineTo(x + w + len, y - w);
-		ctx.lineTo(x + len, y);
-		ctx.lineTo(x + w + len, y + w);
-		ctx.lineTo(x + w, y + w);
-	}
-	ctx.lineTo(x, y);
-	ctx.strokeStyle = color;
-	ctx.lineWidth = lw == null? 1 : lw;
-	ctx.stroke();
-}
-
-function gfa_plot_solid_arrow(ctx, x, y, len, w, color, rev, text, lw, fs) // plot a solid-filled arrow
+function gfa_plot_arrow(ctx, x, y, len, w, rev, text, fs, color_stroke, color_fill, lw)
 {
 	ctx.font = fs? fs + "px mono" : "9px mono";
 	var reg = new Path2D();
@@ -63,12 +35,18 @@ function gfa_plot_solid_arrow(ctx, x, y, len, w, color, rev, text, lw, fs) // pl
 	}
 	reg.lineTo(x, y);
 	reg.closePath();
-	ctx.fillStyle = color;
-	ctx.fill(reg);
+	if (color_fill) {
+		ctx.fillStyle = color_fill;
+		ctx.fill(reg);
+	}
+	if (color_stroke) {
+		ctx.strokeStyle = color_stroke;
+		ctx.stroke(reg);
+	}
 	if (text != null) {
 		ctx.textAlign = "center";
 		ctx.fillText(text, x + len/2, y - w - 2);
-		ctx.strokeStyle = color;
+		ctx.fillStyle = color_fill? color_fill : "#000000";
 		ctx.stroke();
 	}
 }
@@ -215,8 +193,9 @@ function gfa_plot_graph(canvas, conf, g)
 		var label;
 		if (conf.label == "name") label = s.name;
 		else if (conf.label == "length") label = s.len;
-		var color = s.rank >= 0 && r2c[s.rank] != null? r2c[s.rank] : "#000000";
-		gfa_plot_arrow(ctx, pos[i].cx_st, pos[i].cy, pos[i].len, 4, color, sub.v[i].v&1, label, s.rank == 0? 1.5 : 1, conf.font_size);
+		var color_stroke = s.rank >= 0 && r2c[s.rank] != null? r2c[s.rank] : null;
+		var lw = s.rank == 0? 1.5 : 1;
+		gfa_plot_arrow(ctx, pos[i].cx_st, pos[i].cy, pos[i].len, conf.h_arrow, sub.v[i].v&1, label, conf.font_size, color_stroke, s.color, lw);
 	}
 }
 
@@ -269,7 +248,6 @@ function gfa_plot_walk(canvas, conf, g)
 	for (var i = 0; i < g.seg.length; ++i) {
 		seg_aux[i] = {};
 		seg_aux[i].clen = gfa_plot_cal_length(g.seg[i].len, conf.min_len, conf.scale);
-		seg_aux[i].color = '#' + Math.floor(Math.random()*16777215).toString(16);
 	}
 
 	var walk = gfa_walk_gen(g, conf.merge_walk);
@@ -296,9 +274,10 @@ function gfa_plot_walk(canvas, conf, g)
 		var w = walk[i], cx = off_x, cx_pre;
 		for (var j = 0; j < w.v.length; ++j) {
 			var label, sid = w.v[j]>>1;
-			if (conf.label == "name") label = g.seg[sid].name;
-			else if (conf.label == "length") label = g.seg[sid].len;
-			gfa_plot_solid_arrow(ctx, cx, cy, seg_aux[sid].clen, 4, seg_aux[sid].color, w.v[j]&1, label, 0.5, conf.font_size);
+			var s = g.seg[sid];
+			if (conf.label == "name") label = s.name;
+			else if (conf.label == "length") label = s.len;
+			gfa_plot_arrow(ctx, cx, cy, seg_aux[sid].clen, conf.h_arrow, w.v[j]&1, label, conf.font_size, null, s.color, 1);
 			cx_pre = cx + seg_aux[sid].clen;
 			cx += seg_aux[sid].clen + conf.xskip;
 		}
