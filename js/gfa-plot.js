@@ -1,20 +1,21 @@
 function gfa_plot_conf()
 {
 	return {
-		label:   "name", // or "len"
-		min_len: 10,
-		scale:   10,
-		xskip:   15,
-		yskip:   30
+		label:     "name", // or "len"
+		font_size: 9,
+		min_len:   10,
+		scale:     10,
+		xskip:     15,
+		yskip:     30
 	};
 }
 
 var gfa_conf = gfa_plot_conf();
 var gfa_obj = null;
 
-function gfa_plot_arrow(ctx, x, y, len, w, color, rev, text, lw)
+function gfa_plot_arrow(ctx, x, y, len, w, color, rev, text, lw, fs)
 {
-	ctx.font = "9px mono";
+	ctx.font = fs? fs + "px mono" : "9px mono";
 	if (text != null) {
 		ctx.strokeStyle = "#000000";
 		ctx.textAlign = "center";
@@ -39,6 +40,37 @@ function gfa_plot_arrow(ctx, x, y, len, w, color, rev, text, lw)
 	ctx.strokeStyle = color;
 	ctx.lineWidth = lw == null? 1 : lw;
 	ctx.stroke();
+}
+
+function gfa_plot_solid_arrow(ctx, x, y, len, w, color, rev, text, lw, fs)
+{
+	ctx.font = fs? fs + "px mono" : "9px mono";
+	var reg = new Path2D();
+	reg.moveTo(x, y);
+	if (rev == null || !rev) {
+		reg.lineTo(x - w, y - w);
+		reg.lineTo(x - w + len, y - w);
+		reg.lineTo(x + len, y);
+		reg.lineTo(x - w + len, y + w);
+		reg.lineTo(x - w, y + w);
+	} else {
+		reg.lineTo(x + w, y - w);
+		reg.lineTo(x + w + len, y - w);
+		reg.lineTo(x + len, y);
+		reg.lineTo(x + w + len, y + w);
+		reg.lineTo(x + w, y + w);
+	}
+	reg.lineTo(x, y);
+	reg.closePath();
+	ctx.fillStyle = color;
+	ctx.fill(reg);
+	if (text != null) {
+		ctx.strokeStyle = "#000000";
+		ctx.textAlign = "center";
+		ctx.fillText(text, x + len/2, y - w - 2);
+		ctx.strokeStyle = color;
+		ctx.stroke();
+	}
 }
 
 function gfa_plot_rank2color(g)
@@ -174,6 +206,7 @@ function gfa_plot_graph(canvas, conf, g)
 			ctx.stroke();
 		}
 	}
+	ctx.globalAlpha = 1.0;
 
 	// draw nodes
 	ctx.globalAlpha = 1.0;
@@ -183,7 +216,7 @@ function gfa_plot_graph(canvas, conf, g)
 		if (conf.label == "name") label = s.name;
 		else if (conf.label == "length") label = s.len;
 		var color = s.rank >= 0 && r2c[s.rank] != null? r2c[s.rank] : "#000000";
-		gfa_plot_arrow(ctx, pos[i].cx_st, pos[i].cy, pos[i].len, 4, color, sub.v[i].v&1, label, s.rank == 0? 1.5 : 1);
+		gfa_plot_arrow(ctx, pos[i].cx_st, pos[i].cy, pos[i].len, 4, color, sub.v[i].v&1, label, s.rank == 0? 1.5 : 1, conf.font_size);
 	}
 }
 
@@ -214,12 +247,32 @@ function gfa_plot_walk(canvas, conf, g)
 	var ctx = canvas.getContext("2d");
 	var cy = conf.yskip;
 	for (var i = 0; i < g.walk.length; ++i) {
-		var w = g.walk[i], cx = conf.xskip;
+		var w = g.walk[i], cx = conf.xskip, cx_pre;
 		for (var j = 0; j < w.v.length; ++j) {
 			var label, sid = w.v[j]>>1;
 			if (conf.label == "name") label = g.seg[sid].name;
 			else if (conf.label == "length") label = g.seg[sid].len;
-			gfa_plot_arrow(ctx, cx, cy, seg_aux[sid].clen, 4, seg_aux[sid].color, w.v[j].v&1, label, 0.5);
+			gfa_plot_solid_arrow(ctx, cx, cy, seg_aux[sid].clen, 4, seg_aux[sid].color, w.v[j]&1, label, 0.5, conf.font_size);
+			cx_pre = cx + seg_aux[sid].clen;
+			cx += seg_aux[sid].clen + conf.xskip;
+		}
+		cy += conf.yskip;
+	}
+
+	cy = conf.yskip;
+	ctx.lineWidth = 0.2;
+	ctx.strokeStyle = "#404040";
+	for (var i = 0; i < g.walk.length; ++i) {
+		var w = g.walk[i], cx = conf.xskip, cx_pre = 0;
+		for (var j = 0; j < w.v.length; ++j) {
+			var sid = w.v[j]>>1;
+			if (j > 0) {
+				ctx.beginPath();
+				ctx.moveTo(cx_pre, cy);
+				ctx.lineTo(cx, cy);
+				ctx.stroke();
+			}
+			cx_pre = cx + seg_aux[sid].clen;
 			cx += seg_aux[sid].clen + conf.xskip;
 		}
 		cy += conf.yskip;
