@@ -214,10 +214,10 @@ function gfa_walk_gen(g, merge, uniq) // filter or combine walks
 {
 	var walk = [], tmp = [];
 	if (uniq) { // only choose samples with one walk
-		var t2 = g.walk.sort(function(x,y) { return x.sample == y.sample? 0 : x.sample < y.sample? -1 : 1 });
+		var t2 = g.walk.sort(function(x,y) { return x.asm == y.asm? 0 : x.asm < y.asm? -1 : 1 });
 		var i, i0;
 		for (i0 = 0, i = 1; i <= t2.length; ++i) {
-			if (i == t2.length || t2[i].sample != t2[i0].sample) {
+			if (i == t2.length || t2[i].asm != t2[i0].asm) {
 				if (i - i0 == 1) tmp.push(t2[i0]);
 				i0 = i;
 			}
@@ -228,7 +228,7 @@ function gfa_walk_gen(g, merge, uniq) // filter or combine walks
 	}
 	for (var i = 0; i < tmp.length; ++i) { // compute hash
 		var w = tmp[i];
-		var ww = { label:w.sample, hash:0, n:1, v:w.v };
+		var ww = { label:w.asm, hash:0, n:1, v:w.v };
 		var hash = 0;
 		for (var j = 0; j < w.v.length; ++j)
 			hash = (hash + gfa_int_hash(w.v[j])) & 0xffffffff;

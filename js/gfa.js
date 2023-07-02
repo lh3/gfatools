@@ -84,7 +84,7 @@ function gfa_parse(str)
 			g.arc.push({ v:w^1, w:v^1, ov:ow, ow:ov, rank:rank, ori:false });
 		} else if (t[0] == "W") {
 			if (t.length < 7) continue;
-			var walk = { sample:t[1], hap:parseInt(t[2]), sname:t[3], st:-1, en:-1, v:[] };
+			var walk = { asm:t[1]+"#"+t[2], sample:t[1], hap:parseInt(t[2]), sname:t[3], st:-1, en:-1, v:[] };
 			if (t[4] != "*") walk.st = parseInt(t[4]);
 			if (t[5] != "*") walk.st = parseInt(t[5]);
 			while ((m = re_walk.exec(t[6])) != null) {
