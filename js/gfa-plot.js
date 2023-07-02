@@ -3,6 +3,7 @@ function gfa_plot_conf()
 	return {
 		label:      "name", // or "len"
 		merge_walk: true,
+		uniq_walk:  true,
 		font_size:  9,
 		min_len:    10,
 		scale:      10,
@@ -209,11 +210,24 @@ function gfa_int_hash(x)
 	return (x >> 16) ^ x;
 }
 
-function gfa_walk_gen(g, merge)
+function gfa_walk_gen(g, merge, uniq) // filter or combine walks
 {
-	var walk = [];
-	for (var i = 0; i < g.walk.length; ++i) {
-		var w = g.walk[i];
+	var walk = [], tmp = [];
+	if (uniq) { // only choose samples with one walk
+		var t2 = g.walk.sort(function(x,y) { return x.sample == y.sample? 0 : x.sample < y.sample? -1 : 1 });
+		var i, i0;
+		for (i0 = 0, i = 1; i <= t2.length; ++i) {
+			if (i == t2.length || t2[i].sample != t2[i0].sample) {
+				if (i - i0 == 1) tmp.push(t2[i0]);
+				i0 = i;
+			}
+		}
+	} else { // choose all walks
+		for (var i = 0; i < g.walk.length; ++i)
+			tmp.push(g.walk[i]);
+	}
+	for (var i = 0; i < tmp.length; ++i) { // comput hash
+		var w = tmp[i];
 		var ww = { label:g.walk[i].sample, hash:0, n:1, v:[] };
 		var hash = 0;
 		for (var j = 0; j < w.v.length; ++j)
@@ -250,7 +264,7 @@ function gfa_plot_walk(canvas, conf, g)
 		seg_aux[i].clen = gfa_plot_cal_length(g.seg[i].len, conf.min_len, conf.scale);
 	}
 
-	var walk = gfa_walk_gen(g, conf.merge_walk);
+	var walk = gfa_walk_gen(g, conf.merge_walk, conf.uniq_walk);
 
 	var max_len = 0, max_label_len = 0;
 	for (var i = 0; i < walk.length; ++i) {

@@ -37,6 +37,10 @@ Merge walk: <select id="merge_walk" onChange="set_merge()" title="Merge walk">
 	<option value="yes" selected>Yes</option>
 	<option value="no">No</option>
 </select>&nbsp;
+Single walk: <select id="uniq_walk" onChange="set_uniq()" title="Unique walk">
+	<option value="yes" selected>Yes</option>
+	<option value="no">No</option>
+</select>&nbsp;
 <input type="button" value="Draw" onClick="do_plot();">
 <span id="info" style="color: gray;"></span>
 </p>
@@ -69,6 +73,9 @@ function set_label() {
 }
 function set_merge() {
 	gfa_conf.merge_walk = document.getElementById('merge_walk').value == "yes"? true : false;
+}
+function set_uniq() {
+	gfa_conf.uniq_walk = document.getElementById('uniq_walk').value == "yes"? true : false;
 }
 function do_plot() {
 	var gfa_text = document.getElementById('gfa-text').value;
