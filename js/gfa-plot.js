@@ -270,7 +270,7 @@ function gfa_plot_walk(canvas, conf, g)
 		var w = walk[i], len = 0;
 		max_label_len = max_label_len > w.label.length? max_label_len : w.label.length;
 		for (var j = 0; j < w.v.length; ++j)
-			len += seg_aux[w.v[i]>>1].clen;
+			len += seg_aux[w.v[j]>>1].clen;
 		len += (w.v.length - 1) * conf.xskip;
 		max_len = max_len > len? max_len : len;
 	}
