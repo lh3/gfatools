@@ -12,7 +12,7 @@
 #include "kseq.h"
 KSEQ_INIT(gzFile, gzread)
 
-#define GFATOOLS_VERSION "0.5-r253-dirty"
+#define GFATOOLS_VERSION "0.5-r274-dirty"
 
 char **gv_read_list(const char *o, int *n_)
 {
@@ -75,7 +75,7 @@ int main_view(int argc, char *argv[])
 	ketopt_t o = KETOPT_INIT;
 	int c, out_flag = 0, step = 0, is_del = 0, fix_multi = 0, flip_walk = 0;
 	char *list_arg = 0, *reg_arg = 0;
-	gfa_t *g;
+	gfa_t *g, *f = 0;
 
 	while ((c = ketopt(&o, argc, argv, 1, "v:dr:l:SMR:w", 0)) >= 0) {
 		if (c == 'v') gfa_verbose = atoi(o.arg);
@@ -132,21 +132,26 @@ int main_view(int argc, char *argv[])
 			seg = gfa_sub_extend(g, n_seg0, seg0, step, &n_seg);
 			free(seg0);
 		}
-		if (!is_del) {
-			for (i = 0; i < g->n_seg; ++i)
-				g->seg[i].del = 1;
+		if (is_del) {
+			int8_t *flag;
+			int32_t n, *seg_rev;
+			GFA_CALLOC(flag, g->n_seg);
 			for (i = 0; i < n_seg; ++i)
-				g->seg[seg[i]].del = 0;
-		} else {
-			for (i = 0; i < n_seg; ++i)
-				g->seg[seg[i]].del = 1;
+				if (seg[i] < g->n_seg)
+					flag[seg[i]] = 1;
+			for (i = 0, n = 0; i < g->n_seg; ++i)
+				if (flag[i]) ++n;
+			GFA_CALLOC(seg_rev, n);
+			for (i = 0, n = 0; i < g->n_seg; ++i)
+				if (flag[i]) seg_rev[n++] = i;
+			free(seg);
+			seg = seg_rev, n_seg = n;
 		}
-		gfa_walk_rm(g);
-		gfa_arc_rm(g);
+		f = gfa_subview2(g, n_seg, seg, 1);
 		free(seg);
 	}
-	if (flip_walk) gfa_walk_flip(g);
-	gfa_print(g, stdout, out_flag);
+	if (flip_walk) gfa_walk_flip(f);
+	gfa_print(f, stdout, out_flag);
 end_view:
 	gfa_destroy(g);
 	return 0;

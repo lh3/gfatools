@@ -271,7 +271,7 @@ int32_t *gfa_query_by_reg(const gfa_t *g, int32_t n_bb, const gfa_bubble_t *bb, 
 	return gfa_query_by_id(g, n_bb, bb, snid, start, end, n_seg);
 }
 
-gfa_t *gfa_subview(gfa_t *g, int32_t n_seg, const int32_t *seg)
+gfa_t *gfa_subview2(gfa_t *g, int32_t n_seg, const int32_t *seg, int32_t sub_walk)
 {
 	gfa_map64_t *h;
 	gfa_t *f;
@@ -279,11 +279,12 @@ gfa_t *gfa_subview(gfa_t *g, int32_t n_seg, const int32_t *seg)
 	uint32_t k, l;
 
 	h = gfa_map64_init();
-	for (i = j = 0; i < n_seg; ++i)
+	for (i = j = 0; i < n_seg; ++i) {
 		if (seg[i] < g->n_seg) {
 			k = gfa_map64_put(h, seg[i], &absent);
 			if (absent) kh_val(h, k) = j++;
 		}
+	}
 
 	GFA_CALLOC(f, 1);
 	f->n_seg = kh_size(h);
@@ -315,6 +316,31 @@ gfa_t *gfa_subview(gfa_t *g, int32_t n_seg, const int32_t *seg)
 		}
 	}
 
+	if (sub_walk) {
+		for (i = 0; i < g->n_walk; ++i) {
+			const gfa_walk_t *w = &g->walk[i];
+			gfa_walk_t *p;
+			int32_t n_v = 0;
+			for (j = 0; j < w->n_v; ++j) {
+				k = gfa_map64_get(h, w->v[j]>>1);
+				if (k != kh_end(h)) ++n_v;
+			}
+			if (n_v == 0) continue;
+			GFA_GROW0(gfa_walk_t, f->walk, f->n_walk, f->m_walk);
+			p = &f->walk[f->n_walk++];
+			p->st = p->en = -1;
+			p->sample = w->sample;
+			p->snid = w->snid;
+			p->hap = w->hap;
+			GFA_MALLOC(p->v, n_v);
+			for (j = 0; j < w->n_v; ++j) {
+				k = gfa_map64_get(h, w->v[j]>>1);
+				if (k != kh_end(h))
+					p->v[p->n_v++] = (uint32_t)kh_val(h, k)<<1 | (w->v[j]&1);
+			}
+		}
+	}
+
 	gfa_map64_destroy(h);
 	gfa_arc_sort(f);
 	gfa_arc_index(f);
@@ -323,9 +349,17 @@ gfa_t *gfa_subview(gfa_t *g, int32_t n_seg, const int32_t *seg)
 	return f;
 }
 
+gfa_t *gfa_subview(gfa_t *g, int32_t n_seg, const int32_t *seg)
+{
+	return gfa_subview2(g, n_seg, seg, 0);
+}
+
 void gfa_subview_destroy(gfa_t *f)
 {
-	free(f->idx); free(f->arc); free(f->seg); free(f);
+	int32_t i;
+	for (i = 0; i < f->n_walk; ++i)
+		free(f->walk[i].v);
+	free(f->walk); free(f->idx); free(f->arc); free(f->seg); free(f);
 }
 
 int32_t *gfa_sub_extend(const gfa_t *g, int n_seg, const int32_t *seg, int step, int32_t *n_ret)
