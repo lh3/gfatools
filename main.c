@@ -12,7 +12,7 @@
 #include "kseq.h"
 KSEQ_INIT(gzFile, gzread)
 
-#define GFATOOLS_VERSION "0.5-r274-dirty"
+#define GFATOOLS_VERSION "0.5-r275-dirty"
 
 char **gv_read_list(const char *o, int *n_)
 {
@@ -112,11 +112,13 @@ int main_view(int argc, char *argv[])
 	if (fix_multi) gfa_fix_multi(g);
 	if (list_arg || reg_arg) {
 		int32_t i, n_seg, *seg;
-		char **list = 0;
 		if (list_arg) {
+			char **list;
 			int32_t n;
 			list = gv_read_list(list_arg, &n);
 			seg = gfa_list2seg(g, n, list, &n_seg);
+			for (i = 0; i < n; ++i) free(list[i]);
+			free(list);
 		} else {
 			gfa_bubble_t *bb;
 			int32_t n_bb;
@@ -144,6 +146,7 @@ int main_view(int argc, char *argv[])
 			GFA_CALLOC(seg_rev, n);
 			for (i = 0, n = 0; i < g->n_seg; ++i)
 				if (flag[i]) seg_rev[n++] = i;
+			free(flag);
 			free(seg);
 			seg = seg_rev, n_seg = n;
 		}
@@ -152,6 +155,7 @@ int main_view(int argc, char *argv[])
 	}
 	if (flip_walk) gfa_walk_flip(f);
 	gfa_print(f, stdout, out_flag);
+	gfa_subview_destroy(f);
 end_view:
 	gfa_destroy(g);
 	return 0;
