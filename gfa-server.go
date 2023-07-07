@@ -118,21 +118,44 @@ func gfa_server_query(w http.ResponseWriter, r *http.Request) {
 		return;
 	}
 	step := 0;
-	if len(r.Form["r"]) > 0 { // set radius
-		i, _ := strconv.Atoi(r.Form["r"][0]);
+	if len(r.Form["step"]) > 0 { // set radius
+		i, _ := strconv.Atoi(r.Form["step"][0]);
 		if i < 0 {
 			http.Error(w, "400 Bad Request: 'r' shouldn't be negative", 400);
 			return;
 		}
 		step = i;
 	}
-	if len(r.Form["l"]) > 0 {
-		cstr := C.CString(r.Form["l"][0]);
+	if len(r.Form["q"]) > 0 {
+		cstr := C.CString(r.Form["q"][0]);
 		out := C.gfa_extract(gfa_graph, cstr, C.int(step));
 		C.free(unsafe.Pointer(cstr));
 		ret := C.GoString(out);
 		C.free(unsafe.Pointer(out));
-		fmt.Fprintf(w, "%s", ret);
+		if len(r.Form["plot"]) > 0 {
+			w.Header().Set("Content-Type", "text/html; charset=utf-8");
+			fmt.Fprintln(w, "<title>GFA view</title>");
+			fmt.Fprintln(w, "<style type='text/css'>#canvas_graph,#canvas_walk { border: 1px solid #000; }</style>");
+			fmt.Fprintln(w, "<script language='JavaScript' src='gfa.js'></script>");
+			fmt.Fprintln(w, "<script language='JavaScript' src='gfa-plot.js'></script>");
+			fmt.Fprintln(w, "<body>");
+			fmt.Fprintln(w, "<p><canvas id='canvas_graph' width='800' height='100'></canvas></p>");
+			fmt.Fprintln(w, "<p><canvas id='canvas_walk' width='800' height='100'></canvas></p>");
+			fmt.Fprintln(w, "<textarea id='gfa-text' readonly rows='15' cols='110'>");
+			fmt.Fprintf(w, ret);
+			fmt.Fprintln(w, "</textarea>");
+			fmt.Fprintln(w, "<script language='JavaScript'>");
+			fmt.Fprintln(w, "var gfa_conf = gfa_plot_conf();");
+			fmt.Fprintln(w, "var gfa_text = document.getElementById('gfa-text').value;");
+			fmt.Fprintln(w, "var gfa_graph = gfa_parse(gfa_text);");
+			fmt.Fprintln(w, "gfa_conf.merged = true; gfa_conf.uniq_walk = true;");
+			fmt.Fprintln(w, "gfa_plot_graph(document.getElementById('canvas_graph'), gfa_conf, gfa_graph);");
+			fmt.Fprintln(w, "gfa_plot_walk(document.getElementById('canvas_walk'), gfa_conf, gfa_graph);");
+			fmt.Fprintln(w, "</script>");
+			fmt.Fprintln(w, "</body>");
+		} else {
+			fmt.Fprintf(w, "%s", ret);
+		}
 	}
 }
 
@@ -165,6 +188,10 @@ func main() {
 	gfa_graph = C.gfa_read(fn);
 	defer C.gfa_destroy(gfa_graph);
 
-	http.HandleFunc("/", gfa_server_query);
+	root := "/gfasub";
+	http.HandleFunc(root, gfa_server_query);
+	http.Handle("/", http.FileServer(http.Dir("js/")));
+	//http.Handle("/static/", http.StripPrefix("/static/", http.FileServer(http.Dir("js/"))));
+	fmt.Fprintf(os.Stderr, "[%d] server started at %s\n", time.Now().UnixNano(), root);
 	http.ListenAndServe(fmt.Sprintf(":%s", gfa_server_port), nil);
 }
