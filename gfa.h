@@ -136,6 +136,7 @@ gfa_t *gfa_init(void);
 void gfa_destroy(gfa_t *g);
 gfa_t *gfa_read(const char *fn);
 void gfa_print(const gfa_t *g, FILE *fp, int M_only);
+char *gfa_write(const gfa_t *g, int flag, int *len);
 
 gfa_edseq_t *gfa_edseq_init(const gfa_t *g);
 void gfa_edseq_destroy(int32_t n_seg, gfa_edseq_t *es);

@@ -462,6 +462,87 @@ void gfa_sprintf_lite(kstring_t *s, const char *fmt, ...)
 	s->s[s->l] = 0;
 }
 
+static void gfa_write_S(kstring_t *out, const gfa_t *g, const gfa_seg_t *s, int flag)
+{
+	if (s->del) return;
+	gfa_sprintf_lite(out, "S\t%s\t", s->name);
+	if (s->seq && !(flag & GFA_O_NO_SEQ))
+		gfa_sprintf_lite(out, "%s", s->seq);
+	else gfa_sprintf_lite(out, "*");
+	gfa_sprintf_lite(out, "\tLN:i:%d", s->len);
+	if (s->snid >= 0 && s->soff >= 0)
+		gfa_sprintf_lite(out, "\tSN:Z:%s\tSO:i:%d", g->sseq[s->snid].name, s->soff);
+	if (s->rank >= 0)
+		gfa_sprintf_lite(out, "\tSR:i:%d", s->rank);
+	if (s->utg && s->utg->n) gfa_sprintf_lite(out, "\tRC:i:%d\tlc:i:%d", s->utg->n, s->utg->len_comp);
+	if (s->aux.l_aux > 0) {
+		char *t = 0;
+		int max = 0;
+		gfa_aux_format(s->aux.l_aux, s->aux.aux, &t, &max);
+		gfa_sprintf_lite(out, "%s", t);
+		free(t);
+	}
+	gfa_sprintf_lite(out, "\n");
+	if (s->utg && s->utg->n) {
+		uint32_t j, l;
+		for (j = l = 0; j < s->utg->n; ++j) {
+			const gfa_utg_t *u = s->utg;
+			gfa_sprintf_lite(out, "A\t%s\t%d\t%c\t%s\t%d\t%d\n", s->name, l, "+-"[u->a[j]>>32&1], u->name[j], (int32_t)(u->r[j]>>32), (int32_t)u->r[j]);
+			l += (uint32_t)u->a[j];
+		}
+	}
+}
+
+static void gfa_write_L(kstring_t *out, const gfa_t *g, const gfa_arc_t *a, int flag)
+{
+	const gfa_aux_t *aux = a->link_id < g->n_arc? &g->link_aux[a->link_id] : 0;
+	if (a->del || a->comp) return;
+	gfa_sprintf_lite(out, "L\t%s\t%c\t%s\t%c", g->seg[a->v_lv>>33].name, "+-"[a->v_lv>>32&1], g->seg[a->w>>1].name, "+-"[a->w&1]);
+	if (!(flag & GFA_O_OV_EXT)) {
+		gfa_sprintf_lite(out, "\t%dM", a->ov < a->ow? a->ov : a->ow);
+	} else {
+		if (a->ov == a->ow) gfa_sprintf_lite(out, "\t%dM", a->ov);
+		else gfa_sprintf_lite(out, "\t%d:%d", a->ov, a->ow);
+	}
+	if (a->rank >= 0) gfa_sprintf_lite(out, "\tSR:i:%d", a->rank);
+	gfa_sprintf_lite(out, "\tL1:i:%d", gfa_arc_len(*a));
+	gfa_sprintf_lite(out, "\tL2:i:%d", gfa_arc_lw(g, *a));
+	if (aux && aux->l_aux) {
+		char *t = 0;
+		int max = 0;
+		gfa_aux_format(aux->l_aux, aux->aux, &t, &max);
+		if (t) gfa_sprintf_lite(out, "%s", t);
+		free(t);
+	}
+	gfa_sprintf_lite(out, "\n");
+}
+
+static void gfa_write_W(kstring_t *out, const gfa_t *g, const gfa_walk_t *w, int flag)
+{
+	int32_t j;
+	gfa_sprintf_lite(out, "W\t%s\t%d\t%s\t", w->sample, w->hap, g->sseq[w->snid].name);
+	if (w->st >= 0 && w->en >= 0) gfa_sprintf_lite(out, "%ld\t%ld\t", (long)w->st, (long)w->en);
+	else gfa_sprintf_lite(out, "*\t*\t");
+	for (j = 0; j < w->n_v; ++j)
+		gfa_sprintf_lite(out, "%c%s", "><"[w->v[j]&1], g->seg[w->v[j]>>1].name);
+	gfa_sprintf_lite(out, "\n");
+}
+
+char *gfa_write(const gfa_t *g, int flag, int *len)
+{
+	uint32_t i;
+	uint64_t k;
+	kstring_t out = {0,0,0};
+	for (i = 0; i < g->n_seg; ++i)
+		gfa_write_S(&out, g, &g->seg[i], flag);
+	for (k = 0; k < g->n_arc; ++k)
+		gfa_write_L(&out, g, &g->arc[k], flag);
+	for (i = 0; i < g->n_walk; ++i)
+		gfa_write_W(&out, g, &g->walk[i], flag);
+	*len = out.l;
+	return out.s;
+}
+
 void gfa_print(const gfa_t *g, FILE *fp, int flag)
 {
 	uint32_t i;
@@ -469,70 +550,21 @@ void gfa_print(const gfa_t *g, FILE *fp, int flag)
 	kstring_t out = {0,0,0};
 	// S-lines
 	for (i = 0; i < g->n_seg; ++i) {
-		const gfa_seg_t *s = &g->seg[i];
-		if (s->del) continue;
-		fprintf(fp, "S\t%s\t", s->name);
-		if (s->seq && !(flag & GFA_O_NO_SEQ)) fputs(s->seq, fp);
-		else fputc('*', fp);
-		fprintf(fp, "\tLN:i:%d", s->len);
-		if (s->snid >= 0 && s->soff >= 0)
-			fprintf(fp, "\tSN:Z:%s\tSO:i:%d", g->sseq[s->snid].name, s->soff);
-		if (s->rank >= 0)
-			fprintf(fp, "\tSR:i:%d", s->rank);
-		if (s->utg && s->utg->n) fprintf(fp, "\tRC:i:%d\tlc:i:%d", s->utg->n, s->utg->len_comp);
-		if (s->aux.l_aux > 0) {
-			char *t = 0;
-			int max = 0;
-			gfa_aux_format(s->aux.l_aux, s->aux.aux, &t, &max);
-			fputs(t, fp);
-			free(t);
-		}
-		fputc('\n', fp);
-		if (s->utg && s->utg->n) {
-			uint32_t j, l;
-			for (j = l = 0; j < s->utg->n; ++j) {
-				const gfa_utg_t *u = s->utg;
-				fprintf(fp, "A\t%s\t%d\t%c\t%s\t%d\t%d\n", s->name, l, "+-"[u->a[j]>>32&1], u->name[j], (int32_t)(u->r[j]>>32), (int32_t)u->r[j]);
-				l += (uint32_t)u->a[j];
-			}
-		}
+		out.l = 0;
+		gfa_write_S(&out, g, &g->seg[i], flag);
+		fwrite(out.s, 1, out.l, fp);
 	}
 	// L-lines
 	for (k = 0; k < g->n_arc; ++k) {
-		const gfa_arc_t *a = &g->arc[k];
-		const gfa_aux_t *aux = a->link_id < g->n_arc? &g->link_aux[a->link_id] : 0;
-		if (a->del || a->comp) continue;
-		fprintf(fp, "L\t%s\t%c\t%s\t%c", g->seg[a->v_lv>>33].name, "+-"[a->v_lv>>32&1], g->seg[a->w>>1].name, "+-"[a->w&1]);
-		if (!(flag & GFA_O_OV_EXT)) {
-			fprintf(fp, "\t%dM", a->ov < a->ow? a->ov : a->ow);
-		} else {
-			if (a->ov == a->ow) fprintf(fp, "\t%dM", a->ov);
-			else fprintf(fp, "\t%d:%d", a->ov, a->ow);
-		}
-		if (a->rank >= 0) fprintf(fp, "\tSR:i:%d", a->rank);
-		fprintf(fp, "\tL1:i:%d", gfa_arc_len(*a));
-		fprintf(fp, "\tL2:i:%d", gfa_arc_lw(g, *a));
-		if (aux && aux->l_aux) {
-			char *t = 0;
-			int max = 0;
-			gfa_aux_format(aux->l_aux, aux->aux, &t, &max);
-			if (t) fputs(t, fp);
-			free(t);
-		}
-		fputc('\n', fp);
+		out.l = 0;
+		gfa_write_L(&out, g, &g->arc[k], flag);
+		fwrite(out.s, 1, out.l, fp);
 	}
 	// W-lines
 	for (i = 0; i < g->n_walk; ++i) {
-		const gfa_walk_t *w = &g->walk[i];
-		int32_t j;
 		out.l = 0;
-		gfa_sprintf_lite(&out, "W\t%s\t%d\t%s\t", w->sample, w->hap, g->sseq[w->snid].name);
-		if (w->st >= 0 && w->en >= 0) gfa_sprintf_lite(&out, "%ld\t%ld\t", (long)w->st, (long)w->en);
-		else gfa_sprintf_lite(&out, "*\t*\t");
-		for (j = 0; j < w->n_v; ++j)
-			gfa_sprintf_lite(&out, "%c%s", "><"[w->v[j]&1], g->seg[w->v[j]>>1].name);
-		gfa_sprintf_lite(&out, "\n");
-		fputs(out.s, fp);
+		gfa_write_W(&out, g, &g->walk[i], flag);
+		fwrite(out.s, 1, out.l, fp);
 	}
 	free(out.s);
 }
