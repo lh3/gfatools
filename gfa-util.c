@@ -10,6 +10,9 @@ KDQ_INIT(uint64_t)
 #include "khashl.h"
 KHASHL_MAP_INIT(KH_LOCAL, gfa_map64_t, gfa_map64, uint64_t, int32_t, kh_hash_uint64, kh_eq_generic)
 
+/*
+ * rGFA: get stable FASTA
+ */
 static uint64_t find_join(const gfa_t *g, uint32_t v)
 {
 	gfa_seg_t *t, *s = &g->seg[v>>1];
@@ -170,6 +173,9 @@ end_check:
 	return sfa;
 }
 
+/*
+ * rGFA: extract overlapping segments given a reference coordinate
+ */
 const char *gfa_parse_reg(const char *s, int32_t *beg, int32_t *end)
 {
 	int32_t i, k, l, name_end;
@@ -271,6 +277,9 @@ int32_t *gfa_query_by_reg(const gfa_t *g, int32_t n_bb, const gfa_bubble_t *bb, 
 	return gfa_query_by_id(g, n_bb, bb, snid, start, end, n_seg);
 }
 
+/*
+ * GFA: extract a subgraph
+ */
 gfa_t *gfa_subview2(gfa_t *g, int32_t n_seg, const int32_t *seg, int32_t sub_walk)
 {
 	gfa_map64_t *h;

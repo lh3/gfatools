@@ -12,51 +12,7 @@
 #include "kseq.h"
 KSEQ_INIT(gzFile, gzread)
 
-#define GFATOOLS_VERSION "0.5-r275-dirty"
-
-char **gv_read_list(const char *o, int *n_)
-{
-	int n = 0, m = 0;
-	char **s = 0;
-	*n_ = 0;
-	if (*o != '@') {
-		const char *q = o, *p;
-		for (p = q;; ++p) {
-			if (*p == ',' || *p == 0) {
-				if (n == m) {
-					m = m? m<<1 : 16;
-					s = (char**)realloc(s, m * sizeof(char*));
-				}
-				s[n++] = gfa_strndup(q, p - q);
-				if (*p == 0) break;
-				q = p + 1;
-			}
-		}
-	} else {
-		gzFile fp;
-		kstream_t *ks;
-		kstring_t str = {0,0,0};
-		int dret;
-
-		fp = gzopen(o + 1, "r");
-		if (fp == 0) return 0;
-		ks = ks_init(fp);
-		while (ks_getuntil(ks, KS_SEP_LINE, &str, &dret) >= 0) {
-			char *p;
-			for (p = str.s; *p && !isspace(*p); ++p);
-			if (n == m) {
-				m = m? m<<1 : 16;
-				s = (char**)realloc(s, m * sizeof(char*));
-			}
-			s[n++] = gfa_strndup(str.s, p - str.s);
-		}
-		ks_destroy(ks);
-		gzclose(fp);
-	}
-	if (s) s = (char**)realloc(s, n * sizeof(char*));
-	*n_ = n;
-	return s;
-}
+#define GFATOOLS_VERSION "0.5-r276-dirty"
 
 static inline int64_t gfa_str2num(const char *str, char **q)
 {
@@ -115,7 +71,7 @@ int main_view(int argc, char *argv[])
 		if (list_arg) {
 			char **list;
 			int32_t n;
-			list = gv_read_list(list_arg, &n);
+			list = gfa_read_list(list_arg, &n);
 			seg = gfa_list2seg(g, n, list, &n_seg);
 			for (i = 0; i < n; ++i) free(list[i]);
 			free(list);

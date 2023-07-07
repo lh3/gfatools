@@ -132,6 +132,7 @@ void gfa_scc_all(const gfa_t *g);
 
 // subset, modifying the graph
 int32_t *gfa_query_by_reg(const gfa_t *g, int32_t n_bb, const gfa_bubble_t *bb, const char *reg, int *n_seg);
+char **gfa_read_list(const char *o, int *n_);
 int32_t *gfa_list2seg(const gfa_t *g, int32_t n_seg, char *const* seg, int32_t *n_ret);
 int32_t *gfa_sub_extend(const gfa_t *g, int n_seg, const int32_t *seg, int step, int32_t *n_ret);
 
