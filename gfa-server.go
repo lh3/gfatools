@@ -7,6 +7,7 @@ import (
 	"strconv"
 	"net/http"
 	"strings"
+	"regexp"
 	"time"
 )
 
@@ -106,7 +107,75 @@ func getopt(args []string, ostr string) (int, string) {
  ************/
 
 var gfa_server_port string = "8000";
-var gfa_graph *C.gfa_t;
+var gfa_graphs map[string]*C.gfa_t;
+var gfa_graph_list []string;
+var gfa_graph_default *C.gfa_t;
+
+func gfa_print_page(w http.ResponseWriter, r *http.Request, graph_str string) {
+	graph, genes, step := "", "", "3";
+	if len(r.Form["graph"]) > 0 {
+		graph = r.Form["graph"][0];
+	}
+	if len(r.Form["gene"]) > 0 {
+		genes = r.Form["gene"][0];
+	}
+	if len(r.Form["step"]) > 0 {
+		step = r.Form["step"][0];
+	}
+	w.Header().Set("Content-Type", "text/html; charset=utf-8");
+	fmt.Fprintln(w, `<title>GFA view</title>`);
+	fmt.Fprintln(w, `<style type="text/css">#canvas_graph,#canvas_walk { border: 1px solid #000; }</style>`);
+	fmt.Fprintln(w, `<script language="JavaScript" src="gfa.js"></script>`);
+	fmt.Fprintln(w, `<script language="JavaScript" src="gfa-plot.js"></script>`);
+	fmt.Fprintln(w, `<body onLoad="plot();">`);
+	fmt.Fprintln(w, `<form action="/view" method="GET">`);
+	fmt.Fprintln(w, `  Graph: <select name="graph">`);
+	for i := 0; i < len(gfa_graph_list); i++ {
+		selected := "";
+		if gfa_graph_list[i] == graph {
+			selected = " selected";
+		}
+		fmt.Fprintln(w, `    <option value="` + gfa_graph_list[i] + `"` + selected + `>` + gfa_graph_list[i] + `</option>`);
+	}
+	fmt.Fprintln(w, `  </select>&nbsp;`);
+	fmt.Fprintln(w, `  genes: <input name="gene" size="30" value="` + genes + `"/>&nbsp;`);
+	fmt.Fprintln(w, `  neighbors: <input name="step" size="5" value="` + step + `"/>&nbsp;`);
+	fmt.Fprintln(w, `  <input type="submit" value="Retrieve"/>`);
+	fmt.Fprintln(w, `</form>`);
+	fmt.Fprintln(w, `<hr/>`);
+	if graph_str == "" {
+		fmt.Fprintln(w, `<h3>Instructions</h3>`);
+		fmt.Fprintln(w, `<p>Select a graph, provide one or multiple colocalized genes and click the`);
+		fmt.Fprintln(w, `"Retrieve" button to extract a subgraph around the genes and plot it.`);
+		fmt.Fprintln(w, `"Neighbors" controls how many neighboring genes to explore. Note that`);
+		fmt.Fprintln(w, `inputting genes on different chromosomes or distant apart may lead to`);
+		fmt.Fprintln(w, `undesired plots.</p>`);
+		fmt.Fprintln(w, `<p>Once you see the graph, you may click the "Replot" button to randomize`);
+		fmt.Fprintln(w, `node colors. Replotting does not incur server load and is the preferred way`);
+		fmt.Fprintln(w, `to adjust plotting.</p>`);
+		return;
+	}
+	fmt.Fprintln(w, `<p>Plot setting: <input type="checkbox" id="merge_walk" checked/>merge identical paths`);
+	fmt.Fprintln(w, `<input type="checkbox" id="uniq_walk" checked/>complete paths only &nbsp;`);
+	fmt.Fprintln(w, `<input type="button" value="Replot" onClick="plot();"></p>`);
+	fmt.Fprintln(w, `<p><canvas id="canvas_walk" width="800" height="100"></canvas></p>`);
+	fmt.Fprintln(w, `<p><canvas id="canvas_graph" width="800" height="100"></canvas></p>`);
+	fmt.Fprintln(w, `<textarea id="gfa-text" readonly rows="15" cols="110">`);
+	fmt.Fprintf(w, graph_str);
+	fmt.Fprintln(w, `</textarea>`);
+	fmt.Fprintln(w, `<script language="JavaScript">`);
+	fmt.Fprintln(w, `function plot() {`);
+	fmt.Fprintln(w, `  var gfa_conf = gfa_plot_conf();`);
+	fmt.Fprintln(w, `  gfa_conf.merge_walk = document.getElementById('merge_walk').checked;`);
+	fmt.Fprintln(w, `  gfa_conf.uniq_walk = document.getElementById('uniq_walk').checked;`);
+	fmt.Fprintln(w, `  var gfa_text = document.getElementById("gfa-text").value;`);
+	fmt.Fprintln(w, `  var gfa_graph = gfa_parse(gfa_text);`);
+	fmt.Fprintln(w, `  gfa_plot_graph(document.getElementById("canvas_graph"), gfa_conf, gfa_graph);`);
+	fmt.Fprintln(w, `  gfa_plot_walk(document.getElementById("canvas_walk"), gfa_conf, gfa_graph);`);
+	fmt.Fprintln(w, `}`);
+	fmt.Fprintln(w, `</script>`);
+	fmt.Fprintln(w, `</body>`);
+}
 
 func gfa_server_query(w http.ResponseWriter, r *http.Request) {
 	r.ParseForm();
@@ -114,10 +183,19 @@ func gfa_server_query(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprintf(os.Stderr, "[%d] got request: %s\n", start_time, r.Form);
 	defer fmt.Fprintf(os.Stderr, "[%d] responded %d\n", time.Now().UnixNano(), start_time);
 	if len(r.Form) == 0 {
-		fmt.Fprintln(w, "Hello!");
+		gfa_print_page(w, r, "");
 		return;
 	}
-	step := 0;
+	g := gfa_graph_default;
+	step := 3;
+	if len(r.Form["graph"]) > 0 { // set graph
+		tmp, ok := gfa_graphs[r.Form["graph"][0]];
+		if !ok {
+			http.Error(w, "400 Bad Request: failed to find graph '" + r.Form["graph"][0] + "'", 400);
+			return;
+		}
+		g = tmp;
+	}
 	if len(r.Form["step"]) > 0 { // set radius
 		i, _ := strconv.Atoi(r.Form["step"][0]);
 		if i < 0 {
@@ -126,36 +204,17 @@ func gfa_server_query(w http.ResponseWriter, r *http.Request) {
 		}
 		step = i;
 	}
-	if len(r.Form["q"]) > 0 {
-		cstr := C.CString(r.Form["q"][0]);
-		out := C.gfa_extract(gfa_graph, cstr, C.int(step));
+	if len(r.Form["gene"]) > 0 {
+		cstr := C.CString(r.Form["gene"][0]);
+		out := C.gfa_extract(g, cstr, C.int(step));
 		C.free(unsafe.Pointer(cstr));
 		ret := C.GoString(out);
 		C.free(unsafe.Pointer(out));
-		if len(r.Form["plot"]) > 0 {
-			w.Header().Set("Content-Type", "text/html; charset=utf-8");
-			fmt.Fprintln(w, "<title>GFA view</title>");
-			fmt.Fprintln(w, "<style type='text/css'>#canvas_graph,#canvas_walk { border: 1px solid #000; }</style>");
-			fmt.Fprintln(w, "<script language='JavaScript' src='gfa.js'></script>");
-			fmt.Fprintln(w, "<script language='JavaScript' src='gfa-plot.js'></script>");
-			fmt.Fprintln(w, "<body>");
-			fmt.Fprintln(w, "<p><canvas id='canvas_graph' width='800' height='100'></canvas></p>");
-			fmt.Fprintln(w, "<p><canvas id='canvas_walk' width='800' height='100'></canvas></p>");
-			fmt.Fprintln(w, "<textarea id='gfa-text' readonly rows='15' cols='110'>");
-			fmt.Fprintf(w, ret);
-			fmt.Fprintln(w, "</textarea>");
-			fmt.Fprintln(w, "<script language='JavaScript'>");
-			fmt.Fprintln(w, "var gfa_conf = gfa_plot_conf();");
-			fmt.Fprintln(w, "var gfa_text = document.getElementById('gfa-text').value;");
-			fmt.Fprintln(w, "var gfa_graph = gfa_parse(gfa_text);");
-			fmt.Fprintln(w, "gfa_conf.merged = true; gfa_conf.uniq_walk = true;");
-			fmt.Fprintln(w, "gfa_plot_graph(document.getElementById('canvas_graph'), gfa_conf, gfa_graph);");
-			fmt.Fprintln(w, "gfa_plot_walk(document.getElementById('canvas_walk'), gfa_conf, gfa_graph);");
-			fmt.Fprintln(w, "</script>");
-			fmt.Fprintln(w, "</body>");
-		} else {
-			fmt.Fprintf(w, "%s", ret);
+		if len(ret) > 100000 {
+			http.Error(w, "400 Bad Request: subgraph is over 100,000 bytes in size", 400);
+			return;
 		}
+		gfa_print_page(w, r, ret);
 	}
 }
 
@@ -164,9 +223,11 @@ func gfa_server_query(w http.ResponseWriter, r *http.Request) {
  *****************/
 
 func main() {
+	// set PORT
 	if os.Getenv("PORT") != "" {
 		gfa_server_port = os.Getenv("PORT");
 	}
+
 	// parse command line options
 	for {
 		opt, arg := getopt(os.Args, "p:");
@@ -183,12 +244,27 @@ func main() {
 		os.Exit(1);
 	}
 
-	fn := C.CString(os.Args[optind]);
-	defer C.free(unsafe.Pointer(fn));
-	gfa_graph = C.gfa_read(fn);
-	defer C.gfa_destroy(gfa_graph);
+	re_base := regexp.MustCompile(`(.*/)?([^/]+)$`);
+	re_gz := regexp.MustCompile(`\.gz$`);
+	re_gfa := regexp.MustCompile(`\.gfa$`);
+	gfa_graphs = make(map[string]*C.gfa_t)
+	for i := optind; i < len(os.Args); i++ {
+		fn := C.CString(os.Args[i]);
+		defer C.free(unsafe.Pointer(fn));
+		key := re_base.ReplaceAllString(os.Args[i], "$2");
+		key = re_gz.ReplaceAllString(key, "");
+		key = re_gfa.ReplaceAllString(key, "");
+		fmt.Fprintf(os.Stderr, "[%d] read graph '%s' from '%s'\n", time.Now().UnixNano(), key, os.Args[i]);
+		g := C.gfa_read(fn);
+		defer C.gfa_destroy(g);
+		gfa_graphs[key] = g; // TODO: check duplicate names!!!
+		gfa_graph_list = append(gfa_graph_list, key);
+		if i == optind {
+			gfa_graph_default = g;
+		}
+	}
 
-	root := "/gfasub";
+	root := "/view";
 	http.HandleFunc(root, gfa_server_query);
 	http.Handle("/", http.FileServer(http.Dir("js/")));
 	//http.Handle("/static/", http.StripPrefix("/static/", http.FileServer(http.Dir("js/"))));
