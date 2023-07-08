@@ -107,11 +107,12 @@ func getopt(args []string, ostr string) (int, string) {
  ************/
 
 var gfa_server_port string = "8000";
-var gfa_endpoint string = "/";
+var gfa_endpoint string = "/view";
 var gfa_graphs map[string]*C.gfa_t;
 var gfa_graph_list []string;
 var gfa_graph_default *C.gfa_t;
 var gfa_js_dir string = "js/";
+var gfa_html_dir string = "";
 
 func gfa_print_page(w http.ResponseWriter, r *http.Request, graph_str string) {
 	graph, genes, step := "", "", "3";
@@ -151,13 +152,10 @@ func gfa_print_page(w http.ResponseWriter, r *http.Request, graph_str string) {
 		fmt.Fprintln(w, `"Retrieve" button to extract a subgraph around the genes and plot it.`);
 		fmt.Fprintln(w, `"Neighbors" controls how many neighboring genes to explore. Note that`);
 		fmt.Fprintln(w, `inputting genes on different chromosomes or distant apart may lead to`);
-		fmt.Fprintln(w, `undesired plots.</p>`);
+		fmt.Fprintln(w, `undesired plots. If you don't see any haplotypes, unclick "one path per genome".</p>`);
 		fmt.Fprintln(w, `<p>Once you see the graph, you may click the "Replot" button to randomize`);
 		fmt.Fprintln(w, `node colors. Replotting does not incur server load and is the preferred way`);
 		fmt.Fprintln(w, `to adjust plotting.</p>`);
-		fmt.Fprintln(w, `<p>This server is open sourced <a href="https://github.com/lh3/gfatools/blob/master/gfa-server.go" target="_blank">at GitHub</a>`);
-		fmt.Fprintln(w, `and the underlying data is publicly available <a href="https://doi.org/10.5281/zenodo.8118576" target="_blank">via Zenodo</a>.`);
-		fmt.Fprintln(w, `You are free to deploy your own instance. The server does not log your IP address or other personal information anyway.</p>`);
 		return;
 	}
 	fmt.Fprintln(w, `<p>Plot setting: <input type="checkbox" id="merge_walk" checked/>merge identical paths`);
@@ -235,22 +233,25 @@ func main() {
 
 	// parse command line options
 	for {
-		opt, arg := getopt(os.Args, "p:e:j:");
+		opt, arg := getopt(os.Args, "p:e:j:d:");
 		if opt == 'p' {
 			gfa_server_port = arg;
 		} else if opt == 'e' {
 			gfa_endpoint = arg;
 		} else if opt == 'j' {
 			gfa_js_dir = arg;
+		} else if opt == 'd' {
+			gfa_html_dir = arg;
 		} else if opt < 0 {
 			break;
 		}
 	}
 	if optind == len(os.Args) {
-		fmt.Fprintln(os.Stderr, "Usage: gfa-server [options] <graph.gfa>");
+		fmt.Fprintln(os.Stderr, "Usage: gfa-server [options] <graph1.gfa> [graph2.gfa [...]]");
 		fmt.Fprintln(os.Stderr, "Options:");
 		fmt.Fprintf(os.Stderr, "  -p INT    port number [%s or from $PORT env]\n", gfa_server_port);
 		fmt.Fprintf(os.Stderr, "  -j DIR    directory to gfa javascript files [%s]\n", gfa_js_dir);
+		fmt.Fprintf(os.Stderr, "  -d DIR    directory to HTML pages to be served at \"/\" []\n");
 		fmt.Fprintf(os.Stderr, "  -e STR    endpoint [%s]\n", gfa_endpoint);
 		os.Exit(1);
 	}
@@ -278,6 +279,9 @@ func main() {
 	http.HandleFunc(gfa_endpoint, gfa_server_query);
 	//http.Handle("/", http.FileServer(http.Dir("js/")));
 	http.Handle("/js/", http.StripPrefix("/js/", http.FileServer(http.Dir(gfa_js_dir))));
+	if gfa_html_dir != "" {
+		http.Handle("/", http.FileServer(http.Dir(gfa_html_dir)));
+	}
 	fmt.Fprintf(os.Stderr, "[%d] server started at %s\n", time.Now().UnixNano(), gfa_endpoint);
 	http.ListenAndServe(fmt.Sprintf(":%s", gfa_server_port), nil);
 }
