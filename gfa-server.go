@@ -155,10 +155,13 @@ func gfa_print_page(w http.ResponseWriter, r *http.Request, graph_str string) {
 		fmt.Fprintln(w, `<p>Once you see the graph, you may click the "Replot" button to randomize`);
 		fmt.Fprintln(w, `node colors. Replotting does not incur server load and is the preferred way`);
 		fmt.Fprintln(w, `to adjust plotting.</p>`);
+		fmt.Fprintln(w, `<p>This server is open sourced <a href="https://github.com/lh3/gfatools/blob/master/gfa-server.go" target="_blank">at GitHub</a>`);
+		fmt.Fprintln(w, `and the underlying data is publicly available <a href="https://doi.org/10.5281/zenodo.8118576" target="_blank">via Zenodo</a>.`);
+		fmt.Fprintln(w, `You are free to deploy your own instance. The server does not log your IP address or other personal information anyway.</p>`);
 		return;
 	}
 	fmt.Fprintln(w, `<p>Plot setting: <input type="checkbox" id="merge_walk" checked/>merge identical paths`);
-	fmt.Fprintln(w, `<input type="checkbox" id="uniq_walk" checked/>complete paths only &nbsp;`);
+	fmt.Fprintln(w, `<input type="checkbox" id="uniq_walk" checked/>one path per genome &nbsp;`);
 	fmt.Fprintln(w, `<input type="button" value="Replot" onClick="plot();"></p>`);
 	fmt.Fprintln(w, `<p><canvas id="canvas_walk" width="800" height="100"></canvas></p>`);
 	fmt.Fprintln(w, `<p><canvas id="canvas_graph" width="800" height="100"></canvas></p>`);
