@@ -107,6 +107,7 @@ func getopt(args []string, ostr string) (int, string) {
  ************/
 
 var gfa_server_port string = "8000";
+var gfa_endpoint string = "/";
 var gfa_graphs map[string]*C.gfa_t;
 var gfa_graph_list []string;
 var gfa_graph_default *C.gfa_t;
@@ -125,10 +126,10 @@ func gfa_print_page(w http.ResponseWriter, r *http.Request, graph_str string) {
 	w.Header().Set("Content-Type", "text/html; charset=utf-8");
 	fmt.Fprintln(w, `<title>GFA view</title>`);
 	fmt.Fprintln(w, `<style type="text/css">#canvas_graph,#canvas_walk { border: 1px solid #000; }</style>`);
-	fmt.Fprintln(w, `<script language="JavaScript" src="gfa.js"></script>`);
-	fmt.Fprintln(w, `<script language="JavaScript" src="gfa-plot.js"></script>`);
+	fmt.Fprintln(w, `<script language="JavaScript" src="js/gfa.js"></script>`);
+	fmt.Fprintln(w, `<script language="JavaScript" src="js/gfa-plot.js"></script>`);
 	fmt.Fprintln(w, `<body onLoad="plot();">`);
-	fmt.Fprintln(w, `<form action="/view" method="GET">`);
+	fmt.Fprintln(w, `<form action="` + gfa_endpoint + `" method="GET">`);
 	fmt.Fprintln(w, `  Graph: <select name="graph">`);
 	for i := 0; i < len(gfa_graph_list); i++ {
 		selected := "";
@@ -230,9 +231,11 @@ func main() {
 
 	// parse command line options
 	for {
-		opt, arg := getopt(os.Args, "p:");
+		opt, arg := getopt(os.Args, "p:e:");
 		if opt == 'p' {
 			gfa_server_port = arg;
+		} else if opt == 'e' {
+			gfa_endpoint = arg;
 		} else if opt < 0 {
 			break;
 		}
@@ -241,6 +244,7 @@ func main() {
 		fmt.Fprintln(os.Stderr, "Usage: gfa-server [options] <graph.gfa>");
 		fmt.Fprintln(os.Stderr, "Options:");
 		fmt.Fprintf(os.Stderr, "  -p INT    port number [%s or from $PORT env]\n", gfa_server_port);
+		fmt.Fprintf(os.Stderr, "  -e STR    endpoint [%s]\n", gfa_endpoint);
 		os.Exit(1);
 	}
 
@@ -264,10 +268,9 @@ func main() {
 		}
 	}
 
-	root := "/view";
-	http.HandleFunc(root, gfa_server_query);
-	http.Handle("/", http.FileServer(http.Dir("js/")));
-	//http.Handle("/static/", http.StripPrefix("/static/", http.FileServer(http.Dir("js/"))));
-	fmt.Fprintf(os.Stderr, "[%d] server started at %s\n", time.Now().UnixNano(), root);
+	http.HandleFunc(gfa_endpoint, gfa_server_query);
+	//http.Handle("/", http.FileServer(http.Dir("js/")));
+	http.Handle("/js/", http.StripPrefix("/js/", http.FileServer(http.Dir("js"))));
+	fmt.Fprintf(os.Stderr, "[%d] server started at %s\n", time.Now().UnixNano(), gfa_endpoint);
 	http.ListenAndServe(fmt.Sprintf(":%s", gfa_server_port), nil);
 }
