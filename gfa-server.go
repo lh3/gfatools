@@ -111,6 +111,7 @@ var gfa_endpoint string = "/";
 var gfa_graphs map[string]*C.gfa_t;
 var gfa_graph_list []string;
 var gfa_graph_default *C.gfa_t;
+var gfa_js_dir string = "js/";
 
 func gfa_print_page(w http.ResponseWriter, r *http.Request, graph_str string) {
 	graph, genes, step := "", "", "3";
@@ -231,11 +232,13 @@ func main() {
 
 	// parse command line options
 	for {
-		opt, arg := getopt(os.Args, "p:e:");
+		opt, arg := getopt(os.Args, "p:e:j:");
 		if opt == 'p' {
 			gfa_server_port = arg;
 		} else if opt == 'e' {
 			gfa_endpoint = arg;
+		} else if opt == 'j' {
+			gfa_js_dir = arg;
 		} else if opt < 0 {
 			break;
 		}
@@ -244,6 +247,7 @@ func main() {
 		fmt.Fprintln(os.Stderr, "Usage: gfa-server [options] <graph.gfa>");
 		fmt.Fprintln(os.Stderr, "Options:");
 		fmt.Fprintf(os.Stderr, "  -p INT    port number [%s or from $PORT env]\n", gfa_server_port);
+		fmt.Fprintf(os.Stderr, "  -j DIR    directory to gfa javascript files [%s]\n", gfa_js_dir);
 		fmt.Fprintf(os.Stderr, "  -e STR    endpoint [%s]\n", gfa_endpoint);
 		os.Exit(1);
 	}
@@ -270,7 +274,7 @@ func main() {
 
 	http.HandleFunc(gfa_endpoint, gfa_server_query);
 	//http.Handle("/", http.FileServer(http.Dir("js/")));
-	http.Handle("/js/", http.StripPrefix("/js/", http.FileServer(http.Dir("js"))));
+	http.Handle("/js/", http.StripPrefix("/js/", http.FileServer(http.Dir(gfa_js_dir))));
 	fmt.Fprintf(os.Stderr, "[%d] server started at %s\n", time.Now().UnixNano(), gfa_endpoint);
 	http.ListenAndServe(fmt.Sprintf(":%s", gfa_server_port), nil);
 }

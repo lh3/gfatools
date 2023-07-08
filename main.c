@@ -12,7 +12,7 @@
 #include "kseq.h"
 KSEQ_INIT(gzFile, gzread)
 
-#define GFATOOLS_VERSION "0.5-r276-dirty"
+#define GFATOOLS_VERSION "0.5-r282-dirty"
 
 static inline int64_t gfa_str2num(const char *str, char **q)
 {
@@ -84,7 +84,10 @@ int main_view(int argc, char *argv[])
 			for (i = 0; i < n_bb; ++i) free(bb[i].v);
 			free(bb);
 		}
-		if (n_seg == 0) goto end_view; // nothing to extract
+		if (n_seg == 0) { // nothing to extract
+			free(seg);
+			goto end_view;
+		}
 		if (step > 0) {
 			int32_t n_seg0 = n_seg, *seg0 = seg;
 			seg = gfa_sub_extend(g, n_seg0, seg0, step, &n_seg);
