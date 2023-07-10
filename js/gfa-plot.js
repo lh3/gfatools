@@ -13,12 +13,22 @@ function gfa_plot_conf()
 	};
 }
 
+function gfa_canvas_hi_res(canvas, width, height)
+{
+    ratio = window.devicePixelRatio;
+    canvas.width = width * ratio;
+    canvas.height = height * ratio;
+    canvas.style.width = width + "px";
+    canvas.style.height = height + "px";
+    canvas.getContext("2d").scale(ratio, ratio);
+}
+
 var gfa_conf = gfa_plot_conf();
 var gfa_obj = null;
 
 function gfa_plot_arrow(ctx, x, y, len, w, rev, text, fs, color_stroke, color_fill, lw)
 {
-	ctx.font = fs? fs + "px mono" : "9px mono";
+	ctx.font = fs? fs + "px monospace" : "9px monospace";
 	var reg = new Path2D();
 	reg.moveTo(x, y);
 	if (rev == null || !rev) {
@@ -165,7 +175,7 @@ function gfa_plot_graph(canvas, conf, g)
 		var y = pos[i].cy + conf.yskip;
 		max_h = max_h > y? max_h : y;
 	}
-	canvas.width = max_w, canvas.height = max_h;
+	gfa_canvas_hi_res(canvas, max_w, max_h);
 
 	ctx = canvas.getContext("2d");
 	ctx.translate(0.5, 0.5);
@@ -277,7 +287,7 @@ function gfa_plot_walk(canvas, conf, g)
 	var off_x = conf.xskip + (max_label_len + 1) * conf.font_size + conf.xskip;
 	var max_w = off_x + max_len + conf.xskip;
 	var max_h = (walk.length + 1) * conf.yskip;
-	canvas.width = max_w, canvas.height = max_h;
+	gfa_canvas_hi_res(canvas, max_w, max_h);
 
 	var ctx = canvas.getContext("2d");
 
