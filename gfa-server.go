@@ -127,7 +127,10 @@ func gfa_print_page(w http.ResponseWriter, r *http.Request, graph_str string) {
 	}
 	w.Header().Set("Content-Type", "text/html; charset=utf-8");
 	fmt.Fprintln(w, `<title>GFA view</title>`);
-	fmt.Fprintln(w, `<style type="text/css">#canvas_graph,#canvas_walk { border: 1px solid #000; }</style>`);
+	fmt.Fprintln(w, `<style type="text/css">`);
+	fmt.Fprintln(w, `  #canvas_graph,#canvas_walk { border: 1px solid #000; }`);
+	fmt.Fprintln(w, `  textarea { font-family: monospace; }`);
+	fmt.Fprintln(w, `</style>`);
 	fmt.Fprintln(w, `<script language="JavaScript" src="js/gfa.js"></script>`);
 	fmt.Fprintln(w, `<script language="JavaScript" src="js/gfa-plot.js"></script>`);
 	fmt.Fprintln(w, `<body onLoad="plot();">`);
@@ -148,7 +151,7 @@ func gfa_print_page(w http.ResponseWriter, r *http.Request, graph_str string) {
 	fmt.Fprintln(w, `<hr/>`);
 	if graph_str == "" {
 		fmt.Fprintln(w, `<h3>Instructions</h3>`);
-		fmt.Fprintln(w, `<p>Select a graph, provide one or multiple colocalized genes and click the`);
+		fmt.Fprintln(w, `<p>Select a graph, provide one or multiple colocalized genes (<b>exact</b> gene names, case-sensitive) and click the`);
 		fmt.Fprintln(w, `"Retrieve" button to extract a subgraph around the genes and plot it.`);
 		fmt.Fprintln(w, `"Neighbors" controls how many neighboring genes to explore. Note that`);
 		fmt.Fprintln(w, `inputting genes on different chromosomes or distant apart may lead to`);
@@ -159,7 +162,7 @@ func gfa_print_page(w http.ResponseWriter, r *http.Request, graph_str string) {
 		return;
 	}
 	fmt.Fprintln(w, `<p>Plot setting: <input type="checkbox" id="merge_walk" checked/>merge identical paths`);
-	fmt.Fprintln(w, `<input type="checkbox" id="uniq_walk" checked/>one path per genome &nbsp;`);
+	fmt.Fprintln(w, `<input type="checkbox" id="uniq_walk" checked/>filter fragmented contigs &nbsp;`);
 	fmt.Fprintln(w, `<input type="button" value="Replot" onClick="plot();"></p>`);
 	fmt.Fprintln(w, `<p><canvas id="canvas_walk" width="800" height="100"></canvas></p>`);
 	fmt.Fprintln(w, `<p><canvas id="canvas_graph" width="800" height="100"></canvas></p>`);
