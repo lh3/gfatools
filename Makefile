@@ -45,6 +45,6 @@ gfa-ed.o: gfa-priv.h gfa.h kalloc.h ksort.h khashl.h kdq.h kvec-km.h
 gfa-io.o: kstring.h gfa-priv.h gfa.h kseq.h
 gfa-sql.o: kstring.h gfa-priv.h gfa.h
 gfa-sub.o: gfa-priv.h gfa.h kalloc.h kavl.h khashl.h ksort.h kvec.h
-gfa-util.o: gfa-priv.h gfa.h kvec.h ksort.h kdq.h kalloc.h
+gfa-util.o: gfa-priv.h gfa.h kvec.h ksort.h kdq.h kalloc.h khashl.h
 kalloc.o: kalloc.h
 main.o: ketopt.h gfa-priv.h gfa.h kalloc.h kseq.h

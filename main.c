@@ -12,7 +12,7 @@
 #include "kseq.h"
 KSEQ_INIT(gzFile, gzread)
 
-#define GFATOOLS_VERSION "0.5-r282-dirty"
+#define GFATOOLS_VERSION "0.5-r287-dirty"
 
 static inline int64_t gfa_str2num(const char *str, char **q)
 {
@@ -112,9 +112,10 @@ int main_view(int argc, char *argv[])
 		f = gfa_subview2(g, n_seg, seg, 1);
 		free(seg);
 	}
+	if (f == 0) f = g;
 	if (flip_walk) gfa_walk_flip(f);
 	gfa_print(f, stdout, out_flag);
-	gfa_subview_destroy(f);
+	if (f != g) gfa_subview_destroy(f);
 end_view:
 	gfa_destroy(g);
 	return 0;

@@ -3,6 +3,7 @@
 #include <stdlib.h>
 #include <ctype.h>
 #include <string.h>
+#include <assert.h>
 #include "kstring.h"
 #include "gfa-priv.h"
 
@@ -266,7 +267,8 @@ int gfa_parse_L(gfa_t *g, char *s)
 int gfa_parse_W(gfa_t *g, char *s)
 {
 	char *p, *q, *ctg = 0, *sample = 0;
-	int32_t i;
+	int32_t i, is_ok = 0;
+	char *rest;
 	gfa_walk_t t;
 	GFA_BZERO(&t, 1);
 	for (p = q = s + 2, i = 0;; ++p) {
@@ -304,14 +306,23 @@ int gfa_parse_W(gfa_t *g, char *s)
 						*pp = a, qq = pp;
 					}
 				}
+				is_ok = 1, rest = c? p + 1 : 0;
+				break;
 			}
 			q = p + 1, ++i;
 			if (c == 0) break;
 		}
 	}
-	if (i >= 5) {
+	if (is_ok) {
+		int l_aux, m_aux = 0;
+		uint8_t *aux = 0;
+		l_aux = gfa_aux_parse(rest, &aux, &m_aux); // parse optional tags
 		t.sample = gfa_sample_add(g, sample);
 		t.snid = gfa_sseq_add(g, ctg);
+		if (l_aux > 0)
+			t.aux.m_aux = m_aux, t.aux.l_aux = l_aux, t.aux.aux = aux;
+		else if (aux)
+			free(aux);
 		GFA_GROW(gfa_walk_t, g->walk, g->n_walk, g->m_walk);
 		g->walk[g->n_walk++] = t;
 	} else return -1;
@@ -525,6 +536,13 @@ static void gfa_write_W(kstring_t *out, const gfa_t *g, const gfa_walk_t *w, int
 	else gfa_sprintf_lite(out, "*\t*\t");
 	for (j = 0; j < w->n_v; ++j)
 		gfa_sprintf_lite(out, "%c%s", "><"[w->v[j]&1], g->seg[w->v[j]>>1].name);
+	if (w->aux.l_aux > 0) {
+		char *t = 0;
+		int max = 0;
+		gfa_aux_format(w->aux.l_aux, w->aux.aux, &t, &max);
+		gfa_sprintf_lite(out, "%s", t);
+		free(t);
+	}
 	gfa_sprintf_lite(out, "\n");
 }
 

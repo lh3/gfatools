@@ -151,11 +151,11 @@ func gfa_print_page(w http.ResponseWriter, r *http.Request, graph_str string) {
 	fmt.Fprintln(w, `<hr/>`);
 	if graph_str == "" {
 		fmt.Fprintln(w, `<h3>Instructions</h3>`);
-		fmt.Fprintln(w, `<p>Select a graph, provide one or multiple colocalized genes (<b>exact</b> gene names, case-sensitive) and click the`);
+		fmt.Fprintln(w, `<p>Select a graph, provide one or multiple colocalized genes (<b>exact</b> gene names, <b>case-sensitive</b>) and click the`);
 		fmt.Fprintln(w, `"Retrieve" button to extract a subgraph around the genes and plot it.`);
 		fmt.Fprintln(w, `"Neighbors" controls how many neighboring genes to explore. Note that`);
 		fmt.Fprintln(w, `inputting genes on different chromosomes or distant apart may lead to`);
-		fmt.Fprintln(w, `undesired plots. If you don't see any haplotypes, unclick "one path per genome".</p>`);
+		fmt.Fprintln(w, `undesired plots. If you don't see any haplotypes, unclick "filter fragmented contigs".</p>`);
 		fmt.Fprintln(w, `<p>Once you see the graph, you may click the "Replot" button to randomize`);
 		fmt.Fprintln(w, `node colors. Replotting does not incur server load and is the preferred way`);
 		fmt.Fprintln(w, `to adjust plotting.</p>`);
