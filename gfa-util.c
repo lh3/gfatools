@@ -341,11 +341,35 @@ gfa_t *gfa_subview2(gfa_t *g, int32_t n_seg, const int32_t *seg, int32_t sub_wal
 			p->sample = w->sample;
 			p->snid = w->snid;
 			p->hap = w->hap;
+			p->aux.l_aux = p->aux.m_aux = 0, p->aux.aux = 0;
 			GFA_MALLOC(p->v, n_v);
 			for (j = 0; j < w->n_v; ++j) {
 				k = gfa_map64_get(h, w->v[j]>>1);
 				if (k != kh_end(h))
 					p->v[p->n_v++] = (uint32_t)kh_val(h, k)<<1 | (w->v[j]&1);
+			}
+			if (w->aux.l_aux > 0) {
+				uint8_t *lf;
+				p->aux.l_aux = p->aux.m_aux = 0, p->aux.aux = 0; // FIXME: make this more general: copy and replace lf:B
+				lf = gfa_aux_get(w->aux.l_aux, w->aux.aux, "lf");
+				if (lf && lf[0] == 'B' && lf[1] == 'i') {
+					int32_t n, t;
+					uint8_t *q, *r = lf + 6;
+					memcpy(&n, &lf[2], 4);
+					assert(n == w->n_v);
+					p->aux.l_aux = p->aux.m_aux = 2 + 1 + 1 + 4 + 4 * p->n_v;
+					GFA_MALLOC(p->aux.aux, p->aux.l_aux);
+					q = p->aux.aux;
+					*q++ = 'l', *q++ = 'f', *q++ = 'B', *q++ = 'i';
+					memcpy(q, &p->n_v, 4);
+					q += 4;
+					for (j = 0, t = 0; j < w->n_v; ++j) {
+						if (gfa_map64_get(h, w->v[j]>>1) != kh_end(h)) {
+							memcpy(q, r + j * 4, 4);
+							q += 4;
+						}
+					}
+				}
 			}
 		}
 	}
@@ -366,8 +390,10 @@ gfa_t *gfa_subview(gfa_t *g, int32_t n_seg, const int32_t *seg)
 void gfa_subview_destroy(gfa_t *f)
 {
 	int32_t i;
-	for (i = 0; i < f->n_walk; ++i)
+	for (i = 0; i < f->n_walk; ++i) {
 		free(f->walk[i].v);
+		free(f->walk[i].aux.aux);
+	}
 	free(f->walk); free(f->idx); free(f->arc); free(f->seg); free(f);
 }
 
@@ -442,6 +468,7 @@ void gfa_walk_flip(gfa_t *g)
 				strand[w->v[j]>>1] = w->v[j]&1? -1 : 1;
 	}
 	for (i = 0; i < g->n_walk; ++i) {
+		uint8_t *lf;
 		gfa_walk_t *w = &g->walk[i];
 		int32_t n[2];
 		n[0] = n[1] = 0;
@@ -459,6 +486,19 @@ void gfa_walk_flip(gfa_t *g)
 			w->v[w->n_v - 1 - j] = t;
 		}
 		if (w->n_v&1) w->v[w->n_v>>1] ^= 1;
+		lf = gfa_aux_get(w->aux.l_aux, w->aux.aux, "lf");
+		if (lf && lf[0] == 'B' && lf[1] == 'i') {  // FIXME: make this more general, not lf specific
+			uint8_t *p = lf + 6;
+			int32_t n;
+			memcpy(&n, &lf[2], 4);
+			assert(w->n_v == n);
+			for (j = 0; j < w->n_v>>1; ++j) {
+				uint32_t t;
+				memcpy(&t, &p[j * 4], 4);
+				memcpy(&p[j * 4], &p[(w->n_v - 1 - j) * 4], 4);
+				memcpy(&p[(w->n_v - 1 - j) * 4], &t, 4);
+			}
+		}
 	}
 	free(strand);
 }

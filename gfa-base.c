@@ -55,7 +55,10 @@ void gfa_destroy(gfa_t *g)
 				free((char*)kh_key(h, k));
 		h_s2i_destroy((h_s2i_t*)g->h_samples);
 	}
-	for (i = 0; i < g->n_walk; ++i) free(g->walk[i].v);
+	for (i = 0; i < g->n_walk; ++i) {
+		free(g->walk[i].v);
+		free(g->walk[i].aux.aux);
+	}
 	if (g->link_aux)
 		for (k = 0; k < g->n_arc; ++k)
 			free(g->link_aux[k].aux);
