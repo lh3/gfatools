@@ -496,14 +496,6 @@ void gfa_finalize(gfa_t *g)
  * Tag manipulation *
  ********************/
 
-static inline int gfa_aux_type2size(int x)
-{
-	if (x == 'C' || x == 'c' || x == 'A') return 1;
-	else if (x == 'S' || x == 's') return 2;
-	else if (x == 'I' || x == 'i' || x == 'f') return 4;
-	else return 0;
-}
-
 #define __skip_tag(s) do { \
 		int type = *(s); \
 		++(s); \
@@ -523,6 +515,16 @@ uint8_t *gfa_aux_get(int l_data, const uint8_t *data, const char tag[2])
 		__skip_tag(s);
 	}
 	return 0;
+}
+
+uint8_t *gfa_aux_next(int32_t *l_rest, uint8_t **rest)
+{
+	uint8_t *s = (*rest) + 2, *ret = *rest;
+	if (*l_rest == 0) return 0;
+	__skip_tag(s);
+	*l_rest -= s - *rest;
+	*rest = s;
+	return ret;
 }
 
 // s MUST BE returned by gfa_aux_get()

@@ -4,7 +4,7 @@
 #include <stdio.h>
 #include <stdint.h>
 
-#define GFA_VERSION "0.5-r288-dirty"
+#define GFA_VERSION "0.5-r289-dirty"
 
 #define GFA_O_OV_EXT   0x1
 #define GFA_O_NO_SEQ   0x2
@@ -145,6 +145,7 @@ void gfa_edseq_destroy(int32_t n_seg, gfa_edseq_t *es);
 int32_t gfa_name2id(const gfa_t *g, const char *name);
 uint8_t *gfa_aux_get(int l_data, const uint8_t *data, const char tag[2]);
 int gfa_aux_del(int l_data, uint8_t *data, uint8_t *s);
+uint8_t *gfa_aux_next(int32_t *l_rest, uint8_t **rest);
 
 #ifdef __cplusplus
 }

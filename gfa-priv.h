@@ -165,6 +165,14 @@ void gfa_aux_update_cv(gfa_t *g, const char *tag, const double *cov_seg, const d
 
 void gfa_sql_write(FILE *fp, const gfa_t *g, int write_seq);
 
+static inline int gfa_aux_type2size(int x)
+{
+	if (x == 'C' || x == 'c' || x == 'A') return 1;
+	else if (x == 'S' || x == 's') return 2;
+	else if (x == 'I' || x == 'i' || x == 'f') return 4;
+	else return 0;
+}
+
 static inline int64_t gfa_find_arc(const gfa_t *g, uint32_t v, uint32_t w)
 {
 	uint32_t i, nv = gfa_arc_n(g, v), nw = 0, k = (uint32_t)-1;
