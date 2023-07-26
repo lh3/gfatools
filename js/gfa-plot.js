@@ -26,7 +26,7 @@ function gfa_canvas_hi_res(canvas, width, height)
 var gfa_conf = gfa_plot_conf();
 var gfa_obj = null;
 
-function gfa_plot_arrow(ctx, x, y, len, w, rev, text, fs, color_stroke, color_fill, lw)
+function gfa_plot_arrow(ctx, x, y, len, w, rev, text, fs, color_stroke, color_fill)
 {
 	ctx.font = fs? fs + "px monospace" : "9px monospace";
 	var reg = new Path2D();
@@ -51,7 +51,7 @@ function gfa_plot_arrow(ctx, x, y, len, w, rev, text, fs, color_stroke, color_fi
 		ctx.fill(reg);
 	}
 	if (color_stroke) {
-		ctx.strokeStyle = color_stroke;
+		ctx.strokeStyle = ctx.fillStyle = color_stroke;
 		ctx.stroke(reg);
 	}
 	if (text != null) {
@@ -205,8 +205,7 @@ function gfa_plot_graph(canvas, conf, g)
 		if (conf.label == "name") label = s.name;
 		else if (conf.label == "length") label = s.len;
 		var color_stroke = s.rank >= 0 && r2c[s.rank] != null? r2c[s.rank] : null;
-		var lw = s.rank == 0? 1.5 : 1;
-		gfa_plot_arrow(ctx, pos[i].cx_st, pos[i].cy, pos[i].len, conf.h_arrow, sub.v[i].v&1, label, conf.font_size, color_stroke, s.color, lw);
+		gfa_plot_arrow(ctx, pos[i].cx_st, pos[i].cy, pos[i].len, conf.h_arrow, sub.v[i].v&1, label, conf.font_size, color_stroke, s.color);
 	}
 }
 
@@ -238,7 +237,7 @@ function gfa_walk_gen(g, merge, uniq) // filter or combine walks
 	}
 	for (var i = 0; i < tmp.length; ++i) { // compute hash
 		var w = tmp[i];
-		var ww = { label:w.asm, hash:0, n:1, v:w.v };
+		var ww = { label:w.asm, hash:0, n:1, v:w.v, lof:w.lof };
 		var hash = 0;
 		for (var j = 0; j < w.v.length; ++j)
 			hash = (hash + gfa_int_hash(w.v[j])) & 0xffffffff;
@@ -300,7 +299,10 @@ function gfa_plot_walk(canvas, conf, g)
 			var s = g.seg[sid];
 			if (conf.label == "name") label = s.name;
 			else if (conf.label == "length") label = s.len;
-			gfa_plot_arrow(ctx, cx, cy, seg_aux[sid].clen, conf.h_arrow, w.v[j]&1, label, conf.font_size, null, s.color, 1);
+			if (w.lof == null || w.lof.length == 0 || w.lof[j] == 0)
+				gfa_plot_arrow(ctx, cx, cy, seg_aux[sid].clen, conf.h_arrow, w.v[j]&1, label, conf.font_size, null, s.color);
+			else
+				gfa_plot_arrow(ctx, cx, cy, seg_aux[sid].clen, conf.h_arrow, w.v[j]&1, label, conf.font_size, s.color, null);
 			cx_pre = cx + seg_aux[sid].clen;
 			cx += seg_aux[sid].clen + conf.xskip;
 		}

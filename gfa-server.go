@@ -107,6 +107,7 @@ func getopt(args []string, ostr string) (int, string) {
  ************/
 
 var gfa_server_port string = "8000";
+var gfa_server_ver string = "r290";
 var gfa_endpoint string = "/view";
 var gfa_graphs map[string]*C.gfa_t;
 var gfa_graph_list []string;
@@ -153,7 +154,9 @@ func gfa_print_page(w http.ResponseWriter, r *http.Request, graph_str string) {
 		fmt.Fprintln(w, `<h3>Instructions</h3>`);
 		fmt.Fprintln(w, `<p>Select a graph, provide one or multiple colocalized genes (<b>exact</b> gene names, <b>case-sensitive</b>) and click the`);
 		fmt.Fprintln(w, `"Retrieve" button to extract a subgraph around the genes and plot it.`);
-		fmt.Fprintln(w, `"Neighbors" controls how many neighboring genes to explore. Note that`);
+		fmt.Fprintln(w, `"Neighbors" controls how many neighboring genes to explore. In the plot,`);
+		fmt.Fprintln(w, `each arrow corresponds to a gene. An empty arrow suggests frameshifts or`);
+		fmt.Fprintln(w, `in-frame stop codons, which may be biological or alignment errors. Note that`);
 		fmt.Fprintln(w, `inputting genes on different chromosomes or distant apart may lead to`);
 		fmt.Fprintln(w, `undesired plots. If you don't see any haplotypes, unclick "filter fragmented contigs".</p>`);
 		fmt.Fprintln(w, `<p>Once you see the graph, you may click the "Replot" button to randomize`);
@@ -236,7 +239,7 @@ func main() {
 
 	// parse command line options
 	for {
-		opt, arg := getopt(os.Args, "p:e:j:d:");
+		opt, arg := getopt(os.Args, "p:e:j:d:v");
 		if opt == 'p' {
 			gfa_server_port = arg;
 		} else if opt == 'e' {
@@ -245,6 +248,9 @@ func main() {
 			gfa_js_dir = arg;
 		} else if opt == 'd' {
 			gfa_html_dir = arg;
+		} else if opt == 'v' {
+			fmt.Println(gfa_server_ver);
+			os.Exit(0);
 		} else if opt < 0 {
 			break;
 		}
@@ -256,6 +262,7 @@ func main() {
 		fmt.Fprintf(os.Stderr, "  -j DIR    directory to gfa javascript files [%s]\n", gfa_js_dir);
 		fmt.Fprintf(os.Stderr, "  -d DIR    directory to HTML pages to be served at \"/\" []\n");
 		fmt.Fprintf(os.Stderr, "  -e STR    endpoint [%s]\n", gfa_endpoint);
+		fmt.Fprintf(os.Stderr, "  -v        print version number\n");
 		os.Exit(1);
 	}
 
