@@ -36,10 +36,14 @@ function gfa_index(g)
 	}
 }
 
-function gfa_assign_color(g)
+function gfa_assign_color(g, random_color) // from: https://stackoverflow.com/questions/10014271/generate-random-color-distinguishable-to-humans
 {
-	for (var i = 0; i < g.seg.length; ++i)
-		g.seg[i].color = '#' + Math.floor(Math.random()*16777215).toString(16);
+	for (var i = 0; i < g.seg.length; ++i) {
+		if (random_color)
+			g.seg[i].color = '#' + Math.floor(Math.random()*16777215).toString(16);
+		else
+			g.seg[i].color = 'hsl(' + (i * 137.508 + 0) + ',65%,50%)';
+	}
 }
 
 function gfa_parse(str)

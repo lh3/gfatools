@@ -107,7 +107,7 @@ func getopt(args []string, ostr string) (int, string) {
  ************/
 
 var gfa_server_port string = "8000";
-var gfa_server_ver string = "r290";
+var gfa_server_ver string = "r291";
 var gfa_endpoint string = "/view";
 var gfa_graphs map[string]*C.gfa_t;
 var gfa_graph_list []string;
@@ -164,8 +164,9 @@ func gfa_print_page(w http.ResponseWriter, r *http.Request, graph_str string) {
 		fmt.Fprintln(w, `to adjust plotting.</p>`);
 		return;
 	}
-	fmt.Fprintln(w, `<p>Plot setting: <input type="checkbox" id="merge_walk" checked/>merge identical paths`);
-	fmt.Fprintln(w, `<input type="checkbox" id="uniq_walk" checked/>filter fragmented contigs &nbsp;`);
+	fmt.Fprintln(w, `<p>Plot setting: <input type="checkbox" id="merge_walk" checked/>merge identical paths &#xFF5C;`);
+	fmt.Fprintln(w, `<input type="checkbox" id="uniq_walk" checked/>filter fragmented contigs &#xFF5C;`);
+	fmt.Fprintln(w, `<input type="checkbox" id="rand_color"/>random color &#xFF5C;&nbsp;`);
 	fmt.Fprintln(w, `<input type="button" value="Replot" onClick="plot();"></p>`);
 	fmt.Fprintln(w, `<p><canvas id="canvas_walk" width="800" height="100"></canvas></p>`);
 	fmt.Fprintln(w, `<p><canvas id="canvas_graph" width="800" height="100"></canvas></p>`);
@@ -179,6 +180,7 @@ func gfa_print_page(w http.ResponseWriter, r *http.Request, graph_str string) {
 	fmt.Fprintln(w, `  gfa_conf.uniq_walk = document.getElementById('uniq_walk').checked;`);
 	fmt.Fprintln(w, `  var gfa_text = document.getElementById("gfa-text").value;`);
 	fmt.Fprintln(w, `  var gfa_graph = gfa_parse(gfa_text);`);
+	fmt.Fprintln(w, `  gfa_assign_color(gfa_graph, document.getElementById('rand_color').checked);`);
 	fmt.Fprintln(w, `  gfa_plot_graph(document.getElementById("canvas_graph"), gfa_conf, gfa_graph);`);
 	fmt.Fprintln(w, `  gfa_plot_walk(document.getElementById("canvas_walk"), gfa_conf, gfa_graph);`);
 	fmt.Fprintln(w, `}`);
