@@ -82,7 +82,7 @@ uint32_t gfa_fix_symm_add(gfa_t *g);
 void gfa_fix_symm_del(gfa_t *g); // delete multiple edges and restore skew-symmetry
 void gfa_arc_rm(gfa_t *g);
 void gfa_walk_rm(gfa_t *g);
-void gfa_walk_flip(gfa_t *g);
+void gfa_walk_flip(gfa_t *g, const char *flip_name);
 void gfa_cleanup(gfa_t *g); // permanently delete arcs marked as deleted, sort and then index
 void gfa_finalize(gfa_t *g);
 int32_t gfa_check_multi(const gfa_t *g);

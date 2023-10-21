@@ -12,7 +12,7 @@
 #include "kseq.h"
 KSEQ_INIT(gzFile, gzread)
 
-#define GFATOOLS_VERSION "0.5-r287-dirty"
+#define GFATOOLS_VERSION "0.5-r292-dirty"
 
 static inline int64_t gfa_str2num(const char *str, char **q)
 {
@@ -30,10 +30,10 @@ int main_view(int argc, char *argv[])
 {
 	ketopt_t o = KETOPT_INIT;
 	int c, out_flag = 0, step = 0, is_del = 0, fix_multi = 0, flip_walk = 0;
-	char *list_arg = 0, *reg_arg = 0;
+	char *list_arg = 0, *reg_arg = 0, *flip_name = 0;
 	gfa_t *g, *f = 0;
 
-	while ((c = ketopt(&o, argc, argv, 1, "v:dr:l:SMR:w", 0)) >= 0) {
+	while ((c = ketopt(&o, argc, argv, 1, "v:dr:l:SMR:wb:", 0)) >= 0) {
 		if (c == 'v') gfa_verbose = atoi(o.arg);
 		else if (c == 'd') is_del = 1;
 		else if (c == 'r') step = atoi(o.arg);
@@ -42,6 +42,7 @@ int main_view(int argc, char *argv[])
 		else if (c == 'R') reg_arg = o.arg;
 		else if (c == 'M') fix_multi = 1;
 		else if (c == 'w') flip_walk = 1;
+		else if (c == 'b') flip_name = o.arg, flip_walk = 1;
 	}
 	if (o.ind == argc) {
 		fprintf(stderr, "Usage: gfatools view [options] <in.gfa>\n");
@@ -54,6 +55,7 @@ int main_view(int argc, char *argv[])
 		fprintf(stderr, "  -M            remove multiple edges\n");
 		fprintf(stderr, "  -S            don't print sequences\n");
 		fprintf(stderr, "  -w            flip walk\n");
+		fprintf(stderr, "  -b STR        flip a walk based on node STR []\n");
 		return 1;
 	}
 	if (list_arg && reg_arg) {
@@ -113,7 +115,7 @@ int main_view(int argc, char *argv[])
 		free(seg);
 	}
 	if (f == 0) f = g;
-	if (flip_walk) gfa_walk_flip(f);
+	if (flip_walk) gfa_walk_flip(f, flip_name);
 	gfa_print(f, stdout, out_flag);
 	if (f != g) gfa_subview_destroy(f);
 end_view:

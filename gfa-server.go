@@ -19,7 +19,7 @@ import (
 #include <string.h>
 #include "gfa-priv.h"
 
-char *gfa_extract(gfa_t *g, const char *str, int step)
+char *gfa_extract(gfa_t *g, const char *str, int step, const char *ori_gene)
 {
 	int i, n, *seg, n_seg, len;
 	char **list, *out;
@@ -34,7 +34,7 @@ char *gfa_extract(gfa_t *g, const char *str, int step)
 		free(seg0);
 	}
 	f = gfa_subview2(g, n_seg, seg, 1);
-	gfa_walk_flip(f);
+	gfa_walk_flip(f, ori_gene);
 	out = gfa_write(f, GFA_O_NO_SEQ, &len);
 	gfa_subview_destroy(f);
 	return out;
@@ -114,9 +114,10 @@ var gfa_graph_list []string;
 var gfa_graph_default *C.gfa_t;
 var gfa_js_dir string = "js/";
 var gfa_html_dir string = "";
+var gfa_max_out int = 200000;
 
 func gfa_print_page(w http.ResponseWriter, r *http.Request, graph_str string) {
-	graph, genes, step := "", "", "3";
+	graph, genes, step, ori := "", "", "3", "";
 	if len(r.Form["graph"]) > 0 {
 		graph = r.Form["graph"][0];
 	}
@@ -126,10 +127,14 @@ func gfa_print_page(w http.ResponseWriter, r *http.Request, graph_str string) {
 	if len(r.Form["step"]) > 0 {
 		step = r.Form["step"][0];
 	}
+	if len(r.Form["ori"]) > 0 {
+		ori = r.Form["ori"][0];
+	}
 	w.Header().Set("Content-Type", "text/html; charset=utf-8");
 	fmt.Fprintln(w, `<title>GFA view</title>`);
 	fmt.Fprintln(w, `<style type="text/css">`);
 	fmt.Fprintln(w, `  #canvas_graph,#canvas_walk { border: 1px solid #000; }`);
+	fmt.Fprintln(w, `  form, p { font-family: Helvetica, Arial; font-size: 0.9em; }`);
 	fmt.Fprintln(w, `  textarea { font-family: monospace; }`);
 	fmt.Fprintln(w, `</style>`);
 	fmt.Fprintln(w, `<script language="JavaScript" src="js/gfa.js"></script>`);
@@ -147,15 +152,17 @@ func gfa_print_page(w http.ResponseWriter, r *http.Request, graph_str string) {
 	fmt.Fprintln(w, `  </select>&nbsp;`);
 	fmt.Fprintln(w, `  genes: <input name="gene" size="30" value="` + genes + `"/>&nbsp;`);
 	fmt.Fprintln(w, `  neighbors: <input name="step" size="5" value="` + step + `"/>&nbsp;`);
+	fmt.Fprintln(w, `  strand: <input name="ori" size="10" value="` + ori + `"/>&nbsp;`);
 	fmt.Fprintln(w, `  <input type="submit" value="Retrieve"/>`);
 	fmt.Fprintln(w, `</form>`);
 	fmt.Fprintln(w, `<hr/>`);
 	if graph_str == "" {
-		fmt.Fprintln(w, `<h3>Instructions</h3>`);
-		fmt.Fprintln(w, `<p>Select a graph, provide one or multiple colocalized genes (<b>exact</b> gene names, <b>case-sensitive</b>) and click the`);
+		fmt.Fprintln(w, `<h2>Instructions</h2>`);
+		fmt.Fprintln(w, `<p>Select a graph, provide one or multiple colocalized genes (<b>EXACT</b> gene names, <b>case-sensitive</b>) and click the`);
 		fmt.Fprintln(w, `"Retrieve" button to extract a subgraph around the genes and plot it.`);
-		fmt.Fprintln(w, `"Neighbors" controls how many neighboring genes to explore. In the plot,`);
-		fmt.Fprintln(w, `each arrow corresponds to a gene. An empty arrow suggests frameshifts or`);
+		fmt.Fprintln(w, `"Neighbors" controls how many neighboring genes to explore. "Strand"`);
+		fmt.Fprintln(w, `orients haplotypes in the given gene strand.</p>`);
+		fmt.Fprintln(w, `<p>In the plot, each arrow corresponds to a gene. An empty arrow suggests frameshifts or`);
 		fmt.Fprintln(w, `in-frame stop codons, which may be biological or alignment errors. Note that`);
 		fmt.Fprintln(w, `inputting genes on different chromosomes or distant apart may lead to`);
 		fmt.Fprintln(w, `undesired plots. If you don't see any haplotypes, unclick "filter fragmented contigs".</p>`);
@@ -216,12 +223,18 @@ func gfa_server_query(w http.ResponseWriter, r *http.Request) {
 		step = i;
 	}
 	if len(r.Form["gene"]) > 0 {
+		ori := "\t";
+		if len(r.Form["ori"]) > 0 {
+			ori = r.Form["ori"][0];
+		}
 		cstr := C.CString(r.Form["gene"][0]);
-		out := C.gfa_extract(g, cstr, C.int(step));
+		cori := C.CString(ori);
+		out := C.gfa_extract(g, cstr, C.int(step), cori);
+		C.free(unsafe.Pointer(cori));
 		C.free(unsafe.Pointer(cstr));
 		ret := C.GoString(out);
 		C.free(unsafe.Pointer(out));
-		if len(ret) > 100000 {
+		if len(ret) > gfa_max_out {
 			http.Error(w, "400 Bad Request: subgraph is over 100,000 bytes in size", 400);
 			return;
 		}
@@ -241,7 +254,7 @@ func main() {
 
 	// parse command line options
 	for {
-		opt, arg := getopt(os.Args, "p:e:j:d:v");
+		opt, arg := getopt(os.Args, "p:e:j:d:vm:");
 		if opt == 'p' {
 			gfa_server_port = arg;
 		} else if opt == 'e' {
@@ -253,6 +266,8 @@ func main() {
 		} else if opt == 'v' {
 			fmt.Println(gfa_server_ver);
 			os.Exit(0);
+		} else if opt == 'm' {
+			gfa_max_out, _ = strconv.Atoi(arg);
 		} else if opt < 0 {
 			break;
 		}
@@ -264,6 +279,7 @@ func main() {
 		fmt.Fprintf(os.Stderr, "  -j DIR    directory to gfa javascript files [%s]\n", gfa_js_dir);
 		fmt.Fprintf(os.Stderr, "  -d DIR    directory to HTML pages to be served at \"/\" []\n");
 		fmt.Fprintf(os.Stderr, "  -e STR    endpoint [%s]\n", gfa_endpoint);
+		fmt.Fprintf(os.Stderr, "  -m INT    max GFA output size [%d]\n", gfa_max_out);
 		fmt.Fprintf(os.Stderr, "  -v        print version number\n");
 		os.Exit(1);
 	}

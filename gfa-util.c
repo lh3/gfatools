@@ -463,30 +463,51 @@ int32_t *gfa_list2seg(const gfa_t *g, int32_t n_seg, char *const* seg, int32_t *
 	return ret;
 }
 
-void gfa_walk_flip(gfa_t *g)
+void gfa_walk_flip(gfa_t *g, const char *flip_name)
 {
-	int32_t i, j;
+	int32_t i, j, flip_sid = -1;
 	int8_t *strand;
 	if (g->n_walk == 0) return;
+	if (flip_name) { // NB: g may be a view. In this case, we can't use gfa_name2id()
+		for (i = 0; i < g->n_seg; ++i)
+			if (strcmp(flip_name, g->seg[i].name) == 0)
+				flip_sid = i;
+	}
 	GFA_CALLOC(strand, g->n_seg);
-	for (i = 0; i < g->n_walk; ++i) {
+	for (i = 0; i < g->n_walk; ++i) { // prefer the strand on the first occurrence
 		gfa_walk_t *w = &g->walk[i];
 		for (j = 0; j < w->n_v; ++j)
 			if (strand[w->v[j]>>1] == 0)
 				strand[w->v[j]>>1] = w->v[j]&1? -1 : 1;
 	}
+	if (flip_sid >= 0 && flip_sid < g->n_seg && strand[flip_sid] < 0)
+		for (i = 0; i < g->n_seg; ++i)
+			strand[i] *= -1;
 	for (i = 0; i < g->n_walk; ++i) {
 		gfa_walk_t *w = &g->walk[i];
-		int32_t n[2];
-		n[0] = n[1] = 0;
+		int32_t n[2], m[2], to_flip = -1;
+		n[0] = n[1] = m[0] = m[1] = 0;
 		for (j = 0; j < w->n_v; ++j) {
 			int8_t s;
 			assert(strand[w->v[j]>>1] != 0);
 			s = w->v[j]&1? -1 : 1;
-			if (s == strand[w->v[j]>>1]) ++n[0];
+			if (s == strand[w->v[j]>>1]) ++n[0]; // count how many consistent/inconsistent with the preferred strand
 			else ++n[1];
+			if (flip_sid >= 0 && w->v[j]>>1 == flip_sid) { // count the strand of the target segment
+				if ((w->v[j]&1) == 0) ++m[0];
+				else ++m[1];
+			}
 		}
-		if (n[0] >= n[1]) continue;
+		// determine the orientation (i.e. whether to flip)
+		if (flip_sid >= 0) {
+			if (m[0] > m[1]) to_flip = 0;
+			else if (m[0] < m[1]) to_flip = 1;
+		}
+		if (to_flip < 0)
+			to_flip = (n[0] < n[1]);
+		//if (m[0] + m[1] > 0) fprintf(stderr, "%d\t%d\t%d\t%d\t%d\n", m[0], m[1], n[0], n[1], to_flip);
+		if (to_flip == 0) continue;
+		// flip walks
 		for (j = 0; j < w->n_v>>1; ++j) {
 			uint32_t t = w->v[j]^1;
 			w->v[j] = w->v[w->n_v - 1 - j]^1;
