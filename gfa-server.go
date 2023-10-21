@@ -134,7 +134,7 @@ func gfa_print_page(w http.ResponseWriter, r *http.Request, graph_str string) {
 	fmt.Fprintln(w, `<title>GFA view</title>`);
 	fmt.Fprintln(w, `<style type="text/css">`);
 	fmt.Fprintln(w, `  #canvas_graph,#canvas_walk { border: 1px solid #000; }`);
-	fmt.Fprintln(w, `  form, p { font-family: Helvetica, Arial; font-size: 0.9em; }`);
+	fmt.Fprintln(w, `  body { font-family: "helvetica neue", helvetica, arial, sans-serif; font-size: 0.9em; }`);
 	fmt.Fprintln(w, `  textarea { font-family: monospace; }`);
 	fmt.Fprintln(w, `</style>`);
 	fmt.Fprintln(w, `<script language="JavaScript" src="js/gfa.js"></script>`);
