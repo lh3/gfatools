@@ -107,7 +107,7 @@ func getopt(args []string, ostr string) (int, string) {
  ************/
 
 var gfa_server_port string = "8000";
-var gfa_server_ver string = "r291";
+var gfa_server_ver string = "r294";
 var gfa_endpoint string = "/view";
 var gfa_graphs map[string]*C.gfa_t;
 var gfa_graph_list []string;
