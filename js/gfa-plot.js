@@ -214,8 +214,8 @@ function gfa_plot_graph(canvas, conf, g)
  */
 function gfa_int_hash(x)
 {
-	x = ((x >> 16) ^ x) * 0x45d9f3b & 0xffffffff;
-	x = ((x >> 16) ^ x) * 0x45d9f3b & 0xffffffff;
+	x = Math.imul((x >> 16) ^ x, 0x45d9f3b) & 0xffffffff;
+	x = Math.imul((x >> 16) ^ x, 0x45d9f3b) & 0xffffffff;
 	return (x >> 16) ^ x;
 }
 
