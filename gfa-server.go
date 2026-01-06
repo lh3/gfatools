@@ -2,12 +2,15 @@ package main
 
 import (
 	"os"
+	"os/signal"
 	"fmt"
 	"unsafe"
 	"strconv"
+	"net"
 	"net/http"
 	"strings"
 	"regexp"
+	"syscall"
 	"time"
 )
 
@@ -107,6 +110,7 @@ func getopt(args []string, ostr string) (int, string) {
  ************/
 
 var gfa_server_port string = "8000";
+var gfa_server_socket string = "";
 var gfa_server_ver string = "r294";
 var gfa_endpoint string = "/view";
 var gfa_graphs map[string]*C.gfa_t;
@@ -254,9 +258,11 @@ func main() {
 
 	// parse command line options
 	for {
-		opt, arg := getopt(os.Args, "p:e:j:d:vm:");
+		opt, arg := getopt(os.Args, "p:s:e:j:d:vm:");
 		if opt == 'p' {
 			gfa_server_port = arg;
+		} else if opt == 's' {
+			gfa_server_socket = arg;
 		} else if opt == 'e' {
 			gfa_endpoint = arg;
 		} else if opt == 'j' {
@@ -276,6 +282,7 @@ func main() {
 		fmt.Fprintln(os.Stderr, "Usage: gfa-server [options] <graph1.gfa> [graph2.gfa [...]]");
 		fmt.Fprintln(os.Stderr, "Options:");
 		fmt.Fprintf(os.Stderr, "  -p INT    port number [%s or from $PORT env]\n", gfa_server_port);
+		fmt.Fprintf(os.Stderr, "  -s STR    path to Unix domain socket to use instead of a port\n");
 		fmt.Fprintf(os.Stderr, "  -j DIR    directory to gfa javascript files [%s]\n", gfa_js_dir);
 		fmt.Fprintf(os.Stderr, "  -d DIR    directory to HTML pages to be served at \"/\" []\n");
 		fmt.Fprintf(os.Stderr, "  -e STR    endpoint [%s]\n", gfa_endpoint);
@@ -311,5 +318,25 @@ func main() {
 		http.Handle("/", http.FileServer(http.Dir(gfa_html_dir)));
 	}
 	fmt.Fprintf(os.Stderr, "[%d] server started at %s\n", time.Now().UnixNano(), gfa_endpoint);
-	http.ListenAndServe(fmt.Sprintf(":%s", gfa_server_port), nil);
+
+	if gfa_server_socket != "" {
+		socket, err := net.Listen("unix", gfa_server_socket);
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "[%d] could not create socket '%s'\n", time.Now().UnixNano(), gfa_server_socket);
+			os.Exit(1);
+		}
+
+		c := make(chan os.Signal, 1);
+		signal.Notify(c, os.Interrupt, syscall.SIGTERM);
+		go func() {
+			<-c;
+			os.Remove(gfa_server_socket);
+			os.Exit(1);
+		}()
+
+		http.Serve(socket, nil);
+		
+	} else {
+		http.ListenAndServe(fmt.Sprintf(":%s", gfa_server_port), nil);
+	}
 }
